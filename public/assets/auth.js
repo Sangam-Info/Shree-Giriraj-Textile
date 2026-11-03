@@ -103,7 +103,8 @@
     });
   }
 
-  function roleFromEmail(email) { return /sup/i.test(email) ? "supervisor" : "admin"; }
+  // role chosen in the login dropdown (Admin / Supervisor)
+  function selectedRole() { var s = $("#loginRole"); return s && s.value === "supervisor" ? "supervisor" : "admin"; }
 
   /* ---------- main sign-in ---------- */
   function doLogin() {
@@ -116,6 +117,8 @@
     rememberEmail(email, remember);
 
     if (LIVE) {
+      // Sign in; the account's role in Firestore is authoritative (and enforced by
+      // the security rules), so the dropdown is the user's declared intent only.
       setBusy(true, "Signing in…");
       var persist = remember ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION;
       auth.setPersistence(persist)
@@ -123,8 +126,8 @@
         .then(function (cred) { return enterFor(cred.user); })
         .catch(function (err) { setBusy(false); showErr(mapErr(err)); });
     } else {
-      // DEMO: no backend — infer role from the email so the preview is usable.
-      var role = roleFromEmail(email);
+      // DEMO: no backend — the selected role opens that role's dashboard.
+      var role = selectedRole();
       window.GJAuth.user = { email: email, role: role, name: "" };
       window.GJ.enter(role);
       injectLogout();
@@ -186,6 +189,13 @@
     var fp = $("#forgotPw"); if (fp) fp.addEventListener("click", doForgot);
     $("#authEmail") && $("#authEmail").addEventListener("input", clearErr);
     $("#authPass")  && $("#authPass").addEventListener("input", clearErr);
+    // role dropdown → pre-fill that role's email when configured in __APP_USERS
+    var sel = $("#loginRole");
+    if (sel) sel.addEventListener("change", function () {
+      clearErr();
+      var em = USERS[selectedRole()], f = $("#authEmail");
+      if (em && f) f.value = em;
+    });
 
     if (LIVE) {
       setBusy(true, "Checking…");
