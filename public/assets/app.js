@@ -1662,7 +1662,16 @@
 
   // Production entry point used by auth.js once a user is authenticated and their role resolved.
   window.GJ = window.GJ || {};
-  window.GJ.enter = function (role) { STATE.role = (role === "supervisor" ? "supervisor" : "admin"); STATE.view = "dashboard"; buildShell(); startApp(); };
+  window.GJ.enter = function (role) {
+    STATE.role = (role === "supervisor" ? "supervisor" : "admin"); STATE.view = "dashboard";
+    try { var l = localStorage.getItem("gj_lang"); if (l === "en" || l === "gu") STATE.lang = l; } catch (e) {}
+    try {
+      var g = document.getElementById("langGu"), e2 = document.getElementById("langEn");
+      if (g && e2) { g.classList.toggle("on", STATE.lang !== "en"); e2.classList.toggle("on", STATE.lang === "en"); }
+      document.documentElement.lang = STATE.lang === "en" ? "en" : "gu";
+    } catch (e) {}
+    buildShell(); startApp();
+  };
   window.GJ.setRole = setRole;
   window.GJ.render = render;
   window.GJ.logout = function () { try { location.reload(); } catch (e) {} };

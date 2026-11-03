@@ -180,9 +180,52 @@
   window.GJAuth.attempt = function () { doLogin(); };
 
   /* ---------- init ---------- */
+  /* ---------- login-panel language switching (GU / EN) ---------- */
+  var LOGIN_I18N = {
+    en: {
+      title: "Jobwork Management System", tagline: 'Manage <span>·</span> Track <span>·</span> Grow',
+      welcome: 'Welcome <span>Back</span>', sub: "Sign in to continue to your account",
+      roleAdmin: "Admin — Full access", roleSup: "Supervisor — Gate & Packaging",
+      email: "Email", password: "Password", remember: "Remember Me", forgot: "Forgot Password?",
+      login: "Log In", secure: "Secure Access", foot: 'Shri Giriraj Textile <span>·</span> Jobwork Management System'
+    },
+    gu: {
+      title: "જોબવર્ક મેનેજમેન્ટ સિસ્ટમ", tagline: 'મેનેજ <span>·</span> ટ્રેક <span>·</span> ગ્રો',
+      welcome: 'ફરી <span>આવકાર</span>', sub: "તમારા ખાતામાં ચાલુ રાખવા સાઇન ઇન કરો",
+      roleAdmin: "એડમિન — સંપૂર્ણ એક્સેસ", roleSup: "સુપરવાઇઝર — ગેટ અને પેકેજિંગ",
+      email: "ઈમેલ", password: "પાસવર્ડ", remember: "મને યાદ રાખો", forgot: "પાસવર્ડ ભૂલી ગયા?",
+      login: "લોગિન", secure: "સુરક્ષિત એક્સેસ", foot: 'શ્રી ગિરિરાજ ટેક્ષટાઇલ <span>·</span> જોબવર્ક મેનેજમેન્ટ'
+    }
+  };
+  function applyLoginLang(lang) {
+    lang = lang === "gu" ? "gu" : "en";
+    var t = LOGIN_I18N[lang], el;
+    if ((el = $(".auth-title")))   el.innerHTML = t.title;
+    if ((el = $(".auth-tagline"))) el.innerHTML = t.tagline;
+    if ((el = $(".auth-welcome"))) el.innerHTML = t.welcome;
+    if ((el = $(".auth-sub")))     el.textContent = t.sub;
+    var ro = $("#loginRole"); if (ro && ro.options.length >= 2) { ro.options[0].text = t.roleAdmin; ro.options[1].text = t.roleSup; }
+    if ((el = $("#authEmail"))) el.placeholder = t.email;
+    if ((el = $("#authPass")))  el.placeholder = t.password;
+    if ((el = $(".rm-txt")))    el.textContent = t.remember;
+    if ((el = $("#forgotPw")))  el.textContent = t.forgot;
+    defaultBtn = t.login; var bs = $("#enterBtn span"); if (bs && !$("#enterBtn").disabled) bs.textContent = t.login;
+    if ((el = $(".sa-txt")))  el.textContent = t.secure;
+    if ((el = $("#authFoot"))) el.innerHTML = t.foot;
+    document.querySelectorAll("#authLang button").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-lang") === lang); });
+    try { localStorage.setItem("gj_lang", lang); } catch (e) {}
+    document.documentElement.lang = lang;
+  }
+
   function init() {
     wireToggle();
     restoreEmail();
+    // language toggle (persists choice; the app opens in the same language)
+    var storedLang = "en"; try { var s = localStorage.getItem("gj_lang"); if (s === "gu" || s === "en") storedLang = s; } catch (e) {}
+    applyLoginLang(storedLang);
+    document.querySelectorAll("#authLang button").forEach(function (b) {
+      b.addEventListener("click", function () { applyLoginLang(b.getAttribute("data-lang")); });
+    });
     var form = $("#loginForm");
     if (form) form.addEventListener("submit", function (e) { e.preventDefault(); doLogin(); });
     var btn = $("#enterBtn"); if (btn) btn.onclick = null;   // the form submit drives login

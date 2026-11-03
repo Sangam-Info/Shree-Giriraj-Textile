@@ -18,6 +18,10 @@
 
 <!-- ======================= LOGIN (clean split-screen) ======================= -->
 <section id="hero">
+  <div class="auth-lang" id="authLang" role="group" aria-label="Language">
+    <button type="button" data-lang="en" class="on">EN</button>
+    <button type="button" data-lang="gu">ગુ</button>
+  </div>
   <div class="auth">
 
     <!-- LEFT · branding -->
@@ -60,7 +64,7 @@
         </div>
 
         <div class="auth-row">
-          <label class="auth-remember"><input type="checkbox" id="rememberMe" checked><span class="box"></span>Remember Me</label>
+          <label class="auth-remember"><input type="checkbox" id="rememberMe" checked><span class="box"></span><span class="rm-txt">Remember Me</span></label>
           <a href="#" class="auth-forgot" id="forgotPw">Forgot Password?</a>
         </div>
 
@@ -71,8 +75,8 @@
           <span>Log In</span>
         </button>
 
-        <div class="auth-secure"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Secure Access</span></div>
-        <p class="auth-foot">Shri Giriraj Textile <span>·</span> Jobwork Management System</p>
+        <div class="auth-secure"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span class="sa-txt">Secure Access</span></span></div>
+        <p class="auth-foot" id="authFoot">Shri Giriraj Textile <span>·</span> Jobwork Management System</p>
       </form>
     </main>
 
