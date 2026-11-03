@@ -1,0 +1,49 @@
+rules_version = '2';
+
+// =====================================================================
+// Shri Giriraj Textile — Jobwork System · Firestore security rules
+// Two roles (read from users/{uid}.role):
+//   admin      — full access, including accounting & packaging
+//   supervisor — gate entry, niwar gate entry & packaging only (NO accounting)
+// =====================================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function userDoc()  { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function role()     { return userDoc().role; }
+    function active()   { return userDoc().active != false; }
+    function isAdmin()  { return signedIn() && active() && role() == 'admin'; }
+    function isStaff()  { return signedIn() && active() && (role() == 'admin' || role() == 'supervisor'); }
+
+    // --- identity & settings ---------------------------------------
+    match /users/{uid} {
+      allow read:  if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow write: if isAdmin();                 // only the owner manages accounts
+    }
+    match /meta/{doc} {
+      allow read:  if isStaff();
+      allow write: if isAdmin();
+    }
+
+    // --- gate entry + packaging (both roles) -----------------------
+    match /sheets/{id}       { allow read, write: if isStaff(); }   // job work sheet — source of truth
+    match /packing/{id}      { allow read, write: if isStaff(); }   // independent packing lists
+    match /niwarSheets/{id}  { allow read, write: if isStaff(); }   // niwar gate entry (weights only)
+
+    // --- directories (staff read, admin manage) --------------------
+    match /workers/{id}       { allow read: if isStaff(); allow write: if isAdmin(); }
+    match /niwarParties/{id}  { allow read: if isStaff(); allow write: if isAdmin(); }
+
+    // --- accounting (admin only — supervisor has none) -------------
+    match /bills/{id}                     { allow read, write: if isAdmin(); }
+    match /niwarParams/{id}               { allow read, write: if isAdmin(); }
+    match /loans/{wid}/{document=**}      { allow read, write: if isAdmin(); }
+    match /upad/{wid}/{document=**}       { allow read, write: if isAdmin(); }
+    match /niwarUpad/{pid}/{document=**}  { allow read, write: if isAdmin(); }
+    match /niwarLoans/{pid}/{document=**} { allow read, write: if isAdmin(); }
+
+    // --- default deny ----------------------------------------------
+    match /{document=**} { allow read, write: if false; }
+  }
+}
