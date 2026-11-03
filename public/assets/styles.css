@@ -750,7 +750,7 @@ table.data th .ti { width: 14px; height: 14px; vertical-align: -2px; }
 /* =====================================================================
    DIGITAL JOB WORK SHEET  (single-screen rebuild)
    ===================================================================== */
-#app .content.content, #view { max-width: 1200px; margin: 0 auto; }
+#app .content.content, #view { max-width: 100%; margin: 0 auto; }
 .content { padding-bottom: 60px; }
 
 /* header */
