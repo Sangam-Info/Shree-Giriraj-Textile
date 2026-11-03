@@ -6,17 +6,17 @@
 
 :root {
   /* Surfaces */
-  --bg:        #f4f1ea;
-  --bg-2:      #efe9df;
+  --bg:        #eef2f7;
+  --bg-2:      #e3e9f3;
   --surface:   #ffffff;
-  --surface-2: #faf8f3;
+  --surface-2: #f6f9fc;
 
   /* Ink / text */
-  --ink:       #23262f;
-  --ink-soft:  #474b55;
-  --muted:     #6b6e78;
-  --line:      #e6e0d4;
-  --line-2:    #efeade;
+  --ink:       #1b2a4a;
+  --ink-soft:  #44506b;
+  --muted:     #6b7691;
+  --line:      #e2e8f1;
+  --line-2:    #eef2f7;
 
   /* Brand: indigo + gold (textile) */
   --brand:     #2160ae;
@@ -43,9 +43,9 @@
   --r-xs: 6px;  --r-sm: 9px;  --r-md: 13px;  --r-lg: 18px;  --r-xl: 26px;
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 22px; --sp-6: 30px; --sp-7: 42px;
 
-  --shadow-sm: 0 1px 2px rgba(30,25,15,.06), 0 1px 1px rgba(30,25,15,.04);
-  --shadow-md: 0 6px 18px rgba(40,34,20,.08), 0 2px 6px rgba(40,34,20,.05);
-  --shadow-lg: 0 18px 44px rgba(28,24,14,.16), 0 6px 14px rgba(28,24,14,.08);
+  --shadow-sm: 0 1px 2px rgba(28,46,82,.06), 0 1px 1px rgba(28,46,82,.04);
+  --shadow-md: 0 6px 18px rgba(28,46,82,.08), 0 2px 6px rgba(28,46,82,.05);
+  --shadow-lg: 0 18px 44px rgba(28,46,82,.14), 0 6px 14px rgba(28,46,82,.08);
 
   --font: "Plus Jakarta Sans", "Noto Sans Gujarati", "Mukta Vaani", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   --guj:  "Noto Sans Gujarati", "Mukta Vaani", var(--font);
@@ -99,7 +99,7 @@ img, canvas { display: block; }
 .auth-left {
   position: relative; overflow: hidden;
   display: flex; align-items: center; justify-content: center; padding: 48px;
-  background: #eef3fb url("./bg.jpg") center top / cover no-repeat;
+  background: #eef3fb url("../img/bg.jpg") center top / cover no-repeat;
 }
 .auth-brand { position: relative; z-index: 2; text-align: center; max-width: 440px; width: 100%; margin-bottom: 20%; }
 .auth-logo { width: min(72%, 360px); height: auto; display: block; margin: 0 auto; }
@@ -288,10 +288,10 @@ img, canvas { display: block; }
 /* ======================= DEMO BANNER ================================ */
 .demo-strip {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  background: linear-gradient(90deg, var(--gold-050), #fff);
-  border: 1px solid #ecd49a; border-left: 4px solid var(--gold-soft);
+  background: linear-gradient(90deg, var(--brand-050), #fff);
+  border: 1px solid #d3e2f6; border-left: 4px solid var(--brand);
   border-radius: var(--r-md); padding: 10px 14px; margin-bottom: 20px;
-  font-size: 13px; color: #6d5212;
+  font-size: 13px; color: #33507e;
 }
 .demo-strip svg { width: 18px; height: 18px; color: var(--gold-600); flex: none; }
 .demo-strip b { color: #5a430c; }
