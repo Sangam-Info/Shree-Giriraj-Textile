@@ -1630,7 +1630,7 @@
   }
   var vortex = null;
   function startApp() { $("#hero").classList.add("hide"); $("#app").classList.add("show"); if (vortex) { setTimeout(function () { try { vortex.dispose(); } catch (e) {} vortex = null; }, 900); } render(); }
-  function initHero() { try { var small = Math.min(window.innerWidth, window.innerHeight) < 760; vortex = window.initVortex($("#hero-canvas"), $("#hero-canvas-wrap"), small ? { lineOptions: { count: 120, color: "#ffd79a", glow: 9 }, dotOptions: { count: 2600, color: "#fff2d6", glow: 10 }, cometOptions: { count: 6 } } : {}); } catch (e) { console.warn("hero", e); } }
+  function initHero() { if (typeof window.initVortex !== "function") return; try { var small = Math.min(window.innerWidth, window.innerHeight) < 760; vortex = window.initVortex($("#hero-canvas"), $("#hero-canvas-wrap"), small ? { lineOptions: { count: 120, color: "#ffd79a", glow: 9 }, dotOptions: { count: 2600, color: "#fff2d6", glow: 10 }, cometOptions: { count: 6 } } : {}); } catch (e) { console.warn("hero", e); } }
   function boot() {
     buildShell(); buildSwitchers(); initHero();
     $("#langGu") && ($("#langGu").onclick = function () { setLang("gu"); });
