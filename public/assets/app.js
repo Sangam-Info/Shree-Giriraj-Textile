@@ -409,8 +409,8 @@
   /* ---------------------------------------------------------------- SHARED UI */
   function demoStrip() {
     return '<div class="demo-strip">' + svg("info") + '<span>' +
-      L('<b>ડેમો / પ્રોટોટાઇપ</b> — ગેટની જોબ વર્ક શીટ આખી સિસ્ટમનો આધાર છે. શીટ ભરો → ખાતાવહી, બિલિંગ, લોન, વર્ષાંત આપમેળે અપડેટ થાય.',
-        '<b>Demo / Prototype</b> — the gate Job Work Sheet feeds the whole system. Fill a sheet → ledger, billing, loans & year-end update automatically.') + '</span></div>';
+      L('<b>ગેટ જોબ વર્ક શીટ</b> આખી સિસ્ટમનો આધાર છે — શીટ ભરો → ખાતાવહી, બિલિંગ, લોન અને વર્ષાંત આપમેળે અપડેટ થાય.',
+        '<b>The gate Job Work Sheet</b> is the single source of truth — fill a sheet → ledger, billing, loans & year-end update automatically.') + '</span></div>';
   }
   function stat(tint, ic, k, v, vs, d) {
     return '<div class="stat"><div class="ico ' + tint + '">' + svg(ic) + '</div><div class="k">' + k + '</div><div class="v num">' + v + (vs ? ' <small>' + vs + '</small>' : '') + '</div>' + (d ? '<div class="d">' + d + '</div>' : '') + '</div>';
@@ -831,7 +831,7 @@
     var w = worker(); var ye = yearEnd(w.id); var g = ye.ghati; var actualPct = (g.actualBP / 100).toFixed(2);
     var html = demoStrip();
     html += '<div class="page-head"><h2>' + L("વર્ષાંત સેટલમેન્ટ (દિવાળી)", "Year-End Settlement (Diwali)") + '</h2><div class="sub">' + w.name + ' — ' + L("લોન + ઘટ + કેરી ફોરવર્ડ એકસાથે.", "loan + ghati + carry-forward, together.") + '</div></div>';
-    html += '<div class="demo-strip" style="background:linear-gradient(90deg,var(--brand-050),#fff);border-color:#cdd3f0;border-left-color:var(--brand)">' + svg("info") + '<span>' + L("<b>ડેમોમાં</b> 3 મહિના = એક વર્ષ. ફુલ વર્ઝનમાં દિવાળીથી દિવાળી 12 મહિના.", "<b>In this demo</b> the 3 months stand in for a year. The full version spans 12 months Diwali to Diwali.") + '</span></div>';
+    html += '<div class="demo-strip" style="background:linear-gradient(90deg,var(--brand-050),#fff);border-color:#cdd3f0;border-left-color:var(--brand)">' + svg("info") + '<span>' + L("<b>નોંધ:</b> અહીં 3 મહિનાનો ડેટા બતાવ્યો છે. પૂરું વર્ષ દિવાળીથી દિવાળી 12 મહિના ચાલે.", "<b>Note:</b> 3 months of data are shown here. A full year runs 12 months, Diwali to Diwali.") + '</span></div>';
     html += '<div class="grid-2">';
     html += '<div class="card"><div class="card-head"><div class="ico tint-upad">' + svg("rupee") + '</div><div><h3>' + L("1. લોન સેટલમેન્ટ", "1. Loan settlement") + '</h3></div></div><div class="card-pad">' +
       stLine(L("વર્ષ દરમિયાન વસૂલ", "Recovered during year"), moneyP(recoveredThisYear(w.id)), "", "") +
@@ -1110,7 +1110,7 @@
     document.querySelectorAll("[data-opensheet]").forEach(function (b) { b.onclick = function () { openSheet(b.getAttribute("data-opensheet")); }; });
     document.querySelectorAll("[data-newsheet]").forEach(function (b) { b.onclick = function () { newSheet(); }; });
     document.querySelectorAll("[data-openworker]").forEach(function (b) { b.onclick = function () { STATE.worker = b.getAttribute("data-openworker"); syncSwitchers(); go("ledger"); }; });
-    document.querySelectorAll("[data-lock]").forEach(function (b) { b.onclick = function () { infoModal(b.getAttribute("data-lock"), L("આ ડેમોમાં જોબ વર્કર યાદી ફિક્સ છે. ફુલ વર્ઝનમાં ઉમેરી/બદલી શકાશે.", "The worker list is fixed in this demo; the full version lets you add/edit.")); }; });
+    document.querySelectorAll("[data-lock]").forEach(function (b) { b.onclick = function () { infoModal(b.getAttribute("data-lock"), L("જોબ વર્કર ઉમેરવા/બદલવાનું લાઇવ બિલ્ડમાં સક્ષમ થશે.", "Adding or editing job workers will be enabled in the live build.")); }; });
     document.querySelectorAll("[data-loannew]").forEach(function (b) { b.onclick = function () { openLoan(); }; });
     document.querySelectorAll("[data-upadnew]").forEach(function (b) { b.onclick = function () { openUpad(null); }; });
     document.querySelectorAll("[data-upadedit]").forEach(function (b) { b.onclick = function () { openUpad(b.getAttribute("data-upadedit")); }; });
