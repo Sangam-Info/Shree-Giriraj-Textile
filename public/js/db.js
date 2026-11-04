@@ -1,90 +1,116 @@
 /* =====================================================================
-   db.js — Firestore data layer (scaffold) for the Jobwork System
+   db.js — Firestore persistence engine for the Jobwork System
    ---------------------------------------------------------------------
-   Replaces the prototype's in-memory stores with Firestore collections.
-   Exposes window.GJDB. Active only in LIVE mode (real Firebase config).
+   Exposes window.GJDB. Active only in LIVE mode (real Firebase config +
+   a signed-in user). In DEMO mode every call is a harmless no-op.
 
-   MIGRATION PLAN (phased — see docs/DATA-MODEL.md):
-     Phase 1 (done): auth + this scaffold + rules.
-     Phase 2: wire WORKERS, SHEETS, PACKING to Firestore (read on login,
-              write on save) — the gate sheet is the single source of truth.
-     Phase 3: BILL controls, LOANS, UPAD, niwar stores, year-end.
-     Phase 4: realtime listeners + offline persistence + cross-device sync.
+   DESIGN
+   ------
+   The app keeps all data in memory (app.js). This engine mirrors each
+   in-memory store into ONE Firestore document so the whole dataset is
+   small, atomic per store, and survives refresh / cross-device.
 
-   All money stays in paise and weight in grams (BigInt) in app logic;
-   Firestore stores them as plain numbers/strings and the app converts.
+   Each store is written to  <collection>/__all__  where <collection> is
+   one the PUBLISHED security rules already cover. That means:
+     • no rules change is needed, and
+     • role access is enforced server-side automatically —
+       a supervisor only ever changes sheets / packing / niwarSheets,
+       so the admin-only docs (bills, loans, upad, …) are never touched
+       by a supervisor and never rejected.
+
+   Money is kept in paise and weight in grams as BigInt inside app.js.
+   Firestore can't store BigInt, so enc()/dec() convert BigInt <-> {$b}.
    ===================================================================== */
 (function () {
   "use strict";
 
-  var COL = {
-    users:        "users",          // users/{uid}            {name, role, active}
-    meta:         "meta",           // meta/settings          {company, months, vendor}
-    workers:      "workers",        // workers/{workerId}     {name, en, phone, cloth, rate}
-    sheets:       "sheets",         // sheets/{sheetId}       gate job work sheet (source of truth)
-    bills:        "bills",          // bills/{workerId_month} {rateP, transportP, loanP, paidP}
-    loans:        "loans",          // loans/{workerId}/entries/{id}
-    upad:         "upad",           // upad/{workerId}/entries/{id}
-    packing:      "packing",        // packing/{id}           independent packing lists
-    niwarParties: "niwarParties",   // niwarParties/{partyId}
-    niwarSheets:  "niwarSheets",    // niwarSheets/{id}
-    niwarParams:  "niwarParams",    // niwarParams/{partyId_month} rates/ghat/tds
-    niwarUpad:    "niwarUpad",       // niwarUpad/{partyId}/entries/{id}
-    niwarLoans:   "niwarLoans"      // niwarLoans/{partyId}/entries/{id}
-  };
+  var DOC = "__all__";
 
-  if (!(window.GJAuth && window.GJAuth.enabled && window.GJAuth.db)) {
-    window.GJDB = { enabled: false, COL: COL };
+  // store key  ->  firestore collection  +  who may write it
+  var STORES = [
+    { k: "workers",  col: "workers",      role: "admin" },  // job-worker directory
+    { k: "nworkers", col: "niwarParties", role: "admin" },  // niwar party directory
+    { k: "sheets",   col: "sheets",       role: "staff" },  // gate job work sheets
+    { k: "packing",  col: "packing",      role: "staff" },  // packaging lists
+    { k: "nsheets",  col: "niwarSheets",  role: "staff" },  // niwar gate sheets
+    { k: "bills",    col: "bills",        role: "admin" },  // billing params + ghati rate
+    { k: "nparam",   col: "niwarParams",  role: "admin" },  // niwar bill params
+    { k: "loans",    col: "loans",        role: "admin" },  // textile loans
+    { k: "upad",     col: "upad",         role: "admin" },  // textile weekly advances
+    { k: "nupad",    col: "niwarUpad",    role: "admin" },  // niwar weekly advances
+    { k: "nloans",   col: "niwarLoans",   role: "admin" }   // niwar loans
+  ];
+
+  /* ---- BigInt-safe encode / decode -------------------------------- */
+  function enc(v) {
+    if (typeof v === "bigint") return { $b: v.toString() };
+    if (v === undefined) return null;
+    if (Array.isArray(v)) { for (var a = [], i = 0; i < v.length; i++) a.push(enc(v[i])); return a; }
+    if (v && typeof v === "object") { var o = {}; for (var k in v) if (Object.prototype.hasOwnProperty.call(v, k)) o[k] = enc(v[k]); return o; }
+    return v;
+  }
+  function dec(v) {
+    if (Array.isArray(v)) { for (var a = [], i = 0; i < v.length; i++) a.push(dec(v[i])); return a; }
+    if (v && typeof v === "object") {
+      var ks = Object.keys(v);
+      if (ks.length === 1 && ks[0] === "$b") { try { return BigInt(v.$b); } catch (e) { return 0n; } }
+      var o = {}; for (var k in v) if (Object.prototype.hasOwnProperty.call(v, k)) o[k] = dec(v[k]); return o;
+    }
+    return v;
+  }
+
+  var A = window.GJAuth || {};
+  var db = (A.enabled && A.db) ? A.db : null;
+
+  /* ---- DEMO mode: no-op shim -------------------------------------- */
+  if (!db) {
+    window.GJDB = {
+      ready: false, STORES: STORES, enc: enc, dec: dec,
+      loadAll: function () { return Promise.resolve({}); },
+      saveStores: function () { return Promise.resolve(0); },
+      cacheSeed: function () {}
+    };
     return;
   }
 
-  var db = window.GJAuth.db;
+  /* ---- LIVE engine ------------------------------------------------ */
+  var lastJSON = {};                       // store key -> JSON of last write (dirty check)
+  function ref(col) { return db.collection(col).doc(DOC); }
 
-  function colRef(name) { return db.collection(name); }
-
-  // --- generic helpers -------------------------------------------------
-  function all(name) {
-    return colRef(name).get().then(function (qs) {
-      var out = []; qs.forEach(function (d) { out.push(Object.assign({ id: d.id }, d.data())); }); return out;
+  // Read every store doc. Returns { workers:…, sheets:…, … } (null if a doc is absent).
+  function loadAll() {
+    return Promise.all(STORES.map(function (s) {
+      return ref(s.col).get().then(function (snap) {
+        var d = snap.exists ? snap.data() : null;
+        return { k: s.k, v: (d && d.data !== undefined) ? dec(d.data) : null };
+      }).catch(function () { return { k: s.k, v: null }; });
+    })).then(function (rows) {
+      var out = {}; rows.forEach(function (r) { out[r.k] = r.v; }); return out;
     });
   }
-  function get(name, id) {
-    return colRef(name).doc(id).get().then(function (d) { return d.exists ? Object.assign({ id: d.id }, d.data()) : null; });
+
+  // map: { storeKey: plainValue }. Only CHANGED stores the role may write are committed.
+  function saveStores(map, role) {
+    var batch = db.batch(), n = 0;
+    STORES.forEach(function (s) {
+      if (!Object.prototype.hasOwnProperty.call(map, s.k)) return;
+      if (role !== "admin" && s.role === "admin") return;      // supervisor: no accounting/dir writes
+      var encoded = enc(map[s.k]);
+      var js = JSON.stringify(encoded);
+      if (lastJSON[s.k] === js) return;                        // unchanged — skip the write
+      batch.set(ref(s.col), { data: encoded, at: Date.now() });
+      lastJSON[s.k] = js; n++;
+    });
+    if (!n) return Promise.resolve(0);
+    return batch.commit().then(function () { return n; });
   }
-  function set(name, id, data) { return colRef(name).doc(id).set(data, { merge: true }); }
-  function add(name, data) { return colRef(name).add(data).then(function (r) { return r.id; }); }
-  function del(name, id) { return colRef(name).doc(id).delete(); }
-  function sub(name, id, subname) { return colRef(name).doc(id).collection(subname); }
 
-  // --- typed accessors (phase 2+ wire these into app.js) ---------------
-  var api = {
-    enabled: true,
-    COL: COL,
-    raw: db,
+  // Record the baseline (after load or first seed) so the first edit diffs correctly.
+  function cacheSeed(map) {
+    STORES.forEach(function (s) {
+      if (Object.prototype.hasOwnProperty.call(map, s.k)) lastJSON[s.k] = JSON.stringify(enc(map[s.k]));
+    });
+  }
 
-    loadWorkers: function () { return all(COL.workers); },
-    saveWorker:  function (w) { return w.id ? set(COL.workers, w.id, w) : add(COL.workers, w); },
-
-    loadSheets:  function () { return all(COL.sheets); },
-    saveSheet:   function (s) { return s.id ? set(COL.sheets, s.id, s) : add(COL.sheets, s); },
-    deleteSheet: function (id) { return del(COL.sheets, id); },
-
-    loadPacking: function () { return all(COL.packing); },
-    savePacking: function (p) { return p.id ? set(COL.packing, p.id, p) : add(COL.packing, p); },
-    deletePacking: function (id) { return del(COL.packing, id); },
-
-    loadBills:   function () { return all(COL.bills); },
-    saveBill:    function (id, data) { return set(COL.bills, id, data); },
-
-    loanEntries: function (workerId) { return sub(COL.loans, workerId, "entries").get().then(function (qs) { var o = []; qs.forEach(function (d) { o.push(Object.assign({ id: d.id }, d.data())); }); return o; }); },
-    addLoanEntry: function (workerId, e) { return sub(COL.loans, workerId, "entries").add(e); },
-
-    settings:    function () { return get(COL.meta, "settings"); },
-    saveSettings: function (data) { return set(COL.meta, "settings", data); },
-
-    // low-level escape hatches
-    all: all, get: get, set: set, add: add, del: del, sub: sub
-  };
-
-  window.GJDB = api;
+  window.GJDB = { ready: true, STORES: STORES, enc: enc, dec: dec, loadAll: loadAll, saveStores: saveStores, cacheSeed: cacheSeed };
 })();

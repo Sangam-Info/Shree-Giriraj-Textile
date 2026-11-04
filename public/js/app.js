@@ -83,7 +83,7 @@
   function L(gu, en) { return STATE.lang === "en" ? en : gu; }
   function pad(n) { return n < 10 ? "0" + n : "" + n; }
   function mulberry32(a) { return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; var t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-  var RID = 0; function rid() { return "s" + (++RID); }
+  var RID = 0; function rid() { return "s" + Date.now().toString(36) + "_" + (++RID).toString(36); }
   function numOrNull(v) { if (v === "" || v == null) return null; var n = parseFloat(v); return isNaN(n) ? null : n; }
 
   /* ---------------------------------------------------------------- DATA */
@@ -599,7 +599,7 @@
         '<b>Niwar Jobwork</b> — a separate gate-style ledger (kg). At the gate the <b>Supervisor</b> records weights by size + parat; the <b>Admin</b> does rates, ghat, TDS, loan and the bill. The material balance (weight) carries forward.') + '</span></div>';
     html += '<div class="page-head row-between"><div><h2>' + (isAdmin ? L("નિવાર જોબવર્ક", "Niwar Jobwork") : L("નિવાર ગેટ એન્ટ્રી", "Niwar Gate Entry")) + '</h2>' +
       '<div class="sub">' + pname + ' · ' + monthName() + ' — ' + (isAdmin ? L("ખાતાવહી + બિલ", "ledger + bill") : L("ગેટ પર માલ ઇન/આઉટ (kg)", "material in/out at the gate (kg)")) + '</div></div>' +
-      '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">' + niwarPartySelect() + '<button class="btn btn-primary" data-newnsheet="1">' + svg("plus") + ' ' + L("નવી નિવાર શીટ", "New niwar sheet") + '</button></div></div>';
+      '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">' + niwarPartySelect() + (isAdmin ? '<button class="btn btn-soft" data-addnparty="1" title="' + L("નવી પાર્ટી", "Add party") + '">' + svg("plus") + ' ' + L("પાર્ટી", "Party") + '</button><button class="btn btn-soft" data-editnparty="' + p.id + '" title="' + L("પાર્ટી ફેરફાર", "Edit party") + '">' + svg("edit") + '</button>' : '') + '<button class="btn btn-primary" data-newnsheet="1">' + svg("plus") + ' ' + L("નવી નિવાર શીટ", "New niwar sheet") + '</button></div></div>';
 
     var st = niwarSettle(p.id, mi);
     var jobHint = moneyP(st.jobworkP / 100n);
@@ -861,9 +861,9 @@
   /* ---------------------------------------------------------------- WORKERS */
   function viewWorkers() {
     var html = demoStrip();
-    html += '<div class="page-head row-between"><div><h2>' + L("જોબ વર્કર્સ", "Job Workers") + '</h2><div class="sub">' + L("જોબ વર્કરની યાદી અને રેટ.", "Job worker list and rates.") + '</div></div><button class="btn btn-primary" data-lock="' + L("જોબ વર્કર ઉમેરો", "Add Job Worker") + '">' + svg("plus") + ' ' + L("ઉમેરો", "Add") + '</button></div>';
+    html += '<div class="page-head row-between"><div><h2>' + L("જોબ વર્કર્સ", "Job Workers") + '</h2><div class="sub">' + L("જોબ વર્કરની યાદી અને રેટ.", "Job worker list and rates.") + '</div></div><button class="btn btn-primary" data-addworker="1">' + svg("plus") + ' ' + L("જોબ વર્કર ઉમેરો", "Add Job Worker") + '</button></div>';
     html += '<div class="card"><div class="table-scroll"><table class="data"><thead><tr><th>' + L("જોબ વર્કર", "Job Worker") + '</th><th>' + L("કાપડ", "Cloth") + '</th><th>' + L("ફોન", "Phone") + '</th><th style="text-align:right">' + L("રેટ", "Rate") + '</th><th style="text-align:right">' + monthName() + ' ' + L("મીટર", "Mtr") + '</th><th style="text-align:right">' + L("લોન બાકી", "Loan") + '</th><th></th></tr></thead><tbody>';
-    WORKERS.forEach(function (w) { var ini = w.en.split(" ").map(function (x) { return x[0]; }).slice(0, 2).join(""); var mt = billMonth(w.id, STATE.month).mtr; html += '<tr><td><div style="display:flex;align-items:center;gap:11px"><span class="avatar" style="background:' + w.color + '">' + ini + '</span><div><b>' + (STATE.lang === "en" ? w.en : w.name) + '</b><div style="font-size:12px;color:var(--muted)">' + (STATE.lang === "en" ? w.name : w.en) + '</div></div></div></td><td>' + w.cloth + '</td><td class="num" style="color:var(--ink-soft)">' + w.phone + '</td><td style="text-align:right" class="num">' + rateStr(rupToP(w.rate)) + '</td><td style="text-align:right" class="num">' + numI(mt) + '</td><td style="text-align:right" class="num">' + moneyPw(loanBalanceP(w.id)) + '</td><td style="text-align:right"><button class="btn btn-soft btn-sm" data-openworker="' + w.id + '">' + svg("chevR") + ' ' + L("ખોલો", "Open") + '</button></td></tr>'; });
+    WORKERS.forEach(function (w) { var ini = w.en.split(" ").map(function (x) { return x[0]; }).slice(0, 2).join(""); var mt = billMonth(w.id, STATE.month).mtr; html += '<tr><td><div style="display:flex;align-items:center;gap:11px"><span class="avatar" style="background:' + w.color + '">' + ini + '</span><div><b>' + (STATE.lang === "en" ? w.en : w.name) + '</b><div style="font-size:12px;color:var(--muted)">' + (STATE.lang === "en" ? w.name : w.en) + '</div></div></div></td><td>' + w.cloth + '</td><td class="num" style="color:var(--ink-soft)">' + w.phone + '</td><td style="text-align:right" class="num">' + rateStr(rupToP(w.rate)) + '</td><td style="text-align:right" class="num">' + numI(mt) + '</td><td style="text-align:right" class="num">' + moneyPw(loanBalanceP(w.id)) + '</td><td style="text-align:right;white-space:nowrap"><button class="btn btn-soft btn-sm" data-editworker="' + w.id + '">' + svg("edit") + '</button> <button class="btn btn-soft btn-sm" data-delworker="' + w.id + '">' + svg("trash") + '</button> <button class="btn btn-soft btn-sm" data-openworker="' + w.id + '">' + svg("chevR") + ' ' + L("ખોલો", "Open") + '</button></td></tr>'; });
     html += '</tbody></table></div></div>';
     return html;
   }
@@ -1096,6 +1096,7 @@
     document.querySelectorAll("[data-nav]").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-nav") === (STATE.view === "gatesheet" ? "gate" : STATE.view)); });
     wire();
     if (window.scrollTo) window.scrollTo(0, 0);
+    schedulePersist();
   }
   function go(v) { if (!viewAllowed(v)) return; STATE.view = v; render(); }
   function openSheet(id) { STATE.sheetId = id; STATE.view = "gatesheet"; render(); }
@@ -1111,6 +1112,12 @@
     document.querySelectorAll("[data-newsheet]").forEach(function (b) { b.onclick = function () { newSheet(); }; });
     document.querySelectorAll("[data-openworker]").forEach(function (b) { b.onclick = function () { STATE.worker = b.getAttribute("data-openworker"); syncSwitchers(); go("ledger"); }; });
     document.querySelectorAll("[data-lock]").forEach(function (b) { b.onclick = function () { infoModal(b.getAttribute("data-lock"), L("જોબ વર્કર ઉમેરવા/બદલવાનું લાઇવ બિલ્ડમાં સક્ષમ થશે.", "Adding or editing job workers will be enabled in the live build.")); }; });
+    document.querySelectorAll("[data-addworker]").forEach(function (b) { b.onclick = function () { workerForm(null); }; });
+    document.querySelectorAll("[data-editworker]").forEach(function (b) { b.onclick = function () { workerForm(b.getAttribute("data-editworker")); }; });
+    document.querySelectorAll("[data-delworker]").forEach(function (b) { b.onclick = function () { delWorker(b.getAttribute("data-delworker")); }; });
+    document.querySelectorAll("[data-addnparty]").forEach(function (b) { b.onclick = function () { nPartyForm(null); }; });
+    document.querySelectorAll("[data-editnparty]").forEach(function (b) { b.onclick = function () { nPartyForm(b.getAttribute("data-editnparty")); }; });
+    document.querySelectorAll("[data-delnparty]").forEach(function (b) { b.onclick = function () { delNParty(b.getAttribute("data-delnparty")); }; });
     document.querySelectorAll("[data-loannew]").forEach(function (b) { b.onclick = function () { openLoan(); }; });
     document.querySelectorAll("[data-upadnew]").forEach(function (b) { b.onclick = function () { openUpad(null); }; });
     document.querySelectorAll("[data-upadedit]").forEach(function (b) { b.onclick = function () { openUpad(b.getAttribute("data-upadedit")); }; });
@@ -1397,6 +1404,76 @@
     mb.classList.add("show"); mb.onclick = function (e) { if (e.target === mb) closeModal(); }; $("#mNo").onclick = closeModal; $("#mYes").onclick = function () { closeModal(); onYes(); };
   }
   function closeModal() { $("#modalBack").classList.remove("show"); $("#modalBack").innerHTML = ""; }
+
+  /* ---------------------------------------------------------------- ROSTER (workers / niwar parties) */
+  function fVal(sel) { var e = $(sel); return e ? e.value : ""; }
+  function fRow(label, field) { return '<label style="display:block;margin-bottom:13px"><span style="display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:5px">' + label + '</span>' + field + '</label>'; }
+  function fInput(id, val, extra) { return '<input id="' + id + '" ' + (extra || '') + ' value="' + String(val == null ? '' : val).replace(/"/g, '&quot;') + '" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-size:14px;font-family:inherit;background:var(--surface);color:var(--ink)">'; }
+
+  function workerForm(id) {
+    var w = id ? workerById(id) : null;
+    var body =
+      fRow(L("નામ (ગુજરાતી)", "Name (Gujarati)"), fInput("wfName", w ? w.name : "", 'placeholder="વિઠ્ઠલ ટેક્ષટાઇલ વર્ક્સ"')) +
+      fRow(L("નામ (English)", "Name (English)"), fInput("wfEn", w ? w.en : "", 'placeholder="Vitthal Textile Works"')) +
+      fRow(L("ફોન", "Phone"), fInput("wfPhone", w ? w.phone : "", 'placeholder="+91 "')) +
+      fRow(L("કાપડ", "Cloth"), fInput("wfCloth", w ? w.cloth : "", 'placeholder="કોટન 40s"')) +
+      fRow(L("રેટ (₹/મીટર)", "Rate (₹/metre)"), fInput("wfRate", w ? w.rate : "", 'type="number" step="0.01" inputmode="decimal" placeholder="3.55"'));
+    showModal("users", id ? L("જોબ વર્કર ફેરફાર", "Edit Job Worker") : L("જોબ વર્કર ઉમેરો", "Add Job Worker"), L("નામ, ફોન, કાપડ અને રેટ.", "Name, phone, cloth and rate."), body, function () { saveWorkerForm(id); });
+  }
+  function saveWorkerForm(id) {
+    var name = fVal("#wfName").trim(), en = fVal("#wfEn").trim(), phone = fVal("#wfPhone").trim(), cloth = fVal("#wfCloth").trim(), rate = parseFloat(fVal("#wfRate")) || 0;
+    if (!name && !en) { toast(L("નામ દાખલ કરો", "Enter a name"), "info"); return; }
+    if (!en) en = name; if (!name) name = en;
+    if (id) { var w = workerById(id); if (w) { w.name = name; w.en = en; w.phone = phone; w.cloth = cloth; w.rate = rate; } }
+    else {
+      var nid = "w_" + rid(), nw = { id: nid, name: name, en: en, phone: phone, cloth: cloth, rate: rate };
+      WORKERS.push(nw); decorateWorkers();
+      BILL[nid] = {}; MONTHS.forEach(function (m) { BILL[nid][m.id] = { rate: rate, ghati: 3, tempo: 0, loanDeductP: null, paidP: null, openingSeed: 0n, openingWseedG: 0n }; });
+      LOANS[nid] = []; UPAD[nid] = []; STATE.worker = nid;
+    }
+    closeModal(); buildSwitchers(); render(); toast(id ? L("સેવ થયું", "Saved") : L("જોબ વર્કર ઉમેરાયો", "Job worker added"), "ok");
+  }
+  function delWorker(id) {
+    var w = workerById(id); if (!w) return;
+    var hasSheets = SHEETS.some(function (s) { return s.workerId === id; });
+    var hasLedger = (LOANS[id] && LOANS[id].length) || (UPAD[id] && UPAD[id].length);
+    if (hasSheets || hasLedger) { infoModal(L("કાઢી શકાય નહીં", "Can't delete"), L("આ જોબ વર્કરની શીટ કે ખાતા એન્ટ્રી છે. પહેલાં તે કાઢો.", "This worker has sheets or ledger entries. Remove those first.")); return; }
+    infoModalConfirm(L("જોબ વર્કર કાઢવો?", "Delete job worker?"), L("આ જોબ વર્કર કાઢી નાખશે.", "This removes the job worker."), function () {
+      WORKERS = WORKERS.filter(function (x) { return x.id !== id; }); decorateWorkers();
+      delete BILL[id]; delete LOANS[id]; delete UPAD[id];
+      if (STATE.worker === id) STATE.worker = WORKERS[0] ? WORKERS[0].id : null;
+      buildSwitchers(); render(); toast(L("કાઢ્યું", "Deleted"), "ok");
+    });
+  }
+
+  function nPartyForm(id) {
+    var p = id ? nwById(id) : null;
+    var body =
+      fRow(L("નામ (ગુજરાતી)", "Name (Gujarati)"), fInput("npName", p ? p.name : "", 'placeholder="ગુરુ ગોવિંદ નિવાર"')) +
+      fRow(L("નામ (English)", "Name (English)"), fInput("npEn", p ? p.en : "", 'placeholder="Guru Govind Niwar"')) +
+      fRow(L("ફોન", "Phone"), fInput("npPhone", p ? p.phone : "", 'placeholder="+91 "'));
+    showModal("roll", id ? L("નિવાર પાર્ટી ફેરફાર", "Edit Niwar Party") : L("નિવાર પાર્ટી ઉમેરો", "Add Niwar Party"), L("નામ અને ફોન.", "Name and phone."), body, function () { saveNParty(id); });
+  }
+  function saveNParty(id) {
+    var name = fVal("#npName").trim(), en = fVal("#npEn").trim(), phone = fVal("#npPhone").trim();
+    if (!name && !en) { toast(L("નામ દાખલ કરો", "Enter a name"), "info"); return; }
+    if (!en) en = name; if (!name) name = en;
+    if (id) { var p = nwById(id); if (p) { p.name = name; p.en = en; p.phone = phone; } }
+    else { var nid = "n_" + rid(); NWORKERS.push({ id: nid, name: name, en: en, phone: phone }); NUPAD[nid] = []; NLOANS[nid] = []; STATE.niwarParty = nid; }
+    closeModal(); render(); toast(id ? L("સેવ થયું", "Saved") : L("પાર્ટી ઉમેરાઈ", "Party added"), "ok");
+  }
+  function delNParty(id) {
+    var p = nwById(id); if (!p) return;
+    var hasSheets = NSHEETS.some(function (s) { return s.partyId === id; });
+    var hasLedger = (NUPAD[id] && NUPAD[id].length) || (NLOANS[id] && NLOANS[id].length);
+    if (hasSheets || hasLedger) { infoModal(L("કાઢી શકાય નહીં", "Can't delete"), L("આ પાર્ટીની શીટ કે ખાતા એન્ટ્રી છે. પહેલાં તે કાઢો.", "This party has sheets or ledger entries. Remove those first.")); return; }
+    infoModalConfirm(L("પાર્ટી કાઢવી?", "Delete party?"), L("આ નિવાર પાર્ટી કાઢી નાખશે.", "This removes the niwar party."), function () {
+      NWORKERS = NWORKERS.filter(function (x) { return x.id !== id; });
+      delete NUPAD[id]; delete NLOANS[id]; if (NPARAM[id]) delete NPARAM[id];
+      if (STATE.niwarParty === id) STATE.niwarParty = NWORKERS[0] ? NWORKERS[0].id : null;
+      render(); toast(L("કાઢ્યું", "Deleted"), "ok");
+    });
+  }
   function toast(msg, kind) { var tw = $("#toastWrap"); var t = document.createElement("div"); t.className = "toast " + (kind || ""); t.innerHTML = svg(kind === "info" ? "info" : "check") + "<span>" + msg + "</span>"; tw.appendChild(t); setTimeout(function () { t.style.opacity = "0"; t.style.transition = "opacity .3s"; setTimeout(function () { t.remove(); }, 320); }, 3000); }
 
   /* ---------------------------------------------------------------- PDF */
@@ -1631,6 +1708,118 @@
   var vortex = null;
   function startApp() { $("#hero").classList.add("hide"); $("#app").classList.add("show"); if (vortex) { setTimeout(function () { try { vortex.dispose(); } catch (e) {} vortex = null; }, 900); } render(); }
   function initHero() { if (typeof window.initVortex !== "function") return; try { var small = Math.min(window.innerWidth, window.innerHeight) < 760; vortex = window.initVortex($("#hero-canvas"), $("#hero-canvas-wrap"), small ? { lineOptions: { count: 120, color: "#ffd79a", glow: 9 }, dotOptions: { count: 2600, color: "#fff2d6", glow: 10 }, cometOptions: { count: 6 } } : {}); } catch (e) { console.warn("hero", e); } }
+  /* ================================================================
+     FIRESTORE PERSISTENCE  (LIVE mode only — demo mode is untouched)
+     • load on login  → hydrate the in-memory stores
+     • first empty DB  → seed a clean starter (roster kept, no fake data)
+     • every render() in LIVE schedules a debounced per-store save
+     ================================================================ */
+  var _persistOn = false, _persistT = null;
+
+  function decorateWorkers() {
+    WORKERS.forEach(function (w, i) { w.color = AV[i % AV.length]; w.idx = i; if (w.actualGhati == null) w.actualGhati = 2.85; });
+  }
+  function rebuildBill() {
+    BILL = {};
+    WORKERS.forEach(function (w) { BILL[w.id] = {}; MONTHS.forEach(function (m) { BILL[w.id][m.id] = { rate: w.rate, ghati: 3, tempo: 0, loanDeductP: null, paidP: null, openingSeed: 0n, openingWseedG: 0n }; }); });
+  }
+
+  // trailing-null trim keeps the sheet grid tiny in Firestore; re-padded on load.
+  function trimSteps(meters) {
+    return (meters || []).map(function (step) { var last = -1; for (var i = 0; i < step.length; i++) if (step[i] != null) last = i; return step.slice(0, last + 1); });
+  }
+  function snapSheet(s) { var o = {}; for (var k in s) if (s.hasOwnProperty(k)) o[k] = s[k]; o.meters = trimSteps(s.meters); return o; }
+  function expandSheet(s, nStepsMax, nRows) {
+    var m = s.meters || [], meters = [];
+    for (var st = 0; st < nStepsMax; st++) { var src = m[st] || [], row = new Array(nRows).fill(null); for (var r = 0; r < Math.min(src.length, nRows); r++) row[r] = src[r]; meters.push(row); }
+    s.meters = meters;
+    var kg = s.kg || [], kg2 = []; for (var k = 0; k < nStepsMax; k++) kg2.push(kg[k] != null ? kg[k] : null); s.kg = kg2;
+    return s;
+  }
+
+  function buildSnapshot() {
+    return {
+      workers:  WORKERS.map(function (w) { return { id: w.id, name: w.name, en: w.en, phone: w.phone, cloth: w.cloth, rate: w.rate, actualGhati: w.actualGhati }; }),
+      nworkers: NWORKERS.map(function (p) { return { id: p.id, name: p.name, en: p.en, phone: p.phone }; }),
+      sheets:   SHEETS.map(snapSheet),
+      packing:  PACKING.map(snapSheet),
+      nsheets:  { list: NSHEETS, seq: NSEQ.v },
+      bills:    { w: BILL, ghatiRate: GHATI_RATE.v },
+      nparam:   NPARAM,
+      loans:    LOANS, upad: UPAD, nupad: NUPAD, nloans: NLOANS
+    };
+  }
+
+  function hydrate(d) {
+    d = d || {};
+    if (d.workers && d.workers.length !== undefined)  { WORKERS = d.workers; decorateWorkers(); }
+    if (d.nworkers && d.nworkers.length !== undefined) { NWORKERS = d.nworkers; }
+    rebuildBill();
+    if (d.bills && d.bills.w) {
+      for (var wid in d.bills.w) if (BILL[wid]) for (var mid in d.bills.w[wid]) if (BILL[wid][mid]) assign(BILL[wid][mid], d.bills.w[wid][mid]);
+      if (d.bills.ghatiRate != null) GHATI_RATE.v = d.bills.ghatiRate;
+    }
+    if (d.loans)  LOANS  = d.loans  || {};
+    if (d.upad)   UPAD   = d.upad   || {};
+    if (d.nupad)  NUPAD  = d.nupad  || {};
+    if (d.nloans) NLOANS = d.nloans || {};
+    if (d.nparam) NPARAM = d.nparam || {};
+    if (d.sheets && d.sheets.length !== undefined)  SHEETS  = d.sheets.map(function (s) { return expandSheet(s, MAX_STEPS, MAX_ROWS); });
+    if (d.packing && d.packing.length !== undefined) PACKING = d.packing.map(function (p) { return expandSheet(p, PK_STEPS, PK_ROWS); });
+    if (d.nsheets && d.nsheets.list) { NSHEETS = d.nsheets.list; if (d.nsheets.seq != null) NSEQ.v = d.nsheets.seq; }
+    WORKERS.forEach(function (w) { LOANS[w.id] = LOANS[w.id] || []; UPAD[w.id] = UPAD[w.id] || []; });
+    NWORKERS.forEach(function (p) { NUPAD[p.id] = NUPAD[p.id] || []; NLOANS[p.id] = NLOANS[p.id] || []; });
+    if (!workerById(STATE.worker) && WORKERS[0]) STATE.worker = WORKERS[0].id;
+    if (!nwById(STATE.niwarParty) && NWORKERS[0]) STATE.niwarParty = NWORKERS[0].id;
+    buildSwitchers();
+  }
+  function assign(t, s) { for (var k in s) if (s.hasOwnProperty(k)) t[k] = s[k]; return t; }
+
+  // Fresh client database: keep the (editable) starter roster, wipe all demo transactions.
+  function seedInitial() {
+    SHEETS.length = 0; PACKING.length = 0; NSHEETS.length = 0;
+    WORKERS.forEach(function (w) { LOANS[w.id] = []; UPAD[w.id] = []; });
+    NWORKERS.forEach(function (p) { NUPAD[p.id] = []; NLOANS[p.id] = []; });
+    NPARAM = {}; NSEQ.v = 0; GHATI_RATE.v = 120;
+    rebuildBill();
+    if (!workerById(STATE.worker) && WORKERS[0]) STATE.worker = WORKERS[0].id;
+  }
+
+  function schedulePersist() {
+    if (!_persistOn || !(window.GJDB && window.GJDB.ready)) return;
+    if (_persistT) clearTimeout(_persistT);
+    _persistT = setTimeout(function () {
+      _persistT = null; setSync("saving");
+      try {
+        window.GJDB.saveStores(buildSnapshot(), STATE.role)
+          .then(function (n) { setSync(n ? "saved" : "idle"); })
+          .catch(function (e) { console.warn("save failed", e); setSync("error"); });
+      } catch (e) { console.warn(e); setSync("error"); }
+    }, 900);
+  }
+
+  /* tiny save-status pill in the app bar (reassures the owner data is stored) */
+  function ensureSyncPill() {
+    if ($("#gjSync") || !$(".appbar")) return;
+    var el = document.createElement("div"); el.id = "gjSync";
+    el.style.cssText = "display:none;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:5px 10px;border-radius:999px;margin-left:8px;white-space:nowrap";
+    var bar = $(".appbar"); bar.appendChild(el);
+  }
+  function setSync(state) {
+    ensureSyncPill(); var el = $("#gjSync"); if (!el) return;
+    el.style.display = "inline-flex";
+    if (state === "saving") { el.style.background = "var(--bg-2)"; el.style.color = "var(--muted)"; el.textContent = L("સેવ થાય છે…", "Saving…"); }
+    else if (state === "saved") { el.style.background = "#e7f7ef"; el.style.color = "#1f9d6b"; el.textContent = "✓ " + L("સેવ થયું", "Saved"); }
+    else if (state === "error") { el.style.background = "#fdecec"; el.style.color = "#c0392b"; el.textContent = "⚠ " + L("સેવ નથી થયું", "Not saved"); }
+    else { el.style.display = "none"; }
+  }
+  function loadingHTML() {
+    return '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:50vh;gap:14px;color:var(--muted)">' +
+      '<div style="width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:gjspin .8s linear infinite"></div>' +
+      '<div style="font-weight:600">' + L("તમારો ડેટા લોડ થાય છે…", "Loading your data…") + '</div>' +
+      '<style>@keyframes gjspin{to{transform:rotate(360deg)}}</style></div>';
+  }
+
   function boot() {
     buildShell(); buildSwitchers(); initHero();
     $("#langGu") && ($("#langGu").onclick = function () { setLang("gu"); });
@@ -1670,7 +1859,27 @@
       if (g && e2) { g.classList.toggle("on", STATE.lang !== "en"); e2.classList.toggle("on", STATE.lang === "en"); }
       document.documentElement.lang = STATE.lang === "en" ? "en" : "gu";
     } catch (e) {}
-    buildShell(); startApp();
+    buildShell();
+    if (window.GJDB && window.GJDB.ready) {
+      // LIVE: load this project's data from Firestore, then show the app.
+      _persistOn = false;
+      $("#hero").classList.add("hide"); $("#app").classList.add("show");
+      $("#view").innerHTML = loadingHTML();
+      window.GJDB.loadAll().then(function (d) {
+        var has = d && (d.workers || d.sheets || d.packing || d.nsheets || d.loans || d.bills || d.nworkers);
+        if (!has) {
+          // first ever sign-in → clean starter database (roster kept, no demo transactions)
+          seedInitial();
+          if (STATE.role === "admin") { return window.GJDB.saveStores(buildSnapshot(), "admin").then(function () { window.GJDB.cacheSeed(buildSnapshot()); }); }
+          window.GJDB.cacheSeed(buildSnapshot());
+        } else {
+          hydrate(d); window.GJDB.cacheSeed(buildSnapshot());
+        }
+      }).catch(function (e) { console.warn("load failed", e); })
+        .then(function () { _persistOn = true; render(); });
+    } else {
+      startApp();   // DEMO mode — unchanged
+    }
   };
   window.GJ.setRole = setRole;
   window.GJ.render = render;
@@ -1684,6 +1893,9 @@
       NWORKERS: NWORKERS, NSHEETS: NSHEETS, NUPAD: NUPAD, NLOANS: NLOANS, NPARAM: NPARAM, NIWAR_SIZES: NIWAR_SIZES, NL_ROWS: NL_ROWS, niwarSettle: niwarSettle, nMonthSheets: nMonthSheets, nSizeTotalsG: nSizeTotalsG, nRecvG: nRecvG, nParatG: nParatG, nSheetNiwarG: nSheetNiwarG, nProductG: nProductG, nParam: nParam, nSheetById: nSheetById, viewNiwarSheet: viewNiwarSheet, niwarSheetHTML: niwarSheetHTML, nUpadMP: nUpadMP, nLoanBalanceP: nLoanBalanceP, kgToG: kgToG,
       viewPacking: viewPacking, viewPackingSheet: viewPackingSheet, packingPages: packingPages, newPacking: newPacking, openPacking: openPacking,
       pkMt: pkMt, pkRolls: pkRolls, pkKgG: pkKgG, pkStepTotal: pkStepTotal, pkAmount: pkAmount, PACKING: PACKING, PK_ROWS: PK_ROWS, PK_STEPS: PK_STEPS,
-      SHEETS: SHEETS, WORKERS: WORKERS, MONTHS: MONTHS, LOANS: LOANS, BILL: BILL, navForRole: navForRole, blankSheet: blankSheet, blankPacking: blankPacking };
+      SHEETS: SHEETS, WORKERS: WORKERS, MONTHS: MONTHS, LOANS: LOANS, BILL: BILL, navForRole: navForRole, blankSheet: blankSheet, blankPacking: blankPacking,
+      buildSnapshot: buildSnapshot, hydrate: hydrate, seedInitial: seedInitial, workerForm: workerForm, saveWorkerForm: saveWorkerForm, delWorker: delWorker, nPartyForm: nPartyForm, saveNParty: saveNParty, delNParty: delNParty,
+      getStores: function () { return { WORKERS: WORKERS, SHEETS: SHEETS, BILL: BILL, LOANS: LOANS, UPAD: UPAD, PACKING: PACKING, NWORKERS: NWORKERS, NSHEETS: NSHEETS, NPARAM: NPARAM, NUPAD: NUPAD, NLOANS: NLOANS, GHATI_RATE: GHATI_RATE, NSEQ: NSEQ, STATE: STATE }; },
+      setPersistOn: function (v) { _persistOn = !!v; }, schedulePersist: schedulePersist };
   }
 })();

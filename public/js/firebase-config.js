@@ -10,12 +10,13 @@
    Firestore persistence.
    ===================================================================== */
 window.__FIREBASE_CONFIG = {
-  apiKey:            "REPLACE_ME",
-  authDomain:        "REPLACE_ME.firebaseapp.com",
-  projectId:         "REPLACE_ME",
-  storageBucket:     "REPLACE_ME.appspot.com",
-  messagingSenderId: "REPLACE_ME",
-  appId:             "REPLACE_ME"
+  apiKey:            "AIzaSyC0O7-rSbV7pAgwvVCOWX7_svYxFWjm4n8",
+  authDomain:        "shree-giriraj-textile.firebaseapp.com",
+  projectId:         "shree-giriraj-textile",
+  storageBucket:     "shree-giriraj-textile.firebasestorage.app",
+  messagingSenderId: "307408604244",
+  appId:             "1:307408604244:web:7b9abb5f52432ad3d871c1",
+  measurementId:     "G-S0KFZR33CB"
 };
 
 /* Optional: pre-fill the email for each role card on the login screen.
