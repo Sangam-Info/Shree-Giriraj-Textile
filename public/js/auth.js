@@ -119,12 +119,9 @@
     lockTimer = setInterval(tick, 1000);
   }
 
-  /* ---------- remember email + last role (for pre-fill) ---------- */
+  /* ---------- remember last role only (email is never pre-filled) ---------- */
   function rememberLast(email, role) {
-    try { if (email) localStorage.setItem("gj_last_email", email); if (role) localStorage.setItem("gj_last_role", role); } catch (x) {}
-  }
-  function rememberEmail(email, on) {
-    try { if (on) localStorage.setItem("gj_email", email); else localStorage.removeItem("gj_email"); } catch (x) {}
+    try { if (role) localStorage.setItem("gj_last_role", role); } catch (x) {}
   }
   function setDropdown(role) {
     var s = $("#loginRole"); if (!s) return;
@@ -132,10 +129,12 @@
   }
   function restoreLast() {
     try {
-      var f = $("#authEmail");
-      var e = localStorage.getItem("gj_last_email") || localStorage.getItem("gj_email");
-      if (e && f && !f.value) f.value = e;
-      else if (!e && USERS.admin && f && !f.value) f.value = USERS.admin;
+      // Email is NEVER pre-filled: purge any previously saved email and keep the field blank.
+      localStorage.removeItem("gj_last_email");
+      localStorage.removeItem("gj_email");
+      try { sessionStorage.removeItem("gj_last_email"); sessionStorage.removeItem("gj_email"); } catch (e) {}
+      var f = $("#authEmail"); if (f) f.value = "";
+      // role selection is still remembered (UI/functionality unchanged)
       var r = localStorage.getItem("gj_last_role");
       if (r) setDropdown(r);
     } catch (x) {}
@@ -200,8 +199,7 @@
     // brute-force lockout
     if (lockRemaining(email) > 0) { lockUI(email); return; }
 
-    rememberLast(email, role);
-    rememberEmail(email, remember);
+    rememberLast(email, role);   // stores the role only
 
     if (LIVE) {
       setBusy(true, tr("Signing in…", "સાઇન ઇન…"));
@@ -277,14 +275,14 @@
       title: "Jobwork Management System", tagline: 'Manage <span>·</span> Track <span>·</span> Grow',
       welcome: 'Welcome <span>Back</span>', sub: "Sign in to continue to your account",
       roleAdmin: "Admin — Full access", roleSup: "Supervisor — Gate & Packaging",
-      email: "Email", password: "Password", remember: "Remember Me", forgot: "Forgot Password?",
+      email: "Email Address", password: "Password", remember: "Remember Me", forgot: "Forgot Password?",
       login: "Log In", secure: "Secure Access", foot: 'Shri Giriraj Textile <span>·</span> Jobwork Management System'
     },
     gu: {
       title: "જોબવર્ક મેનેજમેન્ટ સિસ્ટમ", tagline: 'મેનેજ <span>·</span> ટ્રેક <span>·</span> ગ્રો',
       welcome: 'ફરી <span>આવકાર</span>', sub: "તમારા ખાતામાં ચાલુ રાખવા સાઇન ઇન કરો",
       roleAdmin: "એડમિન — સંપૂર્ણ એક્સેસ", roleSup: "સુપરવાઇઝર — ગેટ અને પેકેજિંગ",
-      email: "ઈમેલ", password: "પાસવર્ડ", remember: "મને યાદ રાખો", forgot: "પાસવર્ડ ભૂલી ગયા?",
+      email: "ઈમેલ સરનામું", password: "પાસવર્ડ", remember: "મને યાદ રાખો", forgot: "પાસવર્ડ ભૂલી ગયા?",
       login: "લોગિન", secure: "સુરક્ષિત એક્સેસ", foot: 'શ્રી ગિરિરાજ ટેક્ષટાઇલ <span>·</span> જોબવર્ક મેનેજમેન્ટ'
     }
   };
@@ -328,8 +326,7 @@
     if (sel) sel.addEventListener("change", function () {
       clearErr();
       try { localStorage.setItem("gj_last_role", selectedRole()); } catch (e) {}
-      var em = USERS[selectedRole()], f = $("#authEmail");
-      if (em && f) f.value = em;
+      // email is never auto-populated from the role selection
     });
 
     if (LIVE) {
