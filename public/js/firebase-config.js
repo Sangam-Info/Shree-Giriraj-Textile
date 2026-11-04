@@ -19,10 +19,14 @@ window.__FIREBASE_CONFIG = {
   measurementId:     "G-S0KFZR33CB"
 };
 
-/* Optional: pre-fill the email for each role card on the login screen.
-   Leave blank to make users type their email. Roles are still read
-   authoritatively from Firestore (users/{uid}.role) after sign-in. */
+/* ROLE ASSIGNMENT — by sign-in email.
+   The address a person signs in with decides their role and dashboard.
+   This is the single place to manage who is Admin vs Supervisor.
+   • Add more people by comma-separating emails (e.g. "a@x.com, b@x.com").
+   • These MUST match the email whitelist in firestore.rules.
+   Because roles follow the EMAIL (not the account's UID), re-creating an
+   account never breaks access — only the email has to stay the same. */
 window.__APP_USERS = {
-  admin:      "",   // e.g. "owner@shrigiriraj.app"
-  supervisor: ""    // e.g. "supervisor@shrigiriraj.app"
+  admin:      "admin@gmail.com",       // → Admin Dashboard, full access
+  supervisor: "superwiser@gmail.com"   // → Supervisor Dashboard, gate + packaging
 };

@@ -87,18 +87,34 @@
     try { if (on) localStorage.setItem("gj_email", email); else localStorage.removeItem("gj_email"); } catch (x) {}
   }
 
-  /* ---------- resolve role from Firestore, open the app ---------- */
+  /* ---------- resolve role, open the app ----------
+     Role is decided by the signed-in EMAIL (configured in __APP_USERS), with the
+     Firestore users/{uid}.role kept as a fallback. Email-based roles stay correct
+     even when an account is re-created (the UID changes, the email does not). */
+  function emailList(v) { return String(v || "").toLowerCase().split(",").map(function (s) { return s.trim(); }).filter(Boolean); }
+  function roleForEmail(email) {
+    email = String(email || "").toLowerCase().trim();
+    var U = window.__APP_USERS || {};
+    if (emailList(U.admin).indexOf(email) > -1) return "admin";
+    if (emailList(U.supervisor).indexOf(email) > -1) return "supervisor";
+    return null;
+  }
   function enterFor(user) {
+    var emailRole = roleForEmail(user.email);
+    function open(role, name) {
+      window.GJAuth.user = { uid: user.uid, email: user.email, role: role, name: name || "" };
+      window.GJ.enter(role);
+      injectLogout();
+    }
     return db.collection("users").doc(user.uid).get().then(function (snap) {
       var data = snap.exists ? snap.data() : null;
       if (data && data.active === false) {
         return auth.signOut().then(function () { setBusy(false); showErr("This account is disabled. Contact the owner."); });
       }
-      var role = (data && data.role) || "supervisor";
-      window.GJAuth.user = { uid: user.uid, email: user.email, role: role, name: (data && data.name) || "" };
-      window.GJ.enter(role);
-      injectLogout();
+      open(emailRole || (data && data.role) || "supervisor", data && data.name);
     }).catch(function () {
+      // Firestore unreachable — if the email already identifies the role, carry on.
+      if (emailRole) { open(emailRole); return; }
       return auth.signOut().then(function () { setBusy(false); showErr("Your account has no role assigned yet. Contact the owner."); });
     });
   }
