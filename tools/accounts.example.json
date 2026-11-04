@@ -1,0 +1,7 @@
+{
+  "_comment": "Copy this file to  accounts.json  and set real passwords. accounts.json is git-ignored and never leaves your machine. role must be one of: admin, supervisor, packaging.",
+  "users": [
+    { "email": "admin@shrigiriraj.app",      "password": "CHANGE_ME_admin_pw",      "role": "admin",      "name": "Owner" },
+    { "email": "supervisor@shrigiriraj.app", "password": "CHANGE_ME_supervisor_pw", "role": "supervisor", "name": "Supervisor" }
+  ]
+}

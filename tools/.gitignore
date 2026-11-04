@@ -1,0 +1,4 @@
+# NEVER commit these — they are secrets / local only
+serviceAccountKey.json
+accounts.json
+node_modules/

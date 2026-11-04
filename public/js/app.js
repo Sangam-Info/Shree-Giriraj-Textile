@@ -1845,7 +1845,10 @@
     window.GJ = window.GJ || {};
     window.GJ.getPendingRole = function () { return pendingRole; };
     window.GJ.selectRole = function (r) { pendingRole = (r === "supervisor" ? "supervisor" : "admin"); if (picker) { picker.querySelectorAll(".role-card").forEach(function (x) { x.classList.toggle("on", x.getAttribute("data-role") === pendingRole); }); } };
-    window.addEventListener("hashchange", function () { var h = location.hash.replace("#", ""); if (h && NAV.some(function (n) { return n.id === h; })) { if (!$("#app").classList.contains("show")) startApp(); go(h); } });
+    window.addEventListener("hashchange", function () {
+      // protected routes: in LIVE mode, no app navigation until a user is signed in
+      if (window.GJAuth && window.GJAuth.enabled && !(window.GJAuth.user)) return;
+      var h = location.hash.replace("#", ""); if (h && NAV.some(function (n) { return n.id === h; })) { if (!$("#app").classList.contains("show")) startApp(); go(h); } });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 

@@ -1,0 +1,12 @@
+{
+  "name": "giriraj-firebase-tools",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Command-line Firebase setup for the Shree Girijaj Textile Jobwork System",
+  "scripts": {
+    "setup": "node setup-firebase.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  }
+}
