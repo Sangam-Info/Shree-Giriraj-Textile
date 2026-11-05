@@ -24,7 +24,10 @@
 (function () {
   "use strict";
 
-  var DOC = "__all__";
+  // NOTE: must NOT match Firestore's reserved pattern /^__.*__$/ (double underscores
+  // both ends) — such IDs are rejected with "invalid-argument". "all" is a plain,
+  // valid single-document id used to hold each store as one document.
+  var DOC = "all";
 
   // store key  ->  firestore collection  +  who may write it
   var STORES = [
