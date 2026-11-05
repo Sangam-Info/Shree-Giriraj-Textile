@@ -1729,7 +1729,15 @@
   function trimSteps(meters) {
     return (meters || []).map(function (step) { var last = -1; for (var i = 0; i < step.length; i++) if (step[i] != null) last = i; return step.slice(0, last + 1); });
   }
-  function snapSheet(s) { var o = {}; for (var k in s) if (s.hasOwnProperty(k)) o[k] = s[k]; o.meters = trimSteps(s.meters); return o; }
+  function snapSheet(s) {
+    var o = {}; for (var k in s) if (s.hasOwnProperty(k)) o[k] = s[k];
+    // Firestore forbids directly-nested arrays, so store the metre grid as a
+    // map { "0":[row…], "1":[row…] } instead of an array-of-arrays.
+    var m = trimSteps(s.meters), map = {};
+    for (var i = 0; i < m.length; i++) map[i] = m[i];
+    o.meters = map;
+    return o;
+  }
   function expandSheet(s, nStepsMax, nRows) {
     var m = s.meters || [], meters = [];
     for (var st = 0; st < nStepsMax; st++) { var src = m[st] || [], row = new Array(nRows).fill(null); for (var r = 0; r < Math.min(src.length, nRows); r++) row[r] = src[r]; meters.push(row); }
