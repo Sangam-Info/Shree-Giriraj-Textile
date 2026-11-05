@@ -996,19 +996,19 @@
   function wirePackingEditor() {
     var p = packingById(STATE.packingId); if (!p || STATE.view !== "packingsheet") return;
     function refreshPk() { setTxt("#pSumRoll", numI(pkRolls(p))); setTxt("#pSumMt", numI(pkMt(p))); setTxt("#pSumKg", kgStr(B(pkKgG(p)))); var am = pkAmount(p); setTxt("#pGross", moneyP(am.grossP)); setTxt("#pGrossSub", am.qtyStr + " × " + rateStr(rupToP(p.rate || 0)) + am.rateUnit); setTxt("#pAmt", moneyP(am.amountP)); }
-    document.querySelectorAll("[data-ph]").forEach(function (el) { el.onchange = function () { p[el.getAttribute("data-ph")] = el.value; }; });
+    document.querySelectorAll("[data-ph]").forEach(function (el) { el.onchange = function () { p[el.getAttribute("data-ph")] = el.value; schedulePersist(); }; });
     document.querySelectorAll("[data-pbasis]").forEach(function (el) { el.onclick = function () { if (!canEditPacking()) return; p.basis = el.getAttribute("data-pbasis"); render(); }; });
     document.querySelectorAll("[data-pmt]").forEach(function (el) {
       el.oninput = function () {
         var d = el.value.replace(/\D/g, "").slice(0, 2); if (d !== el.value) el.value = d;
         var q = el.getAttribute("data-pmt").split("_"); var s = +q[0], r = +q[1];
         p.meters[s][r] = d === "" ? null : parseInt(d, 10);
-        setTxt("#pstot_" + s, numI(pkStepTotal(p, s))); refreshPk();
+        setTxt("#pstot_" + s, numI(pkStepTotal(p, s))); refreshPk(); schedulePersist();
         if (d.length === 2) { var nx = document.querySelector('[data-pmt="' + s + '_' + (r + 1) + '"]'); if (nx) { nx.focus(); if (nx.select) nx.select(); } }
       };
     });
-    document.querySelectorAll("[data-pkg]").forEach(function (el) { el.oninput = function () { p.kg[+el.getAttribute("data-pkg")] = numOrNull(el.value); setTxt("#pSumKg", kgStr(B(pkKgG(p)))); refreshPk(); }; });
-    document.querySelectorAll("[data-pf]").forEach(function (el) { el.oninput = function () { var k = el.getAttribute("data-pf"); p[k] = Math.max(0, parseFloat(el.value || 0) || 0); refreshPk(); }; });
+    document.querySelectorAll("[data-pkg]").forEach(function (el) { el.oninput = function () { p.kg[+el.getAttribute("data-pkg")] = numOrNull(el.value); setTxt("#pSumKg", kgStr(B(pkKgG(p)))); refreshPk(); schedulePersist(); }; });
+    document.querySelectorAll("[data-pf]").forEach(function (el) { el.oninput = function () { var k = el.getAttribute("data-pf"); p[k] = Math.max(0, parseFloat(el.value || 0) || 0); refreshPk(); schedulePersist(); }; });
     var sp = $("#pStepPlus"); if (sp) sp.onclick = function () { if (p.nSteps < PK_STEPS) { p.nSteps++; render(); } };
     var sm = $("#pStepMinus"); if (sm) sm.onclick = function () { if (p.nSteps > 1) { p.nSteps--; render(); } };
   }
@@ -1158,7 +1158,7 @@
   /* --- sheet editor live wiring (no full re-render) --- */
   function wireSheetEditor() {
     var sh = sheetById(STATE.sheetId); if (!sh || STATE.view !== "gatesheet") return;
-    document.querySelectorAll("[data-sh]").forEach(function (el) { el.onchange = function () { var k = el.getAttribute("data-sh"); sh[k] = el.value; if (k === "workerId") render(); }; });
+    document.querySelectorAll("[data-sh]").forEach(function (el) { el.onchange = function () { var k = el.getAttribute("data-sh"); sh[k] = el.value; if (k === "workerId") render(); else schedulePersist(); }; });
     document.querySelectorAll("[data-mt]").forEach(function (el) {
       el.oninput = function () {
         var d = el.value.replace(/\D/g, "").slice(0, 2);     /* digits only, max 2 */
@@ -1168,15 +1168,16 @@
         setTxt("#stot_" + s, numI(stepTotalMt(sh, s)));
         setTxt("#sumRoll", numI(sheetRolls(sh)));
         setTxt("#sumMt", numI(sheetMt(sh)));
+        schedulePersist();                                    /* auto-save typed rolls (debounced) */
         if (d.length === 2) {                                 /* 2 digits → jump to next row, same step */
           var next = document.querySelector('[data-mt="' + s + '_' + (r + 1) + '"]');
           if (next) { next.focus(); if (next.select) next.select(); }
         }
       };
     });
-    document.querySelectorAll("[data-kg]").forEach(function (el) { el.oninput = function () { sh.kg[+el.getAttribute("data-kg")] = numOrNull(el.value); setTxt("#sumKg", kgStr(B(sheetKgG(sh)))); }; });
-    document.querySelectorAll("[data-pk]").forEach(function (el) { el.oninput = function () { sh.parat[+el.getAttribute("data-pk")].kokdi = numOrNull(el.value); refreshParat(sh); }; });
-    document.querySelectorAll("[data-pc]").forEach(function (el) { el.oninput = function () { sh.parat[+el.getAttribute("data-pc")].color = numOrNull(el.value); refreshParat(sh); }; });
+    document.querySelectorAll("[data-kg]").forEach(function (el) { el.oninput = function () { sh.kg[+el.getAttribute("data-kg")] = numOrNull(el.value); setTxt("#sumKg", kgStr(B(sheetKgG(sh)))); schedulePersist(); }; });
+    document.querySelectorAll("[data-pk]").forEach(function (el) { el.oninput = function () { sh.parat[+el.getAttribute("data-pk")].kokdi = numOrNull(el.value); refreshParat(sh); schedulePersist(); }; });
+    document.querySelectorAll("[data-pc]").forEach(function (el) { el.oninput = function () { sh.parat[+el.getAttribute("data-pc")].color = numOrNull(el.value); refreshParat(sh); schedulePersist(); }; });
     document.querySelectorAll("[data-pdel]").forEach(function (el) { el.onclick = function () { sh.parat.splice(+el.getAttribute("data-pdel"), 1); render(); }; });
     var pa = $("#paratAdd"); if (pa) pa.onclick = function () { sh.parat.push({ kokdi: null, color: null }); render(); };
     var sp = $("#stepPlus"); if (sp) sp.onclick = function () { if (sh.nSteps < MAX_STEPS) { sh.nSteps++; render(); } };
@@ -1296,13 +1297,13 @@
         var a = el.getAttribute("data-np-cell").split("-"), pi = +a[0], ri = +a[1];
         var d = (el.value || "").replace(/\D/g, "").slice(0, 3); el.value = d;
         if (s.products[pi]) { if (d === "") s.products[pi].lots[ri] = null; else s.products[pi].lots[ri] = kgToG(parseInt(d, 10)); }
-        nRecalc(); nRefreshSheetTotals();
+        nRecalc(); nRefreshSheetTotals(); schedulePersist();
         if (d.length === 3 && ri < NL_ROWS - 1) { var nx = document.querySelector('[data-np-cell="' + pi + '-' + (ri + 1) + '"]'); if (nx) { nx.focus(); nx.select && nx.select(); } }
       };
     });
     document.querySelectorAll("[data-np-delprod]").forEach(function (el) { el.onclick = function () { delNProduct(+el.getAttribute("data-np-delprod")); }; });
     document.querySelectorAll("[data-np-addprod]").forEach(function (el) { el.onclick = function () { addNProduct(); }; });
-    var par = document.querySelector("[data-np-parat]"); if (par) { par.oninput = function () { s.paratG = kgToG(pf(par.value)); nRecalc(); setTxt("#npar", kgStr(s.paratG) + " kg"); nRefreshSheetTotals(); }; par.onchange = function () { s.paratG = kgToG(pf(par.value)); render(); }; }
+    var par = document.querySelector("[data-np-parat]"); if (par) { par.oninput = function () { s.paratG = kgToG(pf(par.value)); nRecalc(); setTxt("#npar", kgStr(s.paratG) + " kg"); nRefreshSheetTotals(); schedulePersist(); }; par.onchange = function () { s.paratG = kgToG(pf(par.value)); render(); }; }
     document.querySelectorAll("[data-nsheetpdf]").forEach(function (el) { el.onclick = function () { makeNiwarSheetPDF(el.getAttribute("data-nsheetpdf")); }; });
   }
   function wireNiwar() {
@@ -1891,7 +1892,7 @@
   if (typeof window !== "undefined" && window.__TEST) {
     window.__TEST_API = { STATE: STATE, render: render, go: go, openSheet: openSheet, newSheet: newSheet, setLang: setLang, setRole: setRole, saveLoan: saveLoan,
       viewDashboard: viewDashboard, viewGate: viewGate, viewGateSheet: viewGateSheet, viewLedger: viewLedger, viewUpad: viewUpad, viewBilling: viewBilling, viewLoans: viewLoans, viewYearEnd: viewYearEnd, viewWorkers: viewWorkers, viewHelp: viewHelp, viewNiwar: viewNiwar,
-      jobSheetPages: jobSheetPages, billHTML: billHTML, loanHTML: loanHTML, upadHTML: upadHTML, yearEndHTML: yearEndHTML, niwarBillHTML: niwarBillHTML,
+      jobSheetPages: jobSheetPages, billHTML: billHTML, loanHTML: loanHTML, upadHTML: upadHTML, yearEndHTML: yearEndHTML, niwarBillHTML: niwarBillHTML, sheetWaText: sheetWaText, sheetById: sheetById, newSheet: newSheet, openSheet: openSheet,
       sheetMt: sheetMt, sheetRolls: sheetRolls, sheetKgG: sheetKgG, ledgerRows: ledgerRows, billMonth: billMonth, settleM: settleM, matBalance: matBalance, ghatiRecon: ghatiRecon, yearEnd: yearEnd, loanBalanceP: loanBalanceP, upadMP: upadMP, upadEntries: upadEntries, UPAD: UPAD, moneyP: moneyP, kgStr: kgStr,
       NWORKERS: NWORKERS, NSHEETS: NSHEETS, NUPAD: NUPAD, NLOANS: NLOANS, NPARAM: NPARAM, NIWAR_SIZES: NIWAR_SIZES, NL_ROWS: NL_ROWS, niwarSettle: niwarSettle, nMonthSheets: nMonthSheets, nSizeTotalsG: nSizeTotalsG, nRecvG: nRecvG, nParatG: nParatG, nSheetNiwarG: nSheetNiwarG, nProductG: nProductG, nParam: nParam, nSheetById: nSheetById, viewNiwarSheet: viewNiwarSheet, niwarSheetHTML: niwarSheetHTML, nUpadMP: nUpadMP, nLoanBalanceP: nLoanBalanceP, kgToG: kgToG,
       viewPacking: viewPacking, viewPackingSheet: viewPackingSheet, packingPages: packingPages, newPacking: newPacking, openPacking: openPacking,
