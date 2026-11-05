@@ -2,8 +2,10 @@ rules_version = '2';
 
 // =====================================================================
 // Shri Giriraj Textile — Jobwork System · Firestore security rules
-// Roles are assigned by SIGN-IN EMAIL (see isAdmin/isSupervisor below) and must
-// match __APP_USERS in public/js/firebase-config.js:
+// Roles are read from each account's own users/{uid} document
+//   users/{uid} = { role: "admin" | "supervisor", active: true, name: "…" }
+// created by tools/setup-firebase.js (go.js). This works for ANY account
+// email — no hardcoded addresses.
 //   admin      — full access, including accounting & packaging
 //   supervisor — gate entry, niwar gate entry & packaging only (NO accounting)
 // =====================================================================
@@ -11,13 +13,12 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function signedIn() { return request.auth != null; }
-    // Roles are assigned by sign-in email. Keep this list in step with
-    // __APP_USERS in public/js/firebase-config.js. Only these addresses get
-    // access; any other signed-in account is denied by the default rule below.
-    function em()           { return signedIn() ? request.auth.token.email.lower() : ''; }
-    function isAdmin()      { return em() == 'admin@gmail.com'; }
-    function isSupervisor() { return em() == 'superwiser@gmail.com'; }
-    function isStaff()      { return isAdmin() || isSupervisor(); }
+    function hasRole()  { return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)); }
+    function userDoc()  { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function role()     { return userDoc().role; }
+    function active()   { return userDoc().active != false; }
+    function isAdmin()  { return hasRole() && active() && role() == 'admin'; }
+    function isStaff()  { return hasRole() && active() && (role() == 'admin' || role() == 'supervisor'); }
 
     // --- identity & settings ---------------------------------------
     match /users/{uid} {

@@ -1,0 +1,5 @@
+# Always revalidate the HTML so a new deploy loads without a hard refresh.
+/
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache

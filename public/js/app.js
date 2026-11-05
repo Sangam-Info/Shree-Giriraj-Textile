@@ -1850,23 +1850,34 @@
 
   function schedulePersist() {
     if (!_persistOn || !(window.GJDB && window.GJDB.ready)) return;
+    saveBackup();                         // local safety-net on every change (instant, never lost)
     if (_persistT) clearTimeout(_persistT);
     _persistT = setTimeout(function () { _persistT = null; doPersist(1); }, 900);
   }
   var _lastSaveErr = "";
   function doPersist(attempt) {
-    setSync("saving");
+    setSync("saving"); saveBackup();
     try {
       window.GJDB.saveStores(buildSnapshot(), STATE.role)
-        .then(function (n) { _lastSaveErr = ""; setSync(n ? "saved" : "idle"); })
+        .then(function (n) { _lastSaveErr = ""; clearBackup(); setSync(n ? "saved" : "idle"); })
         .catch(function (e) {
           var msg = (e && (e.code || e.message)) || "unknown error";
           _lastSaveErr = msg; console.warn("save failed (attempt " + attempt + ")", e);
           if (attempt < 3) { setSync("saving"); setTimeout(function () { doPersist(attempt + 1); }, 1500 * attempt); return; }
-          setSync("error", msg);
-          toast(L("સેવ નિષ્ફળ", "Save failed") + ": " + msg, "info");
+          setSync("error", msg);   // data is still safe in local backup; it will sync once the server accepts writes
+          toast(L("સર્વરમાં સેવ નિષ્ફળ (ડેટા સુરક્ષિત છે): ", "Server save failed (your data is safe locally): ") + msg, "info");
         });
     } catch (e) { _lastSaveErr = (e && e.message) || ""; setSync("error", _lastSaveErr); }
+  }
+
+  /* ---- local write-ahead backup: typed data survives refresh / crash / server failure ---- */
+  function saveBackup() {
+    try { if (window.GJDB && window.GJDB.enc) localStorage.setItem("gj_pending", JSON.stringify({ ts: Date.now(), role: STATE.role, snap: window.GJDB.enc(buildSnapshot()) })); } catch (e) {}
+  }
+  function clearBackup() { try { localStorage.removeItem("gj_pending"); } catch (e) {} }
+  function loadBackup() {
+    try { var raw = localStorage.getItem("gj_pending"); if (!raw) return null; var p = JSON.parse(raw); if (!p || !p.snap || !(window.GJDB && window.GJDB.dec)) return null; return window.GJDB.dec(p.snap); }
+    catch (e) { return null; }
   }
 
   /* tiny save-status pill in the app bar (reassures the owner data is stored) */
@@ -1952,7 +1963,14 @@
         }
       }).catch(function (e) { console.warn("load failed", e); })
         .then(function () {
-          _persistOn = true; render();
+          _persistOn = true;
+          // recover any locally-backed-up work that never reached the server (refresh/crash/denied write)
+          var pend = loadBackup();
+          if (pend) { try { hydrate(pend); toast(L("સેવ ન થયેલો ડેટા પાછો મળ્યો — સિંક થાય છે…", "Recovered unsaved data — syncing…"), "info"); } catch (e) {} }
+          render();
+          if (pend) schedulePersist();   // retry pushing the recovered data to the server
+          window.addEventListener("pagehide", function () { try { saveBackup(); } catch (e) {} });
+          window.addEventListener("beforeunload", function () { try { saveBackup(); } catch (e) {} });
           // real-time sync: the other panel's changes now stream in live
           try { if (window.GJDB && window.GJDB.watch) window.GJDB.watch(applyRemote); } catch (e) {}
         });
