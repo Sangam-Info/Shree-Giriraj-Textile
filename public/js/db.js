@@ -68,7 +68,8 @@
       ready: false, STORES: STORES, enc: enc, dec: dec,
       loadAll: function () { return Promise.resolve({}); },
       saveStores: function () { return Promise.resolve(0); },
-      cacheSeed: function () {}
+      cacheSeed: function () {},
+      watch: function () {}, unwatch: function () {}
     };
     return;
   }
@@ -112,5 +113,25 @@
     });
   }
 
-  window.GJDB = { ready: true, STORES: STORES, enc: enc, dec: dec, loadAll: loadAll, saveStores: saveStores, cacheSeed: cacheSeed };
+  /* ---- real-time listeners: push changes made by the other panel live ---- */
+  var watching = false, unsub = [];
+  function watch(onChange) {
+    if (watching) return; watching = true;
+    STORES.forEach(function (s) {
+      var first = true;
+      var u = ref(s.col).onSnapshot(function (snap) {
+        var d = snap.exists ? snap.data() : null;
+        var val = (d && d.data !== undefined) ? d.data : null;   // stored (encoded) value
+        var js = JSON.stringify(val);
+        if (first) { first = false; lastJSON[s.k] = js; return; } // initial load — we already have it
+        if (js === lastJSON[s.k]) return;                          // our own write echoing back / no change
+        lastJSON[s.k] = js;
+        try { onChange(s.k, val == null ? null : dec(val)); } catch (e) { console.warn("apply remote", e); }
+      }, function (err) { console.warn("watch " + s.col, err); });
+      unsub.push(u);
+    });
+  }
+  function unwatch() { unsub.forEach(function (u) { try { u(); } catch (e) {} }); unsub = []; watching = false; }
+
+  window.GJDB = { ready: true, STORES: STORES, enc: enc, dec: dec, loadAll: loadAll, saveStores: saveStores, cacheSeed: cacheSeed, watch: watch, unwatch: unwatch };
 })();

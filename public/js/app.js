@@ -1784,6 +1784,60 @@
   }
   function assign(t, s) { for (var k in s) if (s.hasOwnProperty(k)) t[k] = s[k]; return t; }
 
+  // add a default BILL row for any worker that lacks one (keeps existing overrides)
+  function ensureBill() {
+    WORKERS.forEach(function (w) { if (!BILL[w.id]) BILL[w.id] = {}; MONTHS.forEach(function (m) { if (!BILL[w.id][m.id]) BILL[w.id][m.id] = { rate: w.rate, ghati: 3, tempo: 0, loanDeductP: null, paidP: null, openingSeed: 0n, openingWseedG: 0n }; }); });
+  }
+
+  // apply ONE store's remote value into memory, without disturbing the other stores
+  function hydrateStore(key, v) {
+    if (key === "workers")      { if (v && v.length !== undefined) { WORKERS = v; decorateWorkers(); ensureBill(); if (!workerById(STATE.worker) && WORKERS[0]) STATE.worker = WORKERS[0].id; buildSwitchers(); } }
+    else if (key === "nworkers"){ if (v && v.length !== undefined) { NWORKERS = v; if (!nwById(STATE.niwarParty) && NWORKERS[0]) STATE.niwarParty = NWORKERS[0].id; } }
+    else if (key === "sheets")  { if (v && v.length !== undefined) SHEETS  = v.map(function (s) { return expandSheet(s, MAX_STEPS, MAX_ROWS); }); }
+    else if (key === "packing") { if (v && v.length !== undefined) PACKING = v.map(function (s) { return expandSheet(s, PK_STEPS, PK_ROWS); }); }
+    else if (key === "nsheets") { if (v && v.list) { NSHEETS = v.list; if (v.seq != null) NSEQ.v = v.seq; } }
+    else if (key === "bills")   { if (v && v.w) { rebuildBill(); for (var wid in v.w) if (BILL[wid]) for (var mid in v.w[wid]) if (BILL[wid][mid]) assign(BILL[wid][mid], v.w[wid][mid]); if (v.ghatiRate != null) GHATI_RATE.v = v.ghatiRate; } }
+    else if (key === "nparam")  { if (v) NPARAM = v; }
+    else if (key === "loans")   { if (v) LOANS  = v; }
+    else if (key === "upad")    { if (v) UPAD   = v; }
+    else if (key === "nupad")   { if (v) NUPAD  = v; }
+    else if (key === "nloans")  { if (v) NLOANS = v; }
+    WORKERS.forEach(function (w) { LOANS[w.id] = LOANS[w.id] || []; UPAD[w.id] = UPAD[w.id] || []; });
+    NWORKERS.forEach(function (p) { NUPAD[p.id] = NUPAD[p.id] || []; NLOANS[p.id] = NLOANS[p.id] || []; });
+  }
+
+  /* ---- real-time sync: apply the other panel's changes, but never while the
+          current user is mid-edit (defer until they stop typing) ---- */
+  var _remoteQ = {}, _remoteTimer = null;
+  function isEditingNow() {
+    var a = document.activeElement;
+    if (a && a !== document.body) {
+      var t = (a.tagName || "").toLowerCase();
+      if (t === "input" || t === "textarea" || t === "select") {
+        var app = document.getElementById("app");           // only count edits inside the app shell,
+        if (app && app.contains(a)) return true;             // not focus left on the hidden login form
+      }
+    }
+    var mb = $("#modalBack"); if (mb && mb.classList.contains("show")) return true;  // a modal is open
+    return false;
+  }
+  function applyRemote(key, value) { _remoteQ[key] = value; scheduleRemoteFlush(); }
+  function scheduleRemoteFlush() {
+    if (isEditingNow()) {
+      if (!_remoteTimer) _remoteTimer = setInterval(function () { if (!isEditingNow()) { clearInterval(_remoteTimer); _remoteTimer = null; flushRemote(); } }, 1000);
+      return;
+    }
+    flushRemote();
+  }
+  function flushRemote() {
+    var keys = Object.keys(_remoteQ); if (!keys.length) return;
+    keys.forEach(function (k) { hydrateStore(k, _remoteQ[k]); });
+    _remoteQ = {};
+    try { if (window.GJDB && window.GJDB.cacheSeed) window.GJDB.cacheSeed(buildSnapshot()); } catch (e) {}
+    setSync("synced");
+    render();
+  }
+
   // Fresh client database: keep the (editable) starter roster, wipe all demo transactions.
   function seedInitial() {
     SHEETS.length = 0; PACKING.length = 0; NSHEETS.length = 0;
@@ -1820,6 +1874,7 @@
     if (state === "saving") { el.style.background = "var(--bg-2)"; el.style.color = "var(--muted)"; el.textContent = L("સેવ થાય છે…", "Saving…"); }
     else if (state === "saved") { el.style.background = "#e7f7ef"; el.style.color = "#1f9d6b"; el.textContent = "✓ " + L("સેવ થયું", "Saved"); }
     else if (state === "error") { el.style.background = "#fdecec"; el.style.color = "#c0392b"; el.textContent = "⚠ " + L("સેવ નથી થયું", "Not saved"); }
+    else if (state === "synced") { el.style.background = "#e8f0fe"; el.style.color = "#2f5fae"; el.textContent = "↻ " + L("અપડેટ થયું", "Updated"); setTimeout(function () { var e2 = $("#gjSync"); if (e2 && /Updated|અપડેટ/.test(e2.textContent)) setSync("idle"); }, 2500); }
     else { el.style.display = "none"; }
   }
   function loadingHTML() {
@@ -1888,7 +1943,11 @@
           hydrate(d); window.GJDB.cacheSeed(buildSnapshot());
         }
       }).catch(function (e) { console.warn("load failed", e); })
-        .then(function () { _persistOn = true; render(); });
+        .then(function () {
+          _persistOn = true; render();
+          // real-time sync: the other panel's changes now stream in live
+          try { if (window.GJDB && window.GJDB.watch) window.GJDB.watch(applyRemote); } catch (e) {}
+        });
     } else {
       startApp();   // DEMO mode — unchanged
     }
