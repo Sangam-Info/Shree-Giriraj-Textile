@@ -1851,14 +1851,22 @@
   function schedulePersist() {
     if (!_persistOn || !(window.GJDB && window.GJDB.ready)) return;
     if (_persistT) clearTimeout(_persistT);
-    _persistT = setTimeout(function () {
-      _persistT = null; setSync("saving");
-      try {
-        window.GJDB.saveStores(buildSnapshot(), STATE.role)
-          .then(function (n) { setSync(n ? "saved" : "idle"); })
-          .catch(function (e) { console.warn("save failed", e); setSync("error"); });
-      } catch (e) { console.warn(e); setSync("error"); }
-    }, 900);
+    _persistT = setTimeout(function () { _persistT = null; doPersist(1); }, 900);
+  }
+  var _lastSaveErr = "";
+  function doPersist(attempt) {
+    setSync("saving");
+    try {
+      window.GJDB.saveStores(buildSnapshot(), STATE.role)
+        .then(function (n) { _lastSaveErr = ""; setSync(n ? "saved" : "idle"); })
+        .catch(function (e) {
+          var msg = (e && (e.code || e.message)) || "unknown error";
+          _lastSaveErr = msg; console.warn("save failed (attempt " + attempt + ")", e);
+          if (attempt < 3) { setSync("saving"); setTimeout(function () { doPersist(attempt + 1); }, 1500 * attempt); return; }
+          setSync("error", msg);
+          toast(L("સેવ નિષ્ફળ", "Save failed") + ": " + msg, "info");
+        });
+    } catch (e) { _lastSaveErr = (e && e.message) || ""; setSync("error", _lastSaveErr); }
   }
 
   /* tiny save-status pill in the app bar (reassures the owner data is stored) */
@@ -1868,12 +1876,12 @@
     el.style.cssText = "display:none;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:5px 10px;border-radius:999px;margin-left:8px;white-space:nowrap";
     var bar = $(".appbar"); bar.appendChild(el);
   }
-  function setSync(state) {
+  function setSync(state, msg) {
     ensureSyncPill(); var el = $("#gjSync"); if (!el) return;
-    el.style.display = "inline-flex";
+    el.style.display = "inline-flex"; el.title = "";
     if (state === "saving") { el.style.background = "var(--bg-2)"; el.style.color = "var(--muted)"; el.textContent = L("સેવ થાય છે…", "Saving…"); }
     else if (state === "saved") { el.style.background = "#e7f7ef"; el.style.color = "#1f9d6b"; el.textContent = "✓ " + L("સેવ થયું", "Saved"); }
-    else if (state === "error") { el.style.background = "#fdecec"; el.style.color = "#c0392b"; el.textContent = "⚠ " + L("સેવ નથી થયું", "Not saved"); }
+    else if (state === "error") { el.style.background = "#fdecec"; el.style.color = "#c0392b"; el.style.cursor = "help"; el.textContent = "⚠ " + L("સેવ નથી થયું", "Not saved"); el.title = msg ? ("Save error: " + msg) : ""; el.onclick = function () { if (msg) alert("Save error: " + msg); }; }
     else if (state === "synced") { el.style.background = "#e8f0fe"; el.style.color = "#2f5fae"; el.textContent = "↻ " + L("અપડેટ થયું", "Updated"); setTimeout(function () { var e2 = $("#gjSync"); if (e2 && /Updated|અપડેટ/.test(e2.textContent)) setSync("idle"); }, 2500); }
     else { el.style.display = "none"; }
   }

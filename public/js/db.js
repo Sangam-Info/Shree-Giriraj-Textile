@@ -92,7 +92,7 @@
 
   // map: { storeKey: plainValue }. Only CHANGED stores the role may write are committed.
   function saveStores(map, role) {
-    var batch = db.batch(), n = 0;
+    var batch = db.batch(), pending = [];
     STORES.forEach(function (s) {
       if (!Object.prototype.hasOwnProperty.call(map, s.k)) return;
       if (role !== "admin" && s.role === "admin") return;      // supervisor: no accounting/dir writes
@@ -100,10 +100,15 @@
       var js = JSON.stringify(encoded);
       if (lastJSON[s.k] === js) return;                        // unchanged — skip the write
       batch.set(ref(s.col), { data: encoded, at: Date.now() });
-      lastJSON[s.k] = js; n++;
+      pending.push([s.k, js]);
     });
-    if (!n) return Promise.resolve(0);
-    return batch.commit().then(function () { return n; });
+    if (!pending.length) return Promise.resolve(0);
+    // only mark as saved AFTER the commit succeeds — so a rejected write is retried,
+    // not silently skipped on the next attempt.
+    return batch.commit().then(function () {
+      pending.forEach(function (p) { lastJSON[p[0]] = p[1]; });
+      return pending.length;
+    });
   }
 
   // Record the baseline (after load or first seed) so the first edit diffs correctly.
