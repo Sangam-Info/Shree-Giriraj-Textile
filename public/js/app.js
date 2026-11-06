@@ -33,7 +33,7 @@
     phone: "+91 00000 00000"    /* sample — replace with the real phone */
   };
   var VENDOR = "Shri Giriraj Textile";
-  var MAX_ROWS = 45, MAX_STEPS = 8;
+  var MAX_ROWS = 45, MAX_STEPS = 15;
 
   /* ---------------------------------------------------------------- BIGINT */
   function rupToP(r) { return BigInt(Math.round(Number(r) * 100)); }
@@ -85,6 +85,28 @@
   function mulberry32(a) { return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; var t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
   var RID = 0; function rid() { return "s" + Date.now().toString(36) + "_" + (++RID).toString(36); }
   function numOrNull(v) { if (v === "" || v == null) return null; var n = parseFloat(v); return isNaN(n) ? null : n; }
+
+  /* ---- input validation helpers (bug 3) ----------------------------
+     Weight / money fields accept only a non-negative decimal. cleanDecimal
+     keeps digits and a single dot (live-sanitising the field as typed); it
+     also caps very large junk entries so one stray keystroke can't poison a
+     total. kgOrNull returns a clamped number (>= 0) or null when empty. */
+  function cleanDecimal(str, maxInt, maxDec) {
+    str = String(str == null ? "" : str).replace(/[^\d.]/g, "");       // digits + dots only
+    var i = str.indexOf(".");
+    if (i !== -1) str = str.slice(0, i + 1) + str.slice(i + 1).replace(/\./g, "");  // one dot only
+    var parts = str.split(".");
+    if (parts[0].length > (maxInt || 6)) parts[0] = parts[0].slice(0, maxInt || 6);
+    if (parts.length > 1) parts[1] = parts[1].slice(0, maxDec == null ? 3 : maxDec);
+    return parts.length > 1 ? parts[0] + "." + parts[1] : parts[0];
+  }
+  function kgOrNull(v) { var n = numOrNull(v); if (n == null) return null; if (n < 0) n = 0; return n; }
+  // Sanitise a decimal field in place and return the clamped value (or null).
+  function sanitizeDecimalField(el, maxInt, maxDec) {
+    var c = cleanDecimal(el.value, maxInt, maxDec);
+    if (c !== el.value) el.value = c;
+    return kgOrNull(c);
+  }
 
   /* ---------------------------------------------------------------- DATA */
   var MONTHS = [
@@ -454,7 +476,24 @@
     var totKg = monthSheets.reduce(function (a, s) { return a + sheetKgG(s); }, 0);
     var html = demoStrip();
     html += '<div class="page-head row-between"><div><h2>' + L("સુપરવાઇઝર ડેશબોર્ડ", "Supervisor Dashboard") + '</h2><div class="sub">' + monthName() + ' — ' + L("ગેટ જોબ વર્ક શીટ + નિવાર ગેટ એન્ટ્રી", "gate job work sheets + niwar gate entry") + '</div></div>' +
-      '<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-soft" data-go="niwar">' + svg("roll") + ' ' + L("નિવાર ગેટ એન્ટ્રી", "Niwar Gate Entry") + '</button><button class="btn btn-primary" data-newsheet="1">' + svg("plus") + ' ' + L("નવી શીટ", "New Sheet") + '</button></div></div>';
+      '<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-primary" data-newsheet="1">' + svg("plus") + ' ' + L("નવી શીટ", "New Sheet") + '</button></div></div>';
+    // Two primary clickable entry cards (bug 2)
+    var nMonth = NSHEETS.filter(function (s) { return s.date.slice(0, 7) === STATE.month; });
+    html += '<div class="dash-entry-grid">' +
+      '<button type="button" class="entry-card" data-go="gate">' +
+        '<span class="ec-ico tint-brand">' + svg("sheet") + '</span>' +
+        '<span class="ec-body"><span class="ec-title">' + L("ગેટ · જોબ વર્ક શીટ", "Gate · Job Work Sheet") + '</span>' +
+        '<span class="ec-sub">' + L("ટેમ્પો ગેટ એન્ટ્રી · મીટર, KG, પરત", "Tempo gate entry · metres, KG, parat") + '</span>' +
+        '<span class="ec-meta">' + monthSheets.length + ' ' + L("શીટ આ મહિને", "sheets this month") + '</span></span>' +
+        '<span class="ec-arrow">' + svg("chevR") + '</span>' +
+      '</button>' +
+      '<button type="button" class="entry-card" data-go="niwar">' +
+        '<span class="ec-ico tint-in">' + svg("roll") + '</span>' +
+        '<span class="ec-body"><span class="ec-title">' + L("નિવાર જોબવર્ક શીટ", "Niwar Jobwork Sheet") + '</span>' +
+        '<span class="ec-sub">' + L("નિવાર ગેટ એન્ટ્રી · વજન", "Niwar gate entry · weights") + '</span>' +
+        '<span class="ec-meta">' + nMonth.length + ' ' + L("શીટ આ મહિને", "sheets this month") + '</span></span>' +
+        '<span class="ec-arrow">' + svg("chevR") + '</span>' +
+      '</button></div>';
     html += '<div class="stat-grid">' +
       stat("tint-brand", "sheet", L("આ મહિને શીટ", "Sheets this month"), monthSheets.length, "", "") +
       stat("tint-in", "ruler", L("કુલ મીટર", "Total metre"), numI(totMt), "mtr", "") +
@@ -1175,9 +1214,9 @@
         }
       };
     });
-    document.querySelectorAll("[data-kg]").forEach(function (el) { el.oninput = function () { sh.kg[+el.getAttribute("data-kg")] = numOrNull(el.value); setTxt("#sumKg", kgStr(B(sheetKgG(sh)))); schedulePersist(); }; });
-    document.querySelectorAll("[data-pk]").forEach(function (el) { el.oninput = function () { sh.parat[+el.getAttribute("data-pk")].kokdi = numOrNull(el.value); refreshParat(sh); schedulePersist(); }; });
-    document.querySelectorAll("[data-pc]").forEach(function (el) { el.oninput = function () { sh.parat[+el.getAttribute("data-pc")].color = numOrNull(el.value); refreshParat(sh); schedulePersist(); }; });
+    document.querySelectorAll("[data-kg]").forEach(function (el) { el.oninput = function () { sh.kg[+el.getAttribute("data-kg")] = sanitizeDecimalField(el, 5, 3); setTxt("#sumKg", kgStr(B(sheetKgG(sh)))); schedulePersist(); }; });
+    document.querySelectorAll("[data-pk]").forEach(function (el) { el.oninput = function () { sh.parat[+el.getAttribute("data-pk")].kokdi = sanitizeDecimalField(el, 5, 3); refreshParat(sh); schedulePersist(); }; });
+    document.querySelectorAll("[data-pc]").forEach(function (el) { el.oninput = function () { sh.parat[+el.getAttribute("data-pc")].color = sanitizeDecimalField(el, 5, 3); refreshParat(sh); schedulePersist(); }; });
     document.querySelectorAll("[data-pdel]").forEach(function (el) { el.onclick = function () { sh.parat.splice(+el.getAttribute("data-pdel"), 1); render(); }; });
     var pa = $("#paratAdd"); if (pa) pa.onclick = function () { sh.parat.push({ kokdi: null, color: null }); render(); };
     var sp = $("#stepPlus"); if (sp) sp.onclick = function () { if (sh.nSteps < MAX_STEPS) { sh.nSteps++; render(); } };
@@ -1422,8 +1461,9 @@
     showModal("users", id ? L("જોબ વર્કર ફેરફાર", "Edit Job Worker") : L("જોબ વર્કર ઉમેરો", "Add Job Worker"), L("નામ, ફોન, કાપડ અને રેટ.", "Name, phone, cloth and rate."), body, function () { saveWorkerForm(id); });
   }
   function saveWorkerForm(id) {
-    var name = fVal("#wfName").trim(), en = fVal("#wfEn").trim(), phone = fVal("#wfPhone").trim(), cloth = fVal("#wfCloth").trim(), rate = parseFloat(fVal("#wfRate")) || 0;
+    var name = fVal("#wfName").trim(), en = fVal("#wfEn").trim(), phone = fVal("#wfPhone").trim(), cloth = fVal("#wfCloth").trim(), rate = Math.max(0, parseFloat(fVal("#wfRate")) || 0);
     if (!name && !en) { toast(L("નામ દાખલ કરો", "Enter a name"), "info"); return; }
+    if (phone && !/^[+\d][\d\s\-]{6,18}$/.test(phone)) { toast(L("માન્ય ફોન નંબર દાખલ કરો", "Enter a valid phone number"), "info"); return; }
     if (!en) en = name; if (!name) name = en;
     if (id) { var w = workerById(id); if (w) { w.name = name; w.en = en; w.phone = phone; w.cloth = cloth; w.rate = rate; } }
     else {
@@ -1486,6 +1526,7 @@
   var PDF_ROWS_PER_PAGE = 32;
   function jobSheetPages(id, copy) {
     var sh = sheetById(id); var w = workerById(sh.workerId);
+    var land = (sh.nSteps || 1) > 8;                 // many steps → landscape wide sheet
     var lastRow = 1; for (var s = 0; s < sh.nSteps; s++) for (var r = 0; r < MAX_ROWS; r++) if (sh.meters[s][r] != null) lastRow = Math.max(lastRow, r + 1);
     var head = ''; for (var s2 = 0; s2 < sh.nSteps; s2++) head += '<th>સ્ટેપ ' + (s2 + 1) + '<br>Step</th>';
     var totalPages = Math.max(1, Math.ceil(lastRow / PDF_ROWS_PER_PAGE));
@@ -1503,7 +1544,7 @@
         for (var s5 = 0; s5 < sh.nSteps; s5++) tfoot += '<td>' + (sh.kg[s5] == null ? "" : kgStr(B(Math.round(sh.kg[s5] * 1000)))) + '</td>';
         tfoot += '</tr></tfoot>';
       }
-      var h = '<div class="sheet">' + sheetTop(chipOf(copy), "જોબ વર્ક શીટ<br>Job Work Sheet" + (totalPages > 1 ? ' <span style="font-size:11px">(' + (pg + 1) + '/' + totalPages + ')</span>' : '')) + party +
+      var h = '<div class="sheet' + (land ? ' land' : '') + '">' + sheetTop(chipOf(copy), "જોબ વર્ક શીટ<br>Job Work Sheet" + (totalPages > 1 ? ' <span style="font-size:11px">(' + (pg + 1) + '/' + totalPages + ')</span>' : '')) + party +
         '<h4 class="sh-h">સ્ટેપ પ્રમાણે મીટર · Step-wise Metres' + (totalPages > 1 ? ' — ' + L("ક્રમ", "Sr.") + ' ' + (start + 1) + '–' + end : '') + '</h4>' +
         '<table class="pt jws-pt"><thead><tr><th class="l">ક્રમ<br>Sr.</th>' + head + '</tr></thead><tbody>' + body + '</tbody>' + tfoot + '</table>';
       if (isLast) {
@@ -1664,16 +1705,18 @@
   function slug(s) { return (s || "x").replace(/[^\w઀-૿]+/g, "_").replace(/^_|_$/g, "").slice(0, 24) || "x"; }
   /* Render an array of page-HTML strings → one PDF, each string on its own A4
      page, scaled to fit within the page (so rows are never cut across a break). */
-  function renderPages(pages, filename) {
+  function renderPages(pages, filename, orient) {
     if (!window.html2canvas || !window.jspdf) return Promise.reject(new Error("libs"));
-    var jsPDF = window.jspdf.jsPDF; var pdf = new jsPDF("p", "mm", "a4");
+    orient = orient === "l" ? "l" : "p";
+    var jsPDF = window.jspdf.jsPDF; var pdf = new jsPDF(orient, "mm", "a4");
+    var winW = orient === "l" ? 1160 : 820;                 // wider capture for landscape (many step columns)
     var pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
     var MARGIN = 6; var stage = $("#printStage");
     var fontsReady = (document.fonts && document.fonts.ready) ? document.fonts.ready.catch(function () {}) : Promise.resolve();
     function one(i) {
       stage.innerHTML = pages[i]; var node = stage.firstChild;
       return new Promise(function (r) { setTimeout(r, i === 0 ? 70 : 20); }).then(function () {
-        return window.html2canvas(node, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false, windowWidth: 820 });
+        return window.html2canvas(node, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false, windowWidth: winW });
       }).then(function (canvas) {
         var availW = pw - MARGIN * 2, availH = ph - MARGIN * 2;
         var imgW = availW, imgH = canvas.height * availW / canvas.width;
@@ -1691,7 +1734,7 @@
   }
   function pdfDone() { toast(L("ડાઉનલોડ", "Downloaded"), "ok"); }
   function pdfFail(e) { console.warn(e); toast(L("PDF બન્યું નહીં", "PDF failed"), "info"); }
-  function makeSheetPDF(id, copy) { var sh = sheetById(id); var w = workerById(sh.workerId); toast(L("PDF તૈયાર…", "Generating…"), "info"); renderPages(jobSheetPages(id, copy), "Girijaj_JobWorkSheet_" + slug(w.en) + "_" + sh.date + "_" + (copy === "worker" ? "Worker" : "Company") + ".pdf").then(pdfDone).catch(pdfFail); }
+  function makeSheetPDF(id, copy) { var sh = sheetById(id); var w = workerById(sh.workerId); var orient = (sh.nSteps || 1) > 8 ? "l" : "p"; toast(L("PDF તૈયાર…", "Generating…"), "info"); renderPages(jobSheetPages(id, copy), "Girijaj_JobWorkSheet_" + slug(w.en) + "_" + sh.date + "_" + (copy === "worker" ? "Worker" : "Company") + ".pdf", orient).then(pdfDone).catch(pdfFail); }
   function makeBillPDF(copy, both) { var w = worker(), m = monthObj(); toast(L("PDF તૈયાર…", "Generating…"), "info"); renderPages([billHTML(copy)], "Girijaj_Bill_" + slug(w.en) + "_" + m.e.replace(" ", "") + "_" + (copy === "worker" ? "Worker" : "Company") + ".pdf").then(function () { if (both) return renderPages([billHTML("worker")], "Girijaj_Bill_" + slug(w.en) + "_Worker.pdf").then(function () { toast(L("બંને ડાઉનલોડ", "Both downloaded"), "ok"); }); pdfDone(); }).catch(pdfFail); }
   function makeLoanPDF() { var w = worker(); toast(L("રિપોર્ટ તૈયાર…", "Generating…"), "info"); renderPages([loanHTML()], "Girijaj_Loan_" + slug(w.en) + ".pdf").then(pdfDone).catch(pdfFail); }
   function makeUpadPDF() { var w = worker(), m = monthObj(); toast(L("રિપોર્ટ તૈયાર…", "Generating…"), "info"); renderPages([upadHTML()], "Girijaj_Upad_" + slug(w.en) + "_" + m.e.replace(" ", "") + ".pdf").then(pdfDone).catch(pdfFail); }
@@ -1865,7 +1908,14 @@
           _lastSaveErr = msg; console.warn("save failed (attempt " + attempt + ")", e);
           if (attempt < 3) { setSync("saving"); setTimeout(function () { doPersist(attempt + 1); }, 1500 * attempt); return; }
           setSync("error", msg);   // data is still safe in local backup; it will sync once the server accepts writes
-          toast(L("સર્વરમાં સેવ નિષ્ફળ (ડેટા સુરક્ષિત છે): ", "Server save failed (your data is safe locally): ") + msg, "info");
+          if (msg === "permission-denied" || /permission/i.test(msg)) {
+            // The write reached Firestore but the security rules rejected it — almost always
+            // because the role-based rules have not been published yet. Make that explicit.
+            toast(L("સેવ બ્લોક થયું: Firestore સિક્યોરિટી રૂલ્સ પબ્લિશ કરવા જરૂરી છે. ડેટા લોકલી સુરક્ષિત છે.",
+                    "Save blocked: Firestore security rules need to be published. Your data is safe locally."), "info");
+          } else {
+            toast(L("સર્વરમાં સેવ નિષ્ફળ (ડેટા સુરક્ષિત છે): ", "Server save failed (your data is safe locally): ") + msg, "info");
+          }
         });
     } catch (e) { _lastSaveErr = (e && e.message) || ""; setSync("error", _lastSaveErr); }
   }

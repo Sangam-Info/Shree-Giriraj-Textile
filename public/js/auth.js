@@ -37,6 +37,10 @@
   var USERS = window.__APP_USERS || {};
   function $(s) { return document.querySelector(s); }
 
+  // Clear the boot splash (bug 1): reveals whatever is underneath — the app (if a
+  // session restored) or the login form (if none). Safe to call more than once.
+  function endBoot() { try { document.documentElement.classList.remove("gj-booting"); } catch (e) {} }
+
   /* ---------- language helper for messages ---------- */
   function curLang() { try { var s = localStorage.getItem("gj_lang"); return s === "gu" ? "gu" : "en"; } catch (e) { return "en"; } }
   function tr(en, gu) { return curLang() === "gu" ? gu : en; }
@@ -334,10 +338,16 @@
       var resolved = false;
       auth.onAuthStateChanged(function (user) {
         resolved = true;
-        if (user && !window.GJAuth.user) { resolveAndEnter(user, null, user.email); }  // restore — role not re-validated
-        else if (!user) { setBusy(false); }
+        if (user && !window.GJAuth.user) {
+          // restore — role not re-validated. Keep the splash up until the app shell
+          // (with its own data-loading state) is shown, so no login flash appears.
+          resolveAndEnter(user, null, user.email).then(endBoot, endBoot);
+        } else if (!user) { setBusy(false); endBoot(); }   // no session → reveal the login form
+        else { endBoot(); }
       });
-      setTimeout(function () { if (!resolved) setBusy(false); }, 4000);
+      setTimeout(function () { if (!resolved) { setBusy(false); endBoot(); } }, 4000);
+    } else {
+      endBoot();   // DEMO mode has no auth check — show the login immediately
     }
   }
 
