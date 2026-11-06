@@ -1418,14 +1418,15 @@
 
   /* ---------------------------------------------------------------- SWITCHERS / ROLE / LANG */
   function buildSwitchers() {
-    var ws = $("#workerSelect"); ws.innerHTML = WORKERS.map(function (w) { return '<option value="' + w.id + '">' + w.name + '</option>'; }).join(""); ws.value = STATE.worker; ws.onchange = function () { STATE.worker = ws.value; render(); };
+    var wl = $("#workerLbl"); if (wl) wl.textContent = L("જોબ વર્કર", "Job Worker");    // localize the appbar label
+    var ws = $("#workerSelect"); ws.innerHTML = WORKERS.map(function (w) { return '<option value="' + w.id + '">' + esc(STATE.lang === "en" ? (w.en || w.name) : (w.name || w.en)) + '</option>'; }).join(""); ws.value = STATE.worker; ws.onchange = function () { STATE.worker = ws.value; render(); };
     refreshMonthOptions(); $("#monthSelect").onchange = function () { STATE.month = $("#monthSelect").value; render(); };
     $("#monthPrev").onclick = function () { stepMonth(-1); }; $("#monthNext").onclick = function () { stepMonth(1); };
   }
   function refreshMonthOptions() { var ms = $("#monthSelect"); ms.innerHTML = MONTHS.map(function (m) { return '<option value="' + m.id + '">' + L(m.g, m.e) + '</option>'; }).join(""); ms.value = STATE.month; }
   function stepMonth(dir) { var idx = MONTHS.map(function (m) { return m.id; }).indexOf(STATE.month); idx = Math.min(MONTHS.length - 1, Math.max(0, idx + dir)); STATE.month = MONTHS[idx].id; syncSwitchers(); render(); }
   function syncSwitchers() { $("#workerSelect").value = STATE.worker; $("#monthSelect").value = STATE.month; }
-  function setLang(lang) { STATE.lang = lang; try { document.documentElement.lang = lang === "en" ? "en" : "gu"; } catch (e) {} $("#langGu").classList.toggle("on", lang === "gu"); $("#langEn").classList.toggle("on", lang === "en"); buildShell(); refreshMonthOptions(); render(); }
+  function setLang(lang) { STATE.lang = lang; try { document.documentElement.lang = lang === "en" ? "en" : "gu"; localStorage.setItem("gj_lang", lang); } catch (e) {} $("#langGu").classList.toggle("on", lang === "gu"); $("#langEn").classList.toggle("on", lang === "en"); buildShell(); buildSwitchers(); render(); }
   function setRole(role) { STATE.role = role; if (!viewAllowed(STATE.view)) STATE.view = "dashboard"; buildShell(); render(); }
   function login(role) { STATE.role = (role === "supervisor" ? "supervisor" : "admin"); STATE.view = "dashboard"; buildShell(); startApp(); }
 
@@ -1745,7 +1746,7 @@
   /* ---------------------------------------------------------------- SHELL / HERO / BOOT */
   function buildShell() {
     var nav = navForRole();
-    $("#sidebar").innerHTML = nav.map(function (n) { return '<a class="nav-item" data-nav="' + n.id + '" href="#' + n.id + '">' + svg(n.ic) + '<span>' + L(n.g, n.e) + '</span></a>'; }).join("") + '<div class="nav-foot">' + CO.nameGuj + '<br><b>Jobwork System</b></div>';
+    $("#sidebar").innerHTML = nav.map(function (n) { return '<a class="nav-item" data-nav="' + n.id + '" href="#' + n.id + '">' + svg(n.ic) + '<span>' + L(n.g, n.e) + '</span></a>'; }).join("") + '<div class="nav-foot">' + L(CO.nameGuj, CO.name) + '<br><b>' + L("જોબવર્ક સિસ્ટમ", "Jobwork System") + '</b></div>';
     $("#botnav").innerHTML = nav.slice(0, 5).map(function (n) { return '<a data-nav="' + n.id + '" href="#' + n.id + '">' + svg(n.ic) + '<span>' + L(n.g, n.e) + '</span></a>'; }).join("");
     document.querySelectorAll("[data-nav]").forEach(function (a) { a.onclick = function (e) { e.preventDefault(); go(a.getAttribute("data-nav")); }; });
   }
