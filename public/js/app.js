@@ -74,7 +74,10 @@
     back:'<path d="M19 12H5M12 19l-7-7 7-7"/>', dl:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/>',
     inbox:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
     wa:'<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
-    briefcase:'<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2M2 13h20"/>'
+    briefcase:'<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2M2 13h20"/>',
+    shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+    lock:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+    key:'<circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2M16 7l3 3M14 9l3 3"/>'
   };
   function svg(n, c) { return '<svg class="' + (c || "") + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (I[n] || "") + '</svg>'; }
 
@@ -424,6 +427,7 @@
     { id: "loans", g: "લોન ખાતા", e: "Loan Accounts", ic: "rupee", roles: ["admin"] },
     { id: "yearend", g: "વર્ષાંત (દિવાળી)", e: "Year-End (Diwali)", ic: "spark", roles: ["admin"] },
     { id: "workers", g: "જોબ વર્કર્સ", e: "Job Workers", ic: "users", roles: ["admin"] },
+    { id: "usermgmt", g: "યુઝર મેનેજમેન્ટ", e: "User Management", ic: "shield", roles: ["admin"] },
     { id: "help", g: "માહિતી", e: "How it works", ic: "help", roles: ["admin", "supervisor"] }
   ];
   function navForRole() { return NAV.filter(function (n) { return n.roles.indexOf(STATE.role) > -1; }); }
@@ -910,6 +914,157 @@
   }
 
   /* ================================================================
+     USER MANAGEMENT  —  admin-only. Manages the login accounts and their
+     roles in the Firestore `users/{uid}` documents (the same docs the
+     security rules read). A new account is created on a SECONDARY Firebase
+     app so the signed-in admin's own session is never disturbed. Enabling
+     /disabling, role changes and "remove access" only touch the role doc;
+     the Firebase Auth login itself is managed in the Firebase console.
+     ================================================================ */
+  var UM = { users: null, loading: false, err: "" };
+  function umDb()   { return (window.GJAuth && window.GJAuth.enabled && window.GJAuth.db) ? window.GJAuth.db : null; }
+  function umAuth() { return (window.GJAuth && window.GJAuth.enabled && window.GJAuth.auth) ? window.GJAuth.auth : null; }
+  function umLive() { return !!umDb(); }
+  function umSelf(uid) { return !!(window.GJAuth && window.GJAuth.user && window.GJAuth.user.uid === uid); }
+  function umFind(uid) { return (UM.users || []).filter(function (u) { return u.uid === uid; })[0]; }
+
+  function loadUsers() {
+    var db = umDb(); if (!db) return;
+    UM.loading = true; UM.err = "";
+    db.collection("users").get().then(function (snap) {
+      var arr = [];
+      snap.forEach(function (d) { var v = d.data() || {}; arr.push({ uid: d.id, email: v.email || "", role: v.role || "", name: v.name || "", active: v.active !== false }); });
+      arr.sort(function (a, b) { return (a.name || a.email || a.uid).localeCompare(b.name || b.email || b.uid); });
+      UM.users = arr; UM.loading = false;
+      if (STATE.view === "usermgmt") render();
+    }).catch(function (e) {
+      UM.loading = false; UM.err = (e && (e.code || e.message)) || "load failed";
+      if (STATE.view === "usermgmt") render();
+    });
+  }
+
+  function umRow(u) {
+    var self = umSelf(u.uid);
+    var roleBadge = '<span class="badge ' + (u.role === "admin" ? "badge-upad" : "badge-ok") + '">' + (u.role === "admin" ? L("એડમિન", "Admin") : L("સુપરવાઇઝર", "Supervisor")) + '</span>';
+    var statusBadge = u.active ? '<span class="badge badge-ok">' + L("સક્રિય", "Active") + '</span>' : '<span class="badge badge-upad">' + L("બંધ", "Disabled") + '</span>';
+    var ini = esc((u.name || u.email || "?").trim().slice(0, 2).toUpperCase());
+    return '<tr><td><div style="display:flex;align-items:center;gap:11px"><span class="avatar" style="background:var(--brand)">' + ini + '</span><div><b>' + esc(u.name || "—") + (self ? ' <span style="font-size:11px;color:var(--muted)">(' + L("તમે", "you") + ')</span>' : '') + '</b></div></div></td>' +
+      '<td class="num" style="color:var(--ink-soft)">' + esc(u.email || "—") + '</td>' +
+      '<td>' + roleBadge + '</td><td>' + statusBadge + '</td>' +
+      '<td style="text-align:right;white-space:nowrap">' +
+        '<button class="btn btn-soft btn-sm" data-umedit="' + u.uid + '" title="' + L("ફેરફાર", "Edit") + '">' + svg("edit") + '</button> ' +
+        '<button class="btn btn-soft btn-sm" data-umtoggle="' + u.uid + '" title="' + (u.active ? L("બંધ કરો", "Disable") : L("સક્રિય કરો", "Enable")) + '"' + (self ? ' disabled' : '') + '>' + svg(u.active ? "lock" : "check") + '</button> ' +
+        '<button class="btn btn-soft btn-sm" data-umreset="' + u.uid + '" title="' + L("પાસવર્ડ રીસેટ", "Reset password") + '">' + svg("key") + '</button> ' +
+        '<button class="btn btn-soft btn-sm" data-umremove="' + u.uid + '" title="' + L("એક્સેસ કાઢો", "Remove access") + '"' + (self ? ' disabled' : '') + '>' + svg("trash") + '</button>' +
+      '</td></tr>';
+  }
+
+  function viewUserMgmt() {
+    var html = '<div class="page-head row-between"><div><h2>' + L("યુઝર મેનેજમેન્ટ", "User Management") + '</h2><div class="sub">' + L("લોગિન એકાઉન્ટ અને ભૂમિકાઓ મેનેજ કરો.", "Manage login accounts and their roles.") + '</div></div>' +
+      (umLive() ? '<div style="display:flex;gap:10px"><button class="btn btn-soft" data-umreload="1" title="' + L("ફરી લોડ", "Reload") + '">' + svg("week") + '</button><button class="btn btn-primary" data-umadd="1">' + svg("plus") + ' ' + L("યુઝર ઉમેરો", "Add User") + '</button></div>' : '') + '</div>';
+    if (!umLive()) {
+      html += '<div class="card"><div class="card-pad"><div class="hint">' + L("યુઝર મેનેજમેન્ટ લાઇવ મોડમાં (Firebase સાઇન-ઇન) ઉપલબ્ધ છે.", "User management is available in live mode (signed in to Firebase).") + '</div></div></div>';
+      return html;
+    }
+    html += '<div class="stat-grid">' +
+      stat("tint-brand", "shield", L("કુલ યુઝર", "Total users"), (UM.users ? UM.users.length : "—"), "", L("લોગિન એકાઉન્ટ", "login accounts")) +
+      stat("tint-upad", "users", L("એડમિન", "Admins"), (UM.users ? UM.users.filter(function (u) { return u.role === "admin"; }).length : "—"), "", L("સંપૂર્ણ એક્સેસ", "full access")) +
+      stat("tint-ok", "sheet", L("સુપરવાઇઝર", "Supervisors"), (UM.users ? UM.users.filter(function (u) { return u.role === "supervisor"; }).length : "—"), "", L("ગેટ અને પેકેજિંગ", "gate & packaging")) +
+      stat("tint-out", "lock", L("બંધ એકાઉન્ટ", "Disabled"), (UM.users ? UM.users.filter(function (u) { return !u.active; }).length : "—"), "", L("સાઇન-ઇન બ્લોક", "sign-in blocked")) +
+      '</div>';
+    html += '<div class="card"><div class="table-scroll"><table class="data"><thead><tr><th>' + L("નામ", "Name") + '</th><th>' + L("ઈમેલ", "Email") + '</th><th>' + L("ભૂમિકા", "Role") + '</th><th>' + L("સ્થિતિ", "Status") + '</th><th></th></tr></thead><tbody>';
+    if (UM.loading || UM.users === null) html += '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:22px">' + L("લોડ થઈ રહ્યું છે…", "Loading…") + '</td></tr>';
+    else if (UM.err) html += '<tr><td colspan="5" style="text-align:center;color:var(--upad);padding:22px">' + L("યુઝર લોડ ન થયા: ", "Couldn't load users: ") + esc(UM.err) + '</td></tr>';
+    else if (!UM.users.length) html += '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:22px">' + L("કોઈ યુઝર નથી.", "No users yet.") + '</td></tr>';
+    else UM.users.forEach(function (u) { html += umRow(u); });
+    html += '</tbody></table></div></div>';
+    html += '<div class="hint mt">' + L("💡 યુઝર ઉમેરવાથી તમે લોગ-આઉટ થતા નથી. 'બંધ' તરત સાઇન-ઇન રોકે. 'પાસવર્ડ રીસેટ' યુઝરને ઈમેલ લિંક મોકલે. 'એક્સેસ કાઢો' ભૂમિકા દૂર કરે (લોગિન એકાઉન્ટ Firebase કન્સોલમાં રહે). તમે તમારું પોતાનું એકાઉન્ટ બંધ/કાઢી ન શકો.",
+      "💡 Adding a user does not sign you out. 'Disable' blocks sign-in immediately. 'Reset password' emails the user a link. 'Remove access' deletes the role (the login account itself stays in the Firebase console). You can't disable or remove your own account.") + '</div>';
+    return html;
+  }
+
+  function umAddForm() {
+    var body =
+      fRow(L("નામ", "Name"), fInput("umName", "", 'placeholder="' + L("પૂરું નામ", "Full name") + '"')) +
+      fRow(L("ઈમેલ", "Email"), fInput("umEmail", "", 'type="email" autocomplete="off" placeholder="name@example.com"')) +
+      fRow(L("પાસવર્ડ", "Password"), fInput("umPass", "", 'type="text" autocomplete="off" placeholder="' + L("ઓછામાં ઓછા 6 અક્ષર", "At least 6 characters") + '"')) +
+      '<div class="fg fg-full"><label>' + L("ભૂમિકા", "Role") + '</label><div class="field"><select id="umRole"><option value="supervisor">' + L("સુપરવાઇઝર — ગેટ અને પેકેજિંગ", "Supervisor — Gate & Packaging") + '</option><option value="admin">' + L("એડમિન — સંપૂર્ણ એક્સેસ", "Admin — Full access") + '</option></select></div></div>';
+    showModal("shield", L("યુઝર ઉમેરો", "Add User"), L("નવું લોગિન એકાઉન્ટ અને ભૂમિકા.", "New login account and role."), body, umCreate);
+  }
+
+  function umCreate() {
+    var email = fVal("#umEmail").trim().toLowerCase(), pass = fVal("#umPass"), name = fVal("#umName").trim(), role = fVal("#umRole") === "admin" ? "admin" : "supervisor";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast(L("માન્ય ઈમેલ દાખલ કરો", "Enter a valid email"), "info"); return; }
+    if (!pass || pass.length < 6) { toast(L("પાસવર્ડ ઓછામાં ઓછા 6 અક્ષર", "Password must be at least 6 characters"), "info"); return; }
+    var cfg = window.__FIREBASE_CONFIG || {};
+    var secApp;
+    try { secApp = (firebase.apps || []).filter(function (a) { return a.name === "userCreator"; })[0] || firebase.initializeApp(cfg, "userCreator"); }
+    catch (e) { try { secApp = firebase.app("userCreator"); } catch (e2) { toast(L("બન્યું નહીં", "Couldn't start"), "info"); return; } }
+    var secAuth = secApp.auth();
+    closeModal(); toast(L("યુઝર બની રહ્યો છે…", "Creating user…"), "info");
+    secAuth.createUserWithEmailAndPassword(email, pass).then(function (cred) {
+      var uid = cred.user.uid;
+      return umDb().collection("users").doc(uid).set({ role: role, active: true, name: name || email, email: email });
+    }).then(function () { return secAuth.signOut(); }).then(function () {
+      toast(L("યુઝર ઉમેરાયો", "User added"), "ok"); loadUsers();
+    }).catch(function (e) {
+      var code = e && e.code;
+      var msg = code === "auth/email-already-in-use" ? L("આ ઈમેલ પહેલેથી વપરાય છે", "This email is already in use")
+        : code === "auth/weak-password" ? L("પાસવર્ડ નબળો છે", "Password is too weak")
+        : code === "auth/invalid-email" ? L("અમાન્ય ઈમેલ", "Invalid email")
+        : code === "permission-denied" ? L("ભૂમિકા સેવ બ્લોક થઈ — Firestore રૂલ્સ પબ્લિશ કરો", "Role write blocked — publish the Firestore rules")
+        : ((e && e.message) || L("યુઝર બન્યો નહીં", "Couldn't create user"));
+      toast(msg, "info");
+      try { secAuth.signOut(); } catch (x) {}
+    });
+  }
+
+  function umEditForm(uid) {
+    var u = umFind(uid); if (!u) return; var self = umSelf(uid);
+    var body =
+      fRow(L("નામ", "Name"), fInput("umEName", u.name, "")) +
+      '<div class="fg fg-full"><label>' + L("ભૂમિકા", "Role") + '</label><div class="field"><select id="umERole"' + (self ? " disabled" : "") + '><option value="supervisor"' + (u.role === "supervisor" ? " selected" : "") + '>' + L("સુપરવાઇઝર", "Supervisor") + '</option><option value="admin"' + (u.role === "admin" ? " selected" : "") + '>' + L("એડમિન", "Admin") + '</option></select></div>' + (self ? '<div class="msg">' + L("તમે તમારી પોતાની ભૂમિકા બદલી ન શકો", "You can't change your own role") + '</div>' : "") + '</div>';
+    showModal("shield", L("યુઝર ફેરફાર", "Edit User"), u.email || u.name, body, function () { umSave(uid); });
+  }
+
+  function umSave(uid) {
+    var u = umFind(uid); if (!u) return; var self = umSelf(uid);
+    var name = fVal("#umEName").trim();
+    var role = self ? u.role : (fVal("#umERole") === "admin" ? "admin" : "supervisor");
+    closeModal();
+    umDb().collection("users").doc(uid).set({ role: role, active: u.active, name: name || u.email || u.name, email: u.email }).then(function () {
+      toast(L("સેવ થયું", "Saved"), "ok"); loadUsers();
+    }).catch(function (e) { toast((e && (e.code || e.message)) || L("સેવ નિષ્ફળ", "Save failed"), "info"); });
+  }
+
+  function umToggleActive(uid) {
+    var u = umFind(uid); if (!u) return;
+    if (umSelf(uid)) { toast(L("તમે તમારું પોતાનું એકાઉન્ટ બંધ ન કરી શકો", "You can't disable your own account"), "info"); return; }
+    var next = !u.active;
+    umDb().collection("users").doc(uid).set({ role: u.role, active: next, name: u.name, email: u.email }).then(function () {
+      toast(next ? L("એકાઉન્ટ સક્રિય", "Account enabled") : L("એકાઉન્ટ બંધ", "Account disabled"), "ok"); loadUsers();
+    }).catch(function (e) { toast((e && (e.code || e.message)) || L("નિષ્ફળ", "Failed"), "info"); });
+  }
+
+  function umResetPw(uid) {
+    var u = umFind(uid); if (!u || !u.email) { toast(L("આ એકાઉન્ટનો ઈમેલ નથી", "No email on this account"), "info"); return; }
+    var a = umAuth(); if (!a) return;
+    a.sendPasswordResetEmail(u.email).then(function () { toast(L("રીસેટ લિંક મોકલી: ", "Reset link sent to ") + u.email, "ok"); })
+      .catch(function (e) { toast((e && (e.code || e.message)) || L("મોકલી શકાયું નહીં", "Couldn't send"), "info"); });
+  }
+
+  function umRemove(uid) {
+    var u = umFind(uid); if (!u) return;
+    if (umSelf(uid)) { toast(L("તમે તમારું પોતાનું એકાઉન્ટ કાઢી ન શકો", "You can't remove your own account"), "info"); return; }
+    infoModalConfirm(L("યુઝર એક્સેસ કાઢવું?", "Remove user access?"),
+      L("આ એકાઉન્ટની એપ એક્સેસ કાઢશે. લોગિન એકાઉન્ટ Firebase કન્સોલમાં રહેશે.", "This removes the account's access to the app. The login itself remains in the Firebase console."),
+      function () {
+        umDb().collection("users").doc(uid).delete().then(function () { toast(L("એક્સેસ કાઢ્યું", "Access removed"), "ok"); loadUsers(); })
+          .catch(function (e) { toast((e && (e.code || e.message)) || L("નિષ્ફળ", "Failed"), "info"); });
+      });
+  }
+
+  /* ================================================================
      PACKAGING  —  fully independent panel (no dependencies at all).
      The Packaging role fills it; Admin views and downloads. Pure data
      entry + calculation + its own PDF.  50 rows per step.
@@ -1144,7 +1299,7 @@
   /* ---------------------------------------------------------------- RENDER */
   function render() {
     if (!viewAllowed(STATE.view)) STATE.view = (STATE.role === "supervisor" ? "gate" : "dashboard");
-    var map = { dashboard: viewDashboard, gate: viewGate, gatesheet: viewGateSheet, packing: viewPacking, packingsheet: viewPackingSheet, ledger: viewLedger, niwar: viewNiwar, niwarsheet: viewNiwarSheet, upad: viewUpad, billing: viewBilling, loans: viewLoans, yearend: viewYearEnd, workers: viewWorkers, help: viewHelp };
+    var map = { dashboard: viewDashboard, gate: viewGate, gatesheet: viewGateSheet, packing: viewPacking, packingsheet: viewPackingSheet, ledger: viewLedger, niwar: viewNiwar, niwarsheet: viewNiwarSheet, upad: viewUpad, billing: viewBilling, loans: viewLoans, yearend: viewYearEnd, workers: viewWorkers, usermgmt: viewUserMgmt, help: viewHelp };
     $("#view").innerHTML = (map[STATE.view] || viewDashboard)();
     document.querySelectorAll("[data-nav]").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-nav") === (STATE.view === "gatesheet" ? "gate" : STATE.view)); });
     wire();
@@ -1193,6 +1348,14 @@
       var nm = $("#wNoMatch"); if (nm) nm.style.display = shown ? "none" : "";
       var c = $("#workerCount"); if (c) c.textContent = shown + " " + L("વર્કર", "workers");
     };
+    // ---- User Management ----
+    if (STATE.view === "usermgmt" && umLive() && UM.users === null && !UM.loading) loadUsers();
+    document.querySelectorAll("[data-umadd]").forEach(function (b) { b.onclick = function () { umAddForm(); }; });
+    document.querySelectorAll("[data-umreload]").forEach(function (b) { b.onclick = function () { UM.users = null; loadUsers(); render(); }; });
+    document.querySelectorAll("[data-umedit]").forEach(function (b) { b.onclick = function () { umEditForm(b.getAttribute("data-umedit")); }; });
+    document.querySelectorAll("[data-umtoggle]").forEach(function (b) { b.onclick = function () { umToggleActive(b.getAttribute("data-umtoggle")); }; });
+    document.querySelectorAll("[data-umreset]").forEach(function (b) { b.onclick = function () { umResetPw(b.getAttribute("data-umreset")); }; });
+    document.querySelectorAll("[data-umremove]").forEach(function (b) { b.onclick = function () { umRemove(b.getAttribute("data-umremove")); }; });
     document.querySelectorAll("[data-addnparty]").forEach(function (b) { b.onclick = function () { nPartyForm(null); }; });
     document.querySelectorAll("[data-editnparty]").forEach(function (b) { b.onclick = function () { nPartyForm(b.getAttribute("data-editnparty")); }; });
     document.querySelectorAll("[data-delnparty]").forEach(function (b) { b.onclick = function () { delNParty(b.getAttribute("data-delnparty")); }; });
