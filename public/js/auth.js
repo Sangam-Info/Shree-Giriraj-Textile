@@ -177,7 +177,7 @@
 
       // success
       clearFails(who);
-      window.GJAuth.user = { uid: user.uid, email: user.email, role: actual, name: (data.name || "") };
+      window.GJAuth.user = { uid: user.uid, email: user.email, role: actual, name: (data.name || ""), perms: (data.perms || null) };
       rememberLast(user.email, actual);
       setDropdown(actual);
       window.GJ.enter(actual);
