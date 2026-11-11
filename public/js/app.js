@@ -538,7 +538,7 @@
     var sh = sheetById(STATE.sheetId);
     if (!sh) { STATE.view = "gate"; return viewGate(); }
     var html = '';
-    html += '<div class="page-head row-between"><div style="display:flex;align-items:center;gap:12px"><button class="btn btn-ghost btn-sm" data-go="gate">' + svg("back") + ' ' + L("પાછળ", "Back") + '</button>' +
+    html += '<div class="page-head row-between"><div style="display:flex;align-items:center;gap:12px">' +
       '<div><h2 style="margin:0">' + L("જોબ વર્ક શીટ", "Job Work Sheet") + '</h2></div></div>' +
       '<div class="page-actions"><button class="btn btn-wa btn-sm" data-sheetwa="1">' + svg("wa") + ' ' + L("WhatsApp", "WhatsApp") + '</button>' +
       '<button class="btn btn-gold btn-sm" data-sheetpdf="worker">' + svg("send") + ' ' + L("વર્કર કોપી PDF", "Worker PDF") + '</button>' +
@@ -734,7 +734,7 @@
     var p = nwById(s.partyId); var pname = (STATE.lang === "en" ? p.en : p.name);
     var mid = s.date.slice(0, 7);
     var sizeOpts = function (sel) { return NIWAR_SIZES.map(function (z) { return '<option value="' + z + '"' + (z === sel ? " selected" : "") + '>' + z + '"</option>'; }).join(""); };
-    var html = '<div class="page-head row-between"><div class="row-left" style="display:flex;align-items:center;gap:10px"><button class="btn btn-ghost btn-sm" data-go="niwar">' + svg("back") + ' ' + L("પાછળ", "Back") + '</button><div><h2>' + L("નિવાર ગેટ એન્ટ્રી", "Niwar Gate Entry") + '</h2><div class="sub">' + pname + ' · ' + dmy(s.date) + '</div></div></div>' +
+    var html = '<div class="page-head row-between"><div class="row-left" style="display:flex;align-items:center;gap:10px"><div><h2>' + L("નિવાર ગેટ એન્ટ્રી", "Niwar Gate Entry") + '</h2><div class="sub">' + pname + ' · ' + dmy(s.date) + '</div></div></div>' +
       '<div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" data-delnsheet="' + s.id + '">' + svg("trash") + ' ' + L("કાઢો", "Delete") + '</button><button class="btn btn-gold btn-sm" data-nsheetpdf="' + s.id + '">' + svg("file") + ' PDF</button></div></div>';
 
     /* header: party / date */
@@ -991,7 +991,7 @@
     if (!p) { STATE.view = "packing"; return viewPacking(); }
     var dis = canEditPacking() ? "" : " disabled";
     var am = pkAmount(p);
-    var html = '<div class="page-head row-between"><div style="display:flex;align-items:center;gap:12px"><button class="btn btn-ghost btn-sm" data-go="packing">' + svg("back") + ' ' + L("પાછળ", "Back") + '</button><div><h2 style="margin:0">' + L("પેકિંગ લિસ્ટ", "Packing List") + '</h2></div></div>' +
+    var html = '<div class="page-head row-between"><div style="display:flex;align-items:center;gap:12px"><div><h2 style="margin:0">' + L("પેકિંગ લિસ્ટ", "Packing List") + '</h2></div></div>' +
       '<div class="page-actions"><button class="btn btn-gold btn-sm" data-packpdf="1">' + svg("dl") + ' ' + L("PDF ડાઉનલોડ", "Download PDF") + '</button></div></div>';
     if (!canEditPacking()) html += '<div class="demo-strip">' + svg("info") + '<span>' + L("ફક્ત જોવા માટે — ફેરફાર પેકેજિંગ પેનલ કરે. તમે PDF ડાઉનલોડ કરી શકો.", "View only — editing is done by the Packaging panel. You can download the PDF.") + '</span></div>';
 
@@ -1146,8 +1146,26 @@
     $("#view").innerHTML = (map[STATE.view] || viewDashboard)();
     document.querySelectorAll("[data-nav]").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-nav") === (STATE.view === "gatesheet" ? "gate" : STATE.view)); });
     wire();
+    updateBackFab();
     if (window.scrollTo) window.scrollTo(0, 0);
     schedulePersist();
+  }
+  // Global Back button — editor screens step back to their list; any other screen
+  // returns to the dashboard; the dashboard itself (home) hides it.
+  function backTarget() {
+    var m = { gatesheet: "gate", niwarsheet: "niwar", packingsheet: "packing" };
+    if (m[STATE.view]) return m[STATE.view];
+    if (STATE.view === "dashboard") return null;
+    return "dashboard";
+  }
+  function updateBackFab() {
+    var fab = $("#backFab"); if (!fab) return;
+    var t = backTarget();
+    if (!t || !viewAllowed(t)) { fab.classList.remove("show"); fab.onclick = null; return; }
+    var txt = fab.querySelector(".bf-txt"); if (txt) txt.textContent = L("પાછળ", "Back");
+    fab.setAttribute("aria-label", L("પાછળ", "Back"));
+    fab.onclick = function () { go(t); };
+    fab.classList.add("show");
   }
   function go(v) { if (!viewAllowed(v)) return; STATE.view = v; render(); }
   function openSheet(id) { STATE.sheetId = id; STATE.view = "gatesheet"; render(); }
@@ -2008,7 +2026,7 @@
       if (g && e2) { g.classList.toggle("on", STATE.lang !== "en"); e2.classList.toggle("on", STATE.lang === "en"); }
       document.documentElement.lang = STATE.lang === "en" ? "en" : "gu";
     } catch (e) {}
-    buildShell();
+    buildShell(); buildSwitchers();   // rebuild appbar switchers so month/worker match the restored language
     if (window.GJDB && window.GJDB.ready) {
       // LIVE: load this project's data from Firestore, then show the app.
       _persistOn = false;

@@ -609,6 +609,29 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 28px; }
   .worker-switch { padding-left: 10px; }
 }
 
+/* --- Global floating Back button (bottom-right, all screens except dashboard) --- */
+.back-fab {
+  position: fixed; right: 24px; bottom: 24px; z-index: 55;
+  display: none; align-items: center; gap: 8px;
+  height: 46px; padding: 0 20px 0 16px;
+  background: var(--brand); color: #fff; border: none; border-radius: 999px;
+  font-family: inherit; font-size: 14.5px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 10px 26px rgba(33,96,174,.34), 0 2px 8px rgba(28,46,82,.18);
+  transition: background .14s ease, transform .12s ease, box-shadow .14s ease;
+}
+.back-fab.show { display: inline-flex; }
+.back-fab:hover { background: var(--brand-600); transform: translateY(-1px); }
+.back-fab:active { transform: translateY(0); }
+.back-fab:focus-visible { outline: 2px solid #fff; outline-offset: -4px; }
+.back-fab svg { width: 19px; height: 19px; }
+@media (max-width: 960px) {
+  .back-fab { right: 14px; bottom: calc(80px + env(safe-area-inset-bottom)); height: 44px; padding: 0 18px 0 14px; }
+}
+@media (max-width: 380px) {
+  .back-fab { padding: 0; width: 46px; justify-content: center; }
+  .back-fab .bf-txt { display: none; }
+}
+
 /* --- Phone header: two tidy rows (brand+lang / worker+month) --- */
 @media (max-width: 700px) {
   .appbar {
