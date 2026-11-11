@@ -548,7 +548,7 @@
     var wopts = WORKERS.map(function (w) { return '<option value="' + w.id + '"' + (w.id === sh.workerId ? " selected" : "") + '>' + (STATE.lang === "en" ? w.en : w.name) + '</option>'; }).join("");
     html += '<div class="jws-head"><div class="jws-hfields">' +
       '<label class="jws-hf"><span>' + L("જોબ વર્કર (નામ)", "Job Worker (Name)") + '</span><select data-sh="workerId">' + wopts + '</select></label>' +
-      '<label class="jws-hf"><span>' + L("તારીખ", "Date") + '</span><input type="date" data-sh="date" value="' + esc(sh.date) + '"></label>' +
+      '<label class="jws-hf"><span>' + L("તારીખ", "Date") + '</span><input type="date" data-sh="date" value="' + esc(sh.date) + '"' + dateAttrs() + '></label>' +
       '<label class="jws-hf"><span>' + L("ક્વોલિટી", "Quality") + '</span><input type="text" data-sh="quality" value="' + esc(sh.quality) + '"></label>' +
       '</div></div>';
 
@@ -740,7 +740,7 @@
     /* header: party / date */
     html += '<div class="card"><div class="card-pad"><div class="form-grid">' +
       '<div class="fg"><label>' + L("પાર્ટી", "Party") + '</label><div class="field"><input value="' + esc(pname) + '" disabled></div></div>' +
-      '<div class="fg"><label>' + L("તારીખ", "Date") + '</label><div class="field"><input type="date" data-nh="date" value="' + s.date + '"></div></div>' +
+      '<div class="fg"><label>' + L("તારીખ", "Date") + '</label><div class="field"><input type="date" data-nh="date" value="' + s.date + '"' + dateAttrs() + '></div></div>' +
       '</div></div></div>';
 
     /* product blocks — jobwork-style 3-digit grid, max 5 lines per size */
@@ -915,6 +915,18 @@
      ================================================================ */
   var PK_ROWS = 16, PK_STEPS = 12;
   function todayISO() { var d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  /* ---- date bounds & validation (prevents 6-digit / absurd years) ---- */
+  function dateMin() { return "2015-01-01"; }
+  function dateMax() { return (new Date().getFullYear() + 1) + "-12-31"; }   // through end of next year (covers the fiscal year)
+  function dateAttrs() { return ' min="' + dateMin() + '" max="' + dateMax() + '"'; }
+  // Return a valid ISO date within [min,max]; otherwise the fallback (previous value or today).
+  function clampDate(iso, fallback) {
+    fallback = fallback || todayISO();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return fallback;    // rejects empty + 5/6-digit years
+    if (iso < dateMin() || iso > dateMax()) return fallback;
+    var d = new Date(iso + "T00:00:00"); if (isNaN(d.getTime())) return fallback;
+    return iso;
+  }
   function blankPacking() {
     var meters = [], kg = [];
     for (var s = 0; s < PK_STEPS; s++) { meters.push(new Array(PK_ROWS).fill(null)); kg.push(null); }
@@ -986,7 +998,7 @@
     /* header fields */
     html += '<div class="jws-head"><div class="jws-hfields" style="grid-template-columns:repeat(3,1fr)">' +
       '<label class="jws-hf"><span>' + L("નામ", "Name") + '</span><input type="text" data-ph="name" value="' + esc(p.name) + '"' + dis + '></label>' +
-      '<label class="jws-hf"><span>' + L("તારીખ", "Date") + '</span><input type="date" data-ph="date" value="' + esc(p.date) + '"' + dis + '></label>' +
+      '<label class="jws-hf"><span>' + L("તારીખ", "Date") + '</span><input type="date" data-ph="date" value="' + esc(p.date) + '"' + dateAttrs() + dis + '></label>' +
       '<label class="jws-hf"><span>' + L("ક્વોલિટી", "Quality") + '</span><input type="text" data-ph="quality" value="' + esc(p.quality) + '"' + dis + '></label>' +
       '<label class="jws-hf"><span>' + L("સિટી", "City") + '</span><input type="text" data-ph="city" value="' + esc(p.city) + '"' + dis + '></label>' +
       '<label class="jws-hf"><span>' + L("ટ્રાન્સપોર્ટ", "Transport") + '</span><input type="text" data-ph="transport" value="' + esc(p.transport) + '"' + dis + '></label>' +
@@ -1035,7 +1047,7 @@
   function wirePackingEditor() {
     var p = packingById(STATE.packingId); if (!p || STATE.view !== "packingsheet") return;
     function refreshPk() { setTxt("#pSumRoll", numI(pkRolls(p))); setTxt("#pSumMt", numI(pkMt(p))); setTxt("#pSumKg", kgStr(B(pkKgG(p)))); var am = pkAmount(p); setTxt("#pGross", moneyP(am.grossP)); setTxt("#pGrossSub", am.qtyStr + " × " + rateStr(rupToP(p.rate || 0)) + am.rateUnit); setTxt("#pAmt", moneyP(am.amountP)); }
-    document.querySelectorAll("[data-ph]").forEach(function (el) { el.onchange = function () { p[el.getAttribute("data-ph")] = el.value; schedulePersist(); }; });
+    document.querySelectorAll("[data-ph]").forEach(function (el) { el.onchange = function () { var k = el.getAttribute("data-ph"); if (k === "date") { var v = clampDate(el.value, p.date); if (v !== el.value) { el.value = v; toast(L("માન્ય તારીખ દાખલ કરો", "Enter a valid date"), "info"); } p.date = v; schedulePersist(); return; } p[k] = el.value; schedulePersist(); }; });
     document.querySelectorAll("[data-pbasis]").forEach(function (el) { el.onclick = function () { if (!canEditPacking()) return; p.basis = el.getAttribute("data-pbasis"); render(); }; });
     document.querySelectorAll("[data-pmt]").forEach(function (el) {
       el.oninput = function () {
@@ -1197,7 +1209,7 @@
   /* --- sheet editor live wiring (no full re-render) --- */
   function wireSheetEditor() {
     var sh = sheetById(STATE.sheetId); if (!sh || STATE.view !== "gatesheet") return;
-    document.querySelectorAll("[data-sh]").forEach(function (el) { el.onchange = function () { var k = el.getAttribute("data-sh"); sh[k] = el.value; if (k === "workerId") render(); else schedulePersist(); }; });
+    document.querySelectorAll("[data-sh]").forEach(function (el) { el.onchange = function () { var k = el.getAttribute("data-sh"); if (k === "date") { var v = clampDate(el.value, sh.date); if (v !== el.value) { el.value = v; toast(L("માન્ય તારીખ દાખલ કરો", "Enter a valid date"), "info"); } sh.date = v; schedulePersist(); return; } sh[k] = el.value; if (k === "workerId") render(); else schedulePersist(); }; });
     document.querySelectorAll("[data-mt]").forEach(function (el) {
       el.oninput = function () {
         var d = el.value.replace(/\D/g, "").slice(0, 2);     /* digits only, max 2 */
@@ -1327,7 +1339,7 @@
     if (STATE.view !== "niwarsheet") return;
     var s = curNSheet(); if (!s) return;
     function pf(v) { v = parseFloat(v); return isNaN(v) ? 0 : Math.max(0, v); }
-    document.querySelectorAll("[data-nh]").forEach(function (el) { el.onchange = function () { s[el.getAttribute("data-nh")] = el.value; nRecalc(); render(); }; });
+    document.querySelectorAll("[data-nh]").forEach(function (el) { el.onchange = function () { var k = el.getAttribute("data-nh"); if (k === "date") { var v = clampDate(el.value, s.date); if (v !== el.value) { el.value = v; toast(L("માન્ય તારીખ દાખલ કરો", "Enter a valid date"), "info"); } s.date = v; nRecalc(); render(); return; } s[k] = el.value; nRecalc(); render(); }; });
     document.querySelectorAll("[data-np-size]").forEach(function (el) { el.onchange = function () { var pi = +el.getAttribute("data-np-size"); if (s.products[pi]) { s.products[pi].size = el.value; nRecalc(); render(); } }; });
     /* 3-digit weight cells: strip to digits, cap 3, store whole kg, auto-advance to next line on the 3rd digit */
     var cells = document.querySelectorAll("[data-np-cell]");
