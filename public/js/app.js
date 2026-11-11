@@ -943,7 +943,7 @@
      /disabling, role changes and "remove access" only touch the role doc;
      the Firebase Auth login itself is managed in the Firebase console.
      ================================================================ */
-  var UM = { users: null, loading: false, err: "", maxUsers: 10 };
+  var UM = { users: null, loading: false, err: "", maxUsers: 10, sel: null };
   var UM_DEFAULT_MAX = 10;
   function umDb()   { return (window.GJAuth && window.GJAuth.enabled && window.GJAuth.db) ? window.GJAuth.db : null; }
   function umAuth() { return (window.GJAuth && window.GJAuth.enabled && window.GJAuth.auth) ? window.GJAuth.auth : null; }
@@ -1007,85 +1007,107 @@
   }
   function umStaffGrantableCount() { return STAFF_GRANTABLE.length; }
 
-  function umRow(u) {
-    var self = umSelf(u.uid);
-    var roleBadge = '<span class="badge ' + (u.role === "admin" ? "badge-upad" : "badge-ok") + '">' + (u.role === "admin" ? L("એડમિન", "Admin") : L("સુપરવાઇઝર", "Supervisor")) + '</span>';
-    var statusBadge = u.active ? '<span class="badge badge-ok">' + L("સક્રિય", "Active") + '</span>' : '<span class="badge badge-upad">' + L("બંધ", "Disabled") + '</span>';
+  function umNonAdminCount() { return UM.users ? UM.users.filter(function (u) { return u.role !== "admin"; }).length : 0; }
+
+  // left column — one selectable user row
+  function umUserListRow(u) {
+    var on = (UM.sel === u.uid);
     var ini = esc((u.name || u.email || "?").trim().slice(0, 2).toUpperCase());
-    var access = u.role === "admin"
-      ? '<span class="pill pill-brand">' + L("સંપૂર્ણ એક્સેસ", "Full access") + '</span>'
-      : '<span class="pill">' + umGrantedCount(u) + '/' + umStaffGrantableCount() + ' ' + L("મોડ્યુલ", "modules") + '</span>';
-    var permBtn = u.role === "admin" ? "" : '<button class="btn btn-soft btn-sm" data-umperms="' + u.uid + '" title="' + L("પરમિશન", "Permissions") + '">' + svg("shield") + '</button> ';
-    return '<tr><td><div style="display:flex;align-items:center;gap:11px"><span class="avatar" style="background:var(--brand)">' + ini + '</span><div><b>' + esc(u.name || "—") + (self ? ' <span style="font-size:11px;color:var(--muted)">(' + L("તમે", "you") + ')</span>' : '') + '</b></div></div></td>' +
-      '<td class="num" style="color:var(--ink-soft)">' + esc(u.email || "—") + '</td>' +
-      '<td>' + roleBadge + '</td><td>' + statusBadge + '</td><td>' + access + '</td>' +
-      '<td style="text-align:right;white-space:nowrap">' + permBtn +
-        '<button class="btn btn-soft btn-sm" data-umedit="' + u.uid + '" title="' + L("ફેરફાર", "Edit") + '">' + svg("edit") + '</button> ' +
-        '<button class="btn btn-soft btn-sm" data-umtoggle="' + u.uid + '" title="' + (u.active ? L("બંધ કરો", "Disable") : L("સક્રિય કરો", "Enable")) + '"' + (self ? ' disabled' : '') + '>' + svg(u.active ? "lock" : "check") + '</button> ' +
-        '<button class="btn btn-soft btn-sm" data-umreset="' + u.uid + '" title="' + L("પાસવર્ડ રીસેટ", "Reset password") + '">' + svg("key") + '</button> ' +
-        '<button class="btn btn-soft btn-sm" data-umremove="' + u.uid + '" title="' + L("એક્સેસ કાઢો", "Remove access") + '"' + (self ? ' disabled' : '') + '>' + svg("trash") + '</button>' +
-      '</td></tr>';
+    var sub = u.role === "admin" ? L("બધું", "Everything") : (umGrantedCount(u) + "/" + umStaffGrantableCount() + " " + L("મોડ્યુલ", "modules") + (u.active ? "" : " · " + L("બંધ", "Disabled")));
+    var tag = u.role === "admin" ? L("એડમિન", "Admin") : L("યુઝર", "User");
+    return '<button type="button" class="um-user' + (on ? " on" : "") + (u.active ? "" : " um-user-off") + '" data-umsel="' + u.uid + '">' +
+      '<span class="avatar" style="background:var(--brand)">' + ini + '</span>' +
+      '<span class="um-user-meta"><span class="um-user-name">' + esc(u.name || "—") + (umSelf(u.uid) ? ' <span class="um-you">(' + L("તમે", "you") + ')</span>' : "") + '</span><span class="um-user-sub">' + sub + '</span></span>' +
+      '<span class="um-user-tag' + (u.role === "admin" ? " um-tag-admin" : "") + '">' + tag + '</span></button>';
+  }
+
+  // right column — the selected user's access actions row
+  function umAccessActions(u) {
+    var self = umSelf(u.uid), b = "";
+    b += '<button class="btn btn-soft btn-sm" data-umedit="' + u.uid + '" title="' + L("ફેરફાર", "Edit") + '">' + svg("edit") + '</button>';
+    b += ' <button class="btn btn-soft btn-sm" data-umreset="' + u.uid + '" title="' + L("પાસવર્ડ રીસેટ", "Reset password") + '">' + svg("key") + '</button>';
+    if (!self) {
+      b += ' <button class="btn btn-soft btn-sm" data-umtoggle="' + u.uid + '" title="' + (u.active ? L("બંધ કરો", "Disable") : L("સક્રિય કરો", "Enable")) + '">' + svg(u.active ? "lock" : "check") + '</button>';
+      b += ' <button class="btn btn-soft btn-sm" data-umremove="' + u.uid + '" title="' + L("કાઢો", "Remove") + '">' + svg("trash") + '</button>';
+    }
+    return '<div class="um-access-actions">' + b + '</div>';
+  }
+
+  // right column — inline module toggles for the selected user
+  function umAccessPanel(u) {
+    if (!u) return '<div class="card um-access"><div class="card-pad"><div class="hint">' + L("ડાબી બાજુથી યુઝર પસંદ કરો.", "Select a user on the left.") + '</div></div></div>';
+    var adminFull = (u.role === "admin");
+    var head = '<div class="um-access-head"><div class="um-access-h"><div class="um-access-title">' + L("એક્સેસ — ", "Access for ") + esc(u.name || u.email) + ' <span class="um-dot">·</span> ' + (adminFull ? L("એડમિન", "Admin") : L("સુપરવાઇઝર", "Supervisor")) + '</div>' +
+      '<div class="um-access-sub">' + (adminFull ? L("આ યુઝર પાસે દરેક મોડ્યુલ છે.", "Every module is on for this user.") : L("આ યુઝર માટે મોડ્યુલ ચાલુ/બંધ કરો.", "Turn modules on or off for this user.")) + '</div></div>' + umAccessActions(u) + '</div>';
+    var rows = PERM_MODULES.map(function (id) {
+      var n = NAV.filter(function (x) { return x.id === id; })[0]; if (!n) return "";
+      var grantable = moduleGrantable(id), locked = (id === "dashboard");
+      var on = adminFull ? true : (grantable ? (locked ? true : (u.perms ? u.perms[id] !== false : true)) : false);
+      var dis = adminFull || !grantable || locked;
+      var subtxt = adminFull ? "" : (!grantable ? '<span class="um-mod-sub">' + L("ફક્ત એડમિન", "Admin only") + '</span>' : (locked ? '<span class="um-mod-sub">' + L("હંમેશા ચાલુ", "Always on") + '</span>' : ""));
+      return '<div class="um-mod' + (dis && !adminFull ? " um-mod-dis" : "") + '"><span class="um-mod-ic ' + ((grantable || adminFull) ? "tint-ok" : "tint-out") + '">' + svg(n.ic) + '</span>' +
+        '<span class="um-mod-name">' + (STATE.lang === "en" ? n.e : n.g) + subtxt + '</span>' +
+        '<label class="switch"><input type="checkbox" data-ptoggle="' + id + '" data-puser="' + u.uid + '"' + (on ? " checked" : "") + (dis ? " disabled" : "") + '><span class="slider"></span></label></div>';
+    }).join("");
+    var foot = adminFull ? '<div class="um-access-foot">' + L("એડમિન પાસે દરેક મોડ્યુલની એક્સેસ છે.", "The admin has access to every module.") + '</div>' : '';
+    return '<div class="card um-access"><div class="card-pad">' + head + '<div class="um-mod-list">' + rows + '</div>' + foot + '</div></div>';
+  }
+
+  // flip one module for a supervisor and save immediately
+  function umTogglePerm(uid, id, on) {
+    var u = umFind(uid); if (!u || u.role === "admin" || id === "dashboard" || !moduleGrantable(id)) return;
+    var perms = {};
+    PERM_MODULES.forEach(function (m) {
+      if (m === "dashboard") { perms[m] = true; return; }
+      if (!moduleGrantable(m)) { perms[m] = false; return; }
+      perms[m] = u.perms ? (u.perms[m] !== false) : true;
+    });
+    perms[id] = !!on;
+    u.perms = perms;                        // optimistic
+    render();
+    umDb().collection("users").doc(uid).set({ role: u.role, active: u.active, name: u.name, email: u.email, perms: perms })
+      .then(function () { toast(L("સેવ થયું", "Saved"), "ok"); })
+      .catch(function (e) { toast((e && (e.code || e.message)) || L("સેવ નિષ્ફળ", "Save failed"), "info"); loadUsers(); });
   }
 
   function viewUserMgmt() {
-    var html = '<div class="page-head row-between"><div><h2>' + L("યુઝર મેનેજમેન્ટ", "User Management") + '</h2><div class="sub">' + L("લોગિન એકાઉન્ટ, ભૂમિકા અને મોડ્યુલ પરમિશન મેનેજ કરો.", "Manage accounts, roles and module permissions.") + '</div></div>' +
-      (umLive() ? '<div style="display:flex;gap:10px"><button class="btn btn-soft" data-umreload="1" title="' + L("ફરી લોડ", "Reload") + '">' + svg("week") + '</button><button class="btn btn-primary" data-umadd="1">' + svg("plus") + ' ' + L("યુઝર ઉમેરો", "Add User") + '</button></div>' : '') + '</div>';
-    if (!umLive()) {
-      html += '<div class="card"><div class="card-pad"><div class="hint">' + L("યુઝર મેનેજમેન્ટ લાઇવ મોડમાં (Firebase સાઇન-ઇન) ઉપલબ્ધ છે.", "User management is available in live mode (signed in to Firebase).") + '</div></div></div>';
-      return html;
-    }
-    var total = UM.users ? UM.users.length : null;
-    var active = UM.users ? UM.users.filter(function (u) { return u.active; }).length : null;
-    var admins = UM.users ? UM.users.filter(function (u) { return u.role === "admin"; }).length : null;
-    var avail = (total === null) ? null : Math.max(0, UM.maxUsers - total);
-    html += '<div class="stat-grid">' +
-      '<div class="stat"><div class="ico tint-brand">' + svg("users") + '</div><button class="um-limit-edit" data-umlimit="1" title="' + L("મર્યાદા બદલો", "Edit limit") + '">' + svg("edit") + '</button><div class="k">' + L("કુલ અનુમત યુઝર", "Allowed users") + '</div><div class="v num">' + (UM.maxUsers) + '</div><div class="d">' + L("યુઝર મર્યાદા", "user limit") + '</div></div>' +
-      stat("tint-ok", "check", L("સક્રિય યુઝર", "Active users"), (active === null ? "—" : active), "", L("હાલ વાપરે", "currently enabled")) +
-      stat("tint-out", "box", L("ઉપલબ્ધ સ્લોટ", "Available slots"), (avail === null ? "—" : avail), "", L("બાકી જગ્યા", "slots remaining")) +
-      stat("tint-upad", "shield", L("એડમિન", "Admins"), (admins === null ? "—" : admins), "", L("સંપૂર્ણ એક્સેસ", "full access")) +
-      '</div>';
-    html += '<div class="card"><div class="table-scroll"><table class="data"><thead><tr><th>' + L("નામ", "Name") + '</th><th>' + L("ઈમેલ", "Email") + '</th><th>' + L("ભૂમિકા", "Role") + '</th><th>' + L("સ્થિતિ", "Status") + '</th><th>' + L("એક્સેસ", "Access") + '</th><th></th></tr></thead><tbody>';
-    if (UM.loading || UM.users === null) html += '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:22px">' + L("લોડ થઈ રહ્યું છે…", "Loading…") + '</td></tr>';
-    else if (UM.err) html += '<tr><td colspan="6" style="text-align:center;color:var(--upad);padding:22px">' + L("યુઝર લોડ ન થયા: ", "Couldn't load users: ") + esc(UM.err) + '</td></tr>';
-    else if (!UM.users.length) html += '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:22px">' + L("કોઈ યુઝર નથી.", "No users yet.") + '</td></tr>';
-    else UM.users.forEach(function (u) { html += umRow(u); });
-    html += '</tbody></table></div></div>';
-    html += '<div class="hint mt">' + L("💡 'પરમિશન' દરેક સુપરવાઇઝર માટે મોડ્યુલ ચાલુ/બંધ કરે — તેમની સાઇડબાર એ પ્રમાણે બદલાય. 'બંધ' તરત સાઇન-ઇન રોકે. એડમિન પાસે હંમેશા સંપૂર્ણ એક્સેસ. તમે તમારું પોતાનું એકાઉન્ટ બંધ/કાઢી ન શકો.",
-      "💡 'Permissions' turns modules on/off per supervisor — their sidebar updates to match. 'Disable' blocks sign-in immediately. Admins always have full access. You can't disable or remove your own account.") + '</div>';
+    var html = '<div class="page-head row-between"><div><h2>' + L("યુઝર મેનેજમેન્ટ", "User Management") + '</h2><div class="sub">' + L("એકાઉન્ટ, ભૂમિકા અને મોડ્યુલ પરમિશન.", "Accounts, roles and module permissions.") + '</div></div>' +
+      (umLive() ? '<div style="display:flex;gap:10px"><button class="btn btn-soft" data-umreload="1" title="' + L("ફરી લોડ", "Reload") + '">' + svg("week") + '</button><button class="btn btn-primary" data-umadd="1">' + svg("plus") + ' ' + L("યુઝર ઉમેરો", "Add user") + '</button></div>' : '') + '</div>';
+    if (!umLive()) { html += '<div class="card"><div class="card-pad"><div class="hint">' + L("યુઝર મેનેજમેન્ટ લાઇવ મોડમાં (Firebase સાઇન-ઇન) ઉપલબ્ધ છે.", "User management is available in live mode (signed in to Firebase).") + '</div></div></div>'; return html; }
+    if (UM.loading || UM.users === null) { html += '<div class="card"><div class="card-pad"><div class="hint">' + L("લોડ થઈ રહ્યું છે…", "Loading…") + '</div></div></div>'; return html; }
+    if (UM.err) { html += '<div class="card"><div class="card-pad"><div class="hint" style="color:var(--upad)">' + L("લોડ ન થયું: ", "Couldn't load: ") + esc(UM.err) + '</div></div></div>'; return html; }
+
+    var admins = UM.users.filter(function (u) { return u.role === "admin"; }).length;
+    var used = umNonAdminCount();
+    // pick the selected user: keep current, else self, else first
+    var sel = (UM.sel && umFind(UM.sel)) || umFind((window.GJAuth.user || {}).uid) || UM.users[0];
+    if (sel) UM.sel = sel.uid;
+
+    html += '<h2 class="um-h2">' + L("યુઝર અને એક્સેસ", "Users & access") + '</h2>';
+    html += '<div class="um-lead">' + admins + ' ' + L("એડમિન", "admin") + ' + ' + UM.maxUsers + ' ' + L("યુઝર", "users") + '. ' +
+      L("એડમિન નક્કી કરે કે દરેક યુઝર શું જોઈ અને વાપરી શકે. ", "The admin decides exactly what each user can see and use. ") +
+      '<b>' + used + '/' + UM.maxUsers + ' ' + L("યુઝર વપરાયા", "users used") + '.</b> ' +
+      '<button class="um-lead-edit" data-umlimit="1">' + svg("edit") + ' ' + L("મર્યાદા", "limit") + '</button></div>';
+
+    html += '<div class="um-split">';
+    html += '<div class="card um-users"><div class="card-head"><b>' + L("યુઝર", "Users") + '</b></div><div class="um-user-list">' + UM.users.map(umUserListRow).join("") + '</div></div>';
+    html += umAccessPanel(sel);
+    html += '</div>';
     return html;
   }
 
-  /* ---- permission toggle grid (per supervisor) ---- */
-  function umPermsForm(uid) {
-    var u = umFind(uid); if (!u) return;
-    if (u.role === "admin") { infoModal(L("સંપૂર્ણ એક્સેસ", "Full access"), L("એડમિન પાસે બધા મોડ્યુલની સંપૂર્ણ એક્સેસ છે.", "Admins have full access to every module.")); return; }
-    var p = u.perms || {};
-    var rows = PERM_MODULES.map(function (id) {
-      var n = NAV.filter(function (x) { return x.id === id; })[0]; if (!n) return "";
-      var grantable = moduleGrantable(id);
-      var locked = (id === "dashboard");                      // dashboard always on
-      var on = grantable ? (locked ? true : (p[id] !== false)) : false;
-      var dis = !grantable || locked;
-      return '<div class="perm-row' + (dis ? " perm-dis" : "") + '"><span class="perm-ic ' + (grantable ? "tint-ok" : "tint-out") + '">' + svg(n.ic) + '</span>' +
-        '<div class="perm-meta"><div class="perm-name">' + (STATE.lang === "en" ? n.e : n.g) + '</div><div class="perm-sub">' + (grantable ? (locked ? L("હંમેશા ચાલુ", "Always on") : L("સુપરવાઇઝર માટે", "Available to supervisor")) : L("ફક્ત એડમિન", "Admin only")) + '</div></div>' +
-        '<label class="switch"><input type="checkbox" data-perm="' + id + '"' + (on ? " checked" : "") + (dis ? " disabled" : "") + '><span class="slider"></span></label></div>';
-    }).join("");
-    var body = '<div class="perm-grid">' + rows + '</div>';
-    showModal("shield", L("મોડ્યુલ પરમિશન", "Module Permissions"), (u.name || u.email) + " · " + L("સુપરવાઇઝર", "Supervisor"), body, function () { umSavePerms(uid); });
+  /* ---- user-limit editing (meta/appconfig) ---- */
+  function umEditLimit() {
+    var body = fRow(L("અનુમત યુઝર (મર્યાદા)", "Allowed users (limit)"), fInput("umMax", UM.maxUsers, 'type="number" min="1" max="100" step="1"'));
+    showModal("users", L("યુઝર મર્યાદા", "User limit"), L("કેટલા (નોન-એડમિન) યુઝર અનુમત છે.", "How many (non-admin) users are allowed."), body, umSaveLimit);
   }
-  function umSavePerms(uid) {
-    var u = umFind(uid); if (!u) return;
-    var perms = {};
-    PERM_MODULES.forEach(function (id) {
-      if (id === "dashboard") { perms[id] = true; return; }
-      if (!moduleGrantable(id)) { perms[id] = false; return; }
-      var el = document.querySelector('[data-perm="' + id + '"]');
-      perms[id] = el ? !!el.checked : (u.perms ? u.perms[id] !== false : true);
-    });
+  function umSaveLimit() {
+    var n = parseInt(fVal("#umMax"), 10);
+    if (isNaN(n) || n < 1) { toast(L("માન્ય સંખ્યા દાખલ કરો", "Enter a valid number"), "info"); return; }
+    if (n < umNonAdminCount()) { toast(L("મર્યાદા હાલના યુઝર કરતાં ઓછી ન હોય", "Limit can't be below the current user count"), "info"); return; }
     closeModal();
-    umDb().collection("users").doc(uid).set({ role: u.role, active: u.active, name: u.name, email: u.email, perms: perms }).then(function () {
-      toast(L("પરમિશન સેવ થયું", "Permissions saved"), "ok"); loadUsers();
-    }).catch(function (e) { toast((e && (e.code || e.message)) || L("સેવ નિષ્ફળ", "Save failed"), "info"); });
+    umDb().collection("meta").doc("appconfig").set({ maxUsers: n }).then(function () { UM.maxUsers = n; toast(L("મર્યાદા સેવ થઈ", "Limit saved"), "ok"); render(); })
+      .catch(function (e) { toast((e && (e.code || e.message)) || L("સેવ નિષ્ફળ", "Save failed"), "info"); });
   }
 
   /* ---- user-limit editing (meta/appconfig) ---- */
@@ -1115,7 +1137,7 @@
     var email = fVal("#umEmail").trim().toLowerCase(), pass = fVal("#umPass"), name = fVal("#umName").trim(), role = fVal("#umRole") === "admin" ? "admin" : "supervisor";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast(L("માન્ય ઈમેલ દાખલ કરો", "Enter a valid email"), "info"); return; }
     if (!pass || pass.length < 6) { toast(L("પાસવર્ડ ઓછામાં ઓછા 6 અક્ષર", "Password must be at least 6 characters"), "info"); return; }
-    if (UM.users && UM.users.length >= UM.maxUsers) { toast(L("યુઝર મર્યાદા પૂરી — મર્યાદા વધારો", "User limit reached — raise the limit first"), "info"); return; }
+    if (role === "supervisor" && umNonAdminCount() >= UM.maxUsers) { toast(L("યુઝર મર્યાદા પૂરી — મર્યાદા વધારો", "User limit reached — raise the limit first"), "info"); return; }
     // new supervisors start with all staff modules granted; admins get full access
     var perms = null;
     if (role === "supervisor") { perms = {}; PERM_MODULES.forEach(function (id) { perms[id] = moduleGrantable(id); }); }
@@ -1488,7 +1510,8 @@
     document.querySelectorAll("[data-umtoggle]").forEach(function (b) { b.onclick = function () { umToggleActive(b.getAttribute("data-umtoggle")); }; });
     document.querySelectorAll("[data-umreset]").forEach(function (b) { b.onclick = function () { umResetPw(b.getAttribute("data-umreset")); }; });
     document.querySelectorAll("[data-umremove]").forEach(function (b) { b.onclick = function () { umRemove(b.getAttribute("data-umremove")); }; });
-    document.querySelectorAll("[data-umperms]").forEach(function (b) { b.onclick = function () { umPermsForm(b.getAttribute("data-umperms")); }; });
+    document.querySelectorAll("[data-umsel]").forEach(function (b) { b.onclick = function () { UM.sel = b.getAttribute("data-umsel"); render(); }; });
+    document.querySelectorAll("[data-ptoggle]").forEach(function (el) { el.onchange = function () { umTogglePerm(el.getAttribute("data-puser"), el.getAttribute("data-ptoggle"), el.checked); }; });
     document.querySelectorAll("[data-umlimit]").forEach(function (b) { b.onclick = function () { umEditLimit(); }; });
     document.querySelectorAll("[data-addnparty]").forEach(function (b) { b.onclick = function () { nPartyForm(null); }; });
     document.querySelectorAll("[data-editnparty]").forEach(function (b) { b.onclick = function () { nPartyForm(b.getAttribute("data-editnparty")); }; });
