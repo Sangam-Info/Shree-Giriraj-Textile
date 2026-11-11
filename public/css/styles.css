@@ -403,6 +403,13 @@ html.gj-booting #gjBootSplash {
 /* ======================= TABLES (LEDGER) ============================ */
 .table-wrap { position: relative; }
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--r-lg); }
+/* table toolbar + live search (Workers) */
+.tbl-toolbar { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.tbl-search-wrap { position: relative; display: inline-flex; align-items: center; flex: 1 1 260px; min-width: 0; }
+.tbl-search-wrap svg { position: absolute; left: 12px; width: 17px; height: 17px; color: var(--muted); pointer-events: none; }
+.tbl-search { width: 100%; min-width: 0; box-sizing: border-box; height: 42px; padding: 0 14px 0 37px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); font-family: inherit; font-size: 14px; color: var(--ink); }
+.tbl-search:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-050); }
+.tbl-count { font-size: 12.5px; font-weight: 700; color: var(--muted); white-space: nowrap; }
 table.ledger {
   width: 100%; border-collapse: separate; border-spacing: 0;
   min-width: 760px; background: var(--surface); font-variant-numeric: tabular-nums;
@@ -453,6 +460,9 @@ table.data tr:hover td { background: #fcfbf7; }
 
 /* ======================= BILLING ==================================== */
 .bill-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; align-items: start; }
+/* grid children hold wide tables (min-width:560) — allow them to shrink so the
+   inner .table-scroll clips & scrolls instead of overflowing the viewport */
+.bill-grid > *, .grid-2 > * { min-width: 0; }
 .bill-line { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 0; border-bottom: 1px dashed var(--line); }
 .bill-line:last-child { border-bottom: none; }
 .bill-line .lab { color: var(--ink-soft); font-size: 14px; }

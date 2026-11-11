@@ -51,6 +51,7 @@
   var I = {
     dash:'<path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/>',
     users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+    search:'<circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/>',
     ledger:'<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
     bill:'<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><path d="M8 7h8M8 11h8M8 15h5"/>',
     help:'<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
@@ -901,8 +902,9 @@
   function viewWorkers() {
     var html = demoStrip();
     html += '<div class="page-head row-between"><div><h2>' + L("જોબ વર્કર્સ", "Job Workers") + '</h2><div class="sub">' + L("જોબ વર્કરની યાદી અને રેટ.", "Job worker list and rates.") + '</div></div><button class="btn btn-primary" data-addworker="1">' + svg("plus") + ' ' + L("જોબ વર્કર ઉમેરો", "Add Job Worker") + '</button></div>';
-    html += '<div class="card"><div class="table-scroll"><table class="data"><thead><tr><th>' + L("જોબ વર્કર", "Job Worker") + '</th><th>' + L("કાપડ", "Cloth") + '</th><th>' + L("ફોન", "Phone") + '</th><th style="text-align:right">' + L("રેટ", "Rate") + '</th><th style="text-align:right">' + monthName() + ' ' + L("મીટર", "Mtr") + '</th><th style="text-align:right">' + L("લોન બાકી", "Loan") + '</th><th></th></tr></thead><tbody>';
-    WORKERS.forEach(function (w) { var ini = w.en.split(" ").map(function (x) { return x[0]; }).slice(0, 2).join(""); var mt = billMonth(w.id, STATE.month).mtr; html += '<tr><td><div style="display:flex;align-items:center;gap:11px"><span class="avatar" style="background:' + w.color + '">' + ini + '</span><div><b>' + (STATE.lang === "en" ? w.en : w.name) + '</b><div style="font-size:12px;color:var(--muted)">' + (STATE.lang === "en" ? w.name : w.en) + '</div></div></div></td><td>' + w.cloth + '</td><td class="num" style="color:var(--ink-soft)">' + w.phone + '</td><td style="text-align:right" class="num">' + rateStr(rupToP(w.rate)) + '</td><td style="text-align:right" class="num">' + numI(mt) + '</td><td style="text-align:right" class="num">' + moneyPw(loanBalanceP(w.id)) + '</td><td style="text-align:right;white-space:nowrap"><button class="btn btn-soft btn-sm" data-editworker="' + w.id + '">' + svg("edit") + '</button> <button class="btn btn-soft btn-sm" data-delworker="' + w.id + '">' + svg("trash") + '</button> <button class="btn btn-soft btn-sm" data-openworker="' + w.id + '">' + svg("chevR") + ' ' + L("ખોલો", "Open") + '</button></td></tr>'; });
+    html += '<div class="card"><div class="tbl-toolbar"><span class="tbl-search-wrap">' + svg("search") + '<input id="workerSearch" class="tbl-search" type="search" autocomplete="off" placeholder="' + L("નામ, ફોન કે કાપડ શોધો…", "Search name, phone or cloth…") + '"></span><span class="tbl-count" id="workerCount">' + WORKERS.length + ' ' + L("વર્કર", "workers") + '</span></div><div class="table-scroll"><table class="data"><thead><tr><th>' + L("જોબ વર્કર", "Job Worker") + '</th><th>' + L("કાપડ", "Cloth") + '</th><th>' + L("ફોન", "Phone") + '</th><th style="text-align:right">' + L("રેટ", "Rate") + '</th><th style="text-align:right">' + monthName() + ' ' + L("મીટર", "Mtr") + '</th><th style="text-align:right">' + L("લોન બાકી", "Loan") + '</th><th></th></tr></thead><tbody>';
+    WORKERS.forEach(function (w) { var ini = w.en.split(" ").map(function (x) { return x[0]; }).slice(0, 2).join(""); var mt = billMonth(w.id, STATE.month).mtr; html += '<tr data-wsearch="' + esc(((w.en || "") + " " + (w.name || "") + " " + (w.phone || "") + " " + (w.cloth || "")).toLowerCase()) + '"><td><div style="display:flex;align-items:center;gap:11px"><span class="avatar" style="background:' + w.color + '">' + ini + '</span><div><b>' + (STATE.lang === "en" ? w.en : w.name) + '</b><div style="font-size:12px;color:var(--muted)">' + (STATE.lang === "en" ? w.name : w.en) + '</div></div></div></td><td>' + w.cloth + '</td><td class="num" style="color:var(--ink-soft)">' + w.phone + '</td><td style="text-align:right" class="num">' + rateStr(rupToP(w.rate)) + '</td><td style="text-align:right" class="num">' + numI(mt) + '</td><td style="text-align:right" class="num">' + moneyPw(loanBalanceP(w.id)) + '</td><td style="text-align:right;white-space:nowrap"><button class="btn btn-soft btn-sm" data-editworker="' + w.id + '">' + svg("edit") + '</button> <button class="btn btn-soft btn-sm" data-delworker="' + w.id + '">' + svg("trash") + '</button> <button class="btn btn-soft btn-sm" data-openworker="' + w.id + '">' + svg("chevR") + ' ' + L("ખોલો", "Open") + '</button></td></tr>'; });
+    html += '<tr id="wNoMatch" style="display:none"><td colspan="7" style="text-align:center;color:var(--muted);padding:18px">' + L("કોઈ મેળ ખાતો વર્કર નથી.", "No matching worker.") + '</td></tr>';
     html += '</tbody></table></div></div>';
     return html;
   }
@@ -1184,6 +1186,13 @@
     document.querySelectorAll("[data-addworker]").forEach(function (b) { b.onclick = function () { workerForm(null); }; });
     document.querySelectorAll("[data-editworker]").forEach(function (b) { b.onclick = function () { workerForm(b.getAttribute("data-editworker")); }; });
     document.querySelectorAll("[data-delworker]").forEach(function (b) { b.onclick = function () { delWorker(b.getAttribute("data-delworker")); }; });
+    var wsearch = $("#workerSearch");
+    if (wsearch) wsearch.oninput = function () {
+      var q = wsearch.value.trim().toLowerCase(), rows = document.querySelectorAll("#view tr[data-wsearch]"), shown = 0;
+      rows.forEach(function (r) { var m = !q || r.getAttribute("data-wsearch").indexOf(q) > -1; r.style.display = m ? "" : "none"; if (m) shown++; });
+      var nm = $("#wNoMatch"); if (nm) nm.style.display = shown ? "none" : "";
+      var c = $("#workerCount"); if (c) c.textContent = shown + " " + L("વર્કર", "workers");
+    };
     document.querySelectorAll("[data-addnparty]").forEach(function (b) { b.onclick = function () { nPartyForm(null); }; });
     document.querySelectorAll("[data-editnparty]").forEach(function (b) { b.onclick = function () { nPartyForm(b.getAttribute("data-editnparty")); }; });
     document.querySelectorAll("[data-delnparty]").forEach(function (b) { b.onclick = function () { delNParty(b.getAttribute("data-delnparty")); }; });
