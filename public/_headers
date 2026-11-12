@@ -3,3 +3,6 @@
   Cache-Control: no-cache
 /index.html
   Cache-Control: no-cache
+# Build marker polled by open tabs for the auto-refresh-on-new-build check.
+/version.json
+  Cache-Control: no-cache

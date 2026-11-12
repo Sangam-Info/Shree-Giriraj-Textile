@@ -28,9 +28,8 @@
     name: "Shri Giriraj Textile Services",
     nameGuj: "શ્રી ગિરિરાજ ટેક્ષટાઇલ",
     tag: "Jobwork & Cloth Processing",
-    place: "Junagadh, Gujarat",
-    gstin: "24XXXXX0000X1ZX",   /* sample — replace with the real GSTIN */
-    phone: "+91 00000 00000"    /* sample — replace with the real phone */
+    place: "Bhavnagar, Gujarat",
+    phone: "+91 88661 51512"
   };
   var VENDOR = "Shri Giriraj Textile";
   var MAX_ROWS = 45, MAX_STEPS = 15;
@@ -106,10 +105,13 @@
   }
   function kgOrNull(v) { var n = numOrNull(v); if (n == null) return null; if (n < 0) n = 0; return n; }
   // Sanitise a decimal field in place and return the clamped value (or null).
-  function sanitizeDecimalField(el, maxInt, maxDec) {
+  // maxVal (optional) hard-caps the numeric value (e.g. 1,00,000 per kg/mtr — bug 8).
+  function sanitizeDecimalField(el, maxInt, maxDec, maxVal) {
     var c = cleanDecimal(el.value, maxInt, maxDec);
+    var n = kgOrNull(c);
+    if (maxVal != null && n != null && n > maxVal) { n = maxVal; c = String(maxVal); }
     if (c !== el.value) el.value = c;
-    return kgOrNull(c);
+    return n;
   }
 
   /* ---------------------------------------------------------------- DATA */
@@ -596,7 +598,7 @@
     html += '</tbody><tfoot><tr class="ft-total"><td class="sr-col">' + L("કુલ", "Total") + '</td>';
     for (var s3 = 0; s3 < sh.nSteps; s3++) html += '<td class="num" id="stot_' + s3 + '">' + numI(stepTotalMt(sh, s3)) + '</td>';
     html += '</tr><tr class="ft-kg"><td class="sr-col">KG</td>';
-    for (var s4 = 0; s4 < sh.nSteps; s4++) html += '<td><input class="cell kgcell" inputmode="decimal" data-kg="' + s4 + '" value="' + (sh.kg[s4] == null ? "" : sh.kg[s4]) + '"></td>';
+    for (var s4 = 0; s4 < sh.nSteps; s4++) { var kgLock = stepTotalMt(sh, s4) <= 0; html += '<td><input class="cell kgcell' + (kgLock ? ' kg-locked' : '') + '" inputmode="decimal" data-kg="' + s4 + '"' + (kgLock ? ' disabled title="' + L("પહેલાં આ સ્ટેપમાં મીટર ભરો", "Enter metres in this step first") + '"' : '') + ' value="' + (sh.kg[s4] == null ? "" : sh.kg[s4]) + '"></td>'; }
     html += '</tr></tfoot></table></div><div class="hint" style="padding:10px 14px 0">' + L("ખાલી ખાના છોડી શકાય. બાજુમાં સ્ક્રોલ કરીને બધા સ્ટેપ જુઓ.", "Blanks are fine. Scroll sideways for all steps.") + '</div></div>';
     html += '<div class="jws-side">' +
       sideStat("roll", L("રોલ", "Roll"), '<span id="sumRoll">' + numI(sheetRolls(sh)) + '</span>', L("કુલ એન્ટ્રી", "total entries"), "tint-in") +
@@ -605,7 +607,7 @@
       '</div></div>';
 
     /* parat */
-    html += '<div class="card mt jws-parat"><div class="card-head"><div class="ico tint-out">' + svg("send") + '</div><div><h3>પરત ની યાદી <span class="en">Parat ni Yadi — ' + L("જોબ વર્કરને મોકલ્યું", "sent to job worker") + '</span></h3></div><div class="spacer"></div><button class="btn btn-ghost btn-sm" id="paratAdd">' + svg("plus") + ' ' + L("લાઇન", "Add line") + '</button></div>';
+    html += '<div class="card mt jws-parat"><div class="card-head"><div class="ico tint-out">' + svg("send") + '</div><div><h3>પરત ની યાદી <span class="en">Parat ni Yadi — ' + L("જોબ વર્કરને મોકલ્યું", "sent to job worker") + '</span></h3></div><div class="spacer"></div><button class="btn btn-ghost btn-sm" id="paratAdd"' + (sh.parat.length >= 5 ? " disabled" : "") + '>' + svg("plus") + ' ' + L("લાઇન", "Add line") + '</button></div>';
     html += '<div class="table-scroll"><table class="jws-parat-tbl"><thead><tr><th>#</th><th>' + L("કોકડી (kg)", "Kokdi (kg)") + '</th><th>' + L("કલર (kg)", "Color (kg)") + '</th><th></th></tr></thead><tbody>';
     sh.parat.forEach(function (p, i) {
       html += '<tr><td class="sr-col">' + (i + 1) + '</td><td><input class="cell" inputmode="decimal" data-pk="' + i + '" value="' + (p.kokdi == null ? "" : p.kokdi) + '"></td><td><input class="cell" inputmode="decimal" data-pc="' + i + '" value="' + (p.color == null ? "" : p.color) + '"></td><td class="act">' + (sh.parat.length > 1 ? '<button class="icon-btn sm" data-pdel="' + i + '">' + svg("minus") + '</button>' : '') + '</td></tr>';
@@ -1224,7 +1226,7 @@
      entry + calculation + its own PDF.  50 rows per step.
      Amount = (Total Metre × Rate) + Packing Charge + Tax   (all BigInt).
      ================================================================ */
-  var PK_ROWS = 16, PK_STEPS = 12;
+  var PK_ROWS = 25, PK_STEPS = 12;   /* packaging grid: max 25 rows per step (bug 7) */
   function todayISO() { var d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
   /* ---- date bounds & validation (prevents 6-digit / absurd years) ---- */
   function dateMin() { return "2015-01-01"; }
@@ -1369,7 +1371,7 @@
         if (d.length === 2) { var nx = document.querySelector('[data-pmt="' + s + '_' + (r + 1) + '"]'); if (nx) { nx.focus(); if (nx.select) nx.select(); } }
       };
     });
-    document.querySelectorAll("[data-pkg]").forEach(function (el) { el.oninput = function () { p.kg[+el.getAttribute("data-pkg")] = numOrNull(el.value); setTxt("#pSumKg", kgStr(B(pkKgG(p)))); refreshPk(); schedulePersist(); }; });
+    document.querySelectorAll("[data-pkg]").forEach(function (el) { el.oninput = function () { p.kg[+el.getAttribute("data-pkg")] = sanitizeDecimalField(el, 6, 3, 100000); setTxt("#pSumKg", kgStr(B(pkKgG(p)))); refreshPk(); schedulePersist(); }; });   /* bug 8: cap 1,00,000 */
     document.querySelectorAll("[data-pf]").forEach(function (el) { el.oninput = function () { var k = el.getAttribute("data-pf"); p[k] = Math.max(0, parseFloat(el.value || 0) || 0); refreshPk(); schedulePersist(); }; });
     var sp = $("#pStepPlus"); if (sp) sp.onclick = function () { if (p.nSteps < PK_STEPS) { p.nSteps++; render(); } };
     var sm = $("#pStepMinus"); if (sm) sm.onclick = function () { if (p.nSteps > 1) { p.nSteps--; render(); } };
@@ -1564,6 +1566,7 @@
         var p = el.getAttribute("data-mt").split("_"); var s = +p[0], r = +p[1];
         sh.meters[s][r] = d === "" ? null : parseInt(d, 10);
         setTxt("#stot_" + s, numI(stepTotalMt(sh, s)));
+        syncKgLock(sh, s);                                    /* bug 3: KG editable only when this step has a metre entry */
         setTxt("#sumRoll", numI(sheetRolls(sh)));
         setTxt("#sumMt", numI(sheetMt(sh)));
         schedulePersist();                                    /* auto-save typed rolls (debounced) */
@@ -1573,15 +1576,25 @@
         }
       };
     });
-    document.querySelectorAll("[data-kg]").forEach(function (el) { el.oninput = function () { sh.kg[+el.getAttribute("data-kg")] = sanitizeDecimalField(el, 5, 3); setTxt("#sumKg", kgStr(B(sheetKgG(sh)))); schedulePersist(); }; });
-    document.querySelectorAll("[data-pk]").forEach(function (el) { el.oninput = function () { sh.parat[+el.getAttribute("data-pk")].kokdi = sanitizeDecimalField(el, 5, 3); refreshParat(sh); schedulePersist(); }; });
-    document.querySelectorAll("[data-pc]").forEach(function (el) { el.oninput = function () { sh.parat[+el.getAttribute("data-pc")].color = sanitizeDecimalField(el, 5, 3); refreshParat(sh); schedulePersist(); }; });
+    document.querySelectorAll("[data-kg]").forEach(function (el) { el.oninput = function () { var s = +el.getAttribute("data-kg"); if (stepTotalMt(sh, s) <= 0) { el.value = ""; sh.kg[s] = null; toast(L("પહેલાં આ સ્ટેપમાં મીટર ભરો", "Enter metres in this step first"), "info"); setTxt("#sumKg", kgStr(B(sheetKgG(sh)))); return; } sh.kg[s] = sanitizeDecimalField(el, 6, 3, 100000); setTxt("#sumKg", kgStr(B(sheetKgG(sh)))); schedulePersist(); }; });   /* bug 3 + bug 8 (cap 1,00,000) */
+    document.querySelectorAll("[data-pk]").forEach(function (el) { el.oninput = function () { sh.parat[+el.getAttribute("data-pk")].kokdi = sanitizeDecimalField(el, 7, 3); refreshParat(sh); schedulePersist(); }; });   /* bug 4: accept lakh values */
+    document.querySelectorAll("[data-pc]").forEach(function (el) { el.oninput = function () { sh.parat[+el.getAttribute("data-pc")].color = sanitizeDecimalField(el, 7, 3); refreshParat(sh); schedulePersist(); }; });   /* bug 4: accept lakh values */
     document.querySelectorAll("[data-pdel]").forEach(function (el) { el.onclick = function () { sh.parat.splice(+el.getAttribute("data-pdel"), 1); render(); }; });
-    var pa = $("#paratAdd"); if (pa) pa.onclick = function () { sh.parat.push({ kokdi: null, color: null }); render(); };
+    var pa = $("#paratAdd"); if (pa) pa.onclick = function () { if (sh.parat.length >= 5) { toast(L("વધુમાં વધુ 5 લાઇન", "Maximum 5 lines"), "info"); return; } sh.parat.push({ kokdi: null, color: null }); render(); };   /* bug 4: max 5 lines */
     var sp = $("#stepPlus"); if (sp) sp.onclick = function () { if (sh.nSteps < MAX_STEPS) { sh.nSteps++; render(); } };
     var sm = $("#stepMinus"); if (sm) sm.onclick = function () { if (sh.nSteps > 1) { sh.nSteps--; render(); } };
   }
   function refreshParat(sh) { setTxt("#pkTot", kgStr(B(sheetKokdiG(sh)))); setTxt("#pcTot", kgStr(B(sheetColorG(sh)))); setTxt("#pBoth", kgStr(B(sheetKokdiG(sh) + sheetColorG(sh)))); }
+  // bug 3: a step's KG box is enabled only once that step has at least one metre entry.
+  // Called live as metres are typed (no full re-render), so focus is preserved.
+  function syncKgLock(sh, s) {
+    var kgEl = document.querySelector('[data-kg="' + s + '"]'); if (!kgEl) return;
+    var has = stepTotalMt(sh, s) > 0;
+    kgEl.disabled = !has;
+    kgEl.classList.toggle("kg-locked", !has);
+    if (has) { kgEl.removeAttribute("title"); }
+    else { kgEl.title = L("પહેલાં આ સ્ટેપમાં મીટર ભરો", "Enter metres in this step first"); if (sh.kg[s] != null) { sh.kg[s] = null; kgEl.value = ""; setTxt("#sumKg", kgStr(B(sheetKgG(sh)))); schedulePersist(); } }
+  }
   function delSheet(id) {
     infoModalConfirm(L("શીટ કાઢવી?", "Delete sheet?"), L("આ શીટ અને તેની ખાતાવહી એન્ટ્રી કાઢી નાખશે.", "This removes the sheet and its ledger entry."), function () { SHEETS = SHEETS.filter(function (s) { return s.id !== id; }); STATE.view = "gate"; render(); toast(L("શીટ કાઢી", "Sheet deleted"), "ok"); });
   }
@@ -1878,7 +1891,7 @@
   function toast(msg, kind) { var tw = $("#toastWrap"); var t = document.createElement("div"); t.className = "toast " + (kind || ""); t.innerHTML = svg(kind === "info" ? "info" : "check") + "<span>" + msg + "</span>"; tw.appendChild(t); setTimeout(function () { t.style.opacity = "0"; t.style.transition = "opacity .3s"; setTimeout(function () { t.remove(); }, 320); }, 3000); }
 
   /* ---------------------------------------------------------------- PDF */
-  function sheetTop(chip, sub) { return '<div class="sh-top"><div class="co"><b>' + CO.nameGuj + '</b><div class="tag">' + CO.name + ' · ' + CO.tag + '</div><div class="meta">' + CO.place + ' &nbsp;|&nbsp; GSTIN: ' + CO.gstin + ' &nbsp;|&nbsp; ' + CO.phone + '</div></div><div class="copybox">' + chip + '<div class="sh-sub">' + sub + '</div></div></div>'; }
+  function sheetTop(chip, sub) { return '<div class="sh-top"><div class="co"><b>' + CO.nameGuj + '</b><div class="tag">' + CO.name + ' · ' + CO.tag + '</div><div class="meta">' + CO.place + ' &nbsp;|&nbsp; ' + CO.phone + '</div></div><div class="copybox">' + chip + '<div class="sh-sub">' + sub + '</div></div></div>'; }
   function sheetFoot() { return '<div class="sh-foot"><span>તૈયાર · Generated ' + new Date().toLocaleDateString("en-IN") + '</span><span>Powered by ' + VENDOR + '</span></div>'; }
   function chipOf(copy) { return copy === "worker" ? '<span class="copy-chip copy-worker">જોબ વર્કર કોપી · WORKER COPY</span>' : '<span class="copy-chip copy-company">કંપની કોપી · COMPANY COPY</span>'; }
 
@@ -2313,7 +2326,33 @@
       '<style>@keyframes gjspin{to{transform:rotate(360deg)}}</style></div>';
   }
 
+  /* ---- bug 1: auto-refresh when a new build is published ------------------
+     Each deploy bumps window.__BUILD (index.html, served no-cache) and the
+     matching /version.json. Any open tab polls version.json; when the published
+     build differs from the one it is running, it reloads once to pick up the new
+     code. sessionStorage guards against reload loops. */
+  var BUILD = (typeof window !== "undefined" && window.__BUILD) || "";
+  function checkBuild() {
+    try {
+      fetch("version.json?t=" + Date.now(), { cache: "no-store" })
+        .then(function (r) { return r && r.ok ? r.json() : null; })
+        .then(function (j) {
+          if (!j || !j.build || !BUILD || j.build === BUILD) return;
+          try { var last = +sessionStorage.getItem("gj_reload_at") || 0; if (Date.now() - last < 20000) return; sessionStorage.setItem("gj_reload_at", String(Date.now())); } catch (e) {}
+          try { toast(L("નવું વર્ઝન મળ્યું — રિફ્રેશ થાય છે…", "New version available — refreshing…"), "info"); } catch (e) {}
+          setTimeout(function () { try { location.reload(); } catch (e) {} }, 900);
+        }).catch(function () {});
+    } catch (e) {}
+  }
+  function startAutoUpdate() {
+    if (!BUILD) return;
+    setInterval(checkBuild, 90000);
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) checkBuild(); });
+    window.addEventListener("focus", checkBuild);
+  }
+
   function boot() {
+    startAutoUpdate();
     buildShell(); buildSwitchers(); initHero();
     $("#langGu") && ($("#langGu").onclick = function () { setLang("gu"); });
     $("#langEn") && ($("#langEn").onclick = function () { setLang("en"); });

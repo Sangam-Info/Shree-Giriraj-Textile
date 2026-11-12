@@ -18,7 +18,7 @@ Close and reopen PowerShell afterwards.
 ### 1. Get these files into the repo and push
 Extract the zip into your repo folder, then:
 ```powershell
-cd C:\Users\ZeroSupplyEnterprise\Downloads\Shree-Giriraj-Textile
+cd C:\Users\ZeroSupplyEnterprise\Shree-Giriraj-Textile
 git add -A
 git commit -m "Firebase CLI setup (rules deploy + account/role script)"
 git push
@@ -28,7 +28,7 @@ git push
 Firebase Console → **⚙ Project settings** → **Service accounts** tab → **Generate new private key** → **Generate key**.
 Save the downloaded file as:
 ```
-C:\Users\ZeroSupplyEnterprise\Downloads\Shree-Giriraj-Textile\tools\serviceAccountKey.json
+C:\Users\ZeroSupplyEnterprise\Shree-Giriraj-Textile\tools\serviceAccountKey.json
 ```
 > 🔒 This file is a master key to your project. It is already git-ignored — **never commit or share it.**
 
@@ -43,13 +43,13 @@ firebase login
 
 ## Deploy the security rules (from cmd)
 ```powershell
-cd C:\Users\ZeroSupplyEnterprise\Downloads\Shree-Giriraj-Textile
+cd C:\Users\ZeroSupplyEnterprise\Shree-Giriraj-Textile
 firebase deploy --only firestore:rules
 ```
 
 ## Create the login accounts + roles (from cmd)
 ```powershell
-cd C:\Users\ZeroSupplyEnterprise\Downloads\Shree-Giriraj-Textile\tools
+cd C:\Users\ZeroSupplyEnterprise\Shree-Giriraj-Textile\tools
 copy accounts.example.json accounts.json
 notepad accounts.json       # set real passwords, save, close
 npm install

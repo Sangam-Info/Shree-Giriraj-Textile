@@ -41,6 +41,15 @@
   // session restored) or the login form (if none). Safe to call more than once.
   function endBoot() { try { document.documentElement.classList.remove("gj-booting"); } catch (e) {} }
 
+  /* ---- mandatory sign-in for every NEW browser session (bug 1) ----
+     A refresh within the same session keeps the user in; a freshly opened
+     browser session must go through the login panel again. sessionStorage is
+     per-session and is cleared when the browser session ends, so its absence
+     marks a brand-new session. (An auto-refresh on a new build is the same
+     session, so it never forces a re-login.) */
+  function isFreshSession() { try { return !sessionStorage.getItem("gj_sess_live"); } catch (e) { return false; } }
+  function markSessionLive() { try { sessionStorage.setItem("gj_sess_live", "1"); } catch (e) {} }
+
   /* ---------- language helper for messages ---------- */
   function curLang() { try { var s = localStorage.getItem("gj_lang"); return s === "gu" ? "gu" : "en"; } catch (e) { return "en"; } }
   function tr(en, gu) { return curLang() === "gu" ? gu : en; }
@@ -180,6 +189,7 @@
       window.GJAuth.user = { uid: user.uid, email: user.email, role: actual, name: (data.name || ""), perms: (data.perms || null) };
       rememberLast(user.email, actual);
       setDropdown(actual);
+      markSessionLive();
       window.GJ.enter(actual);
       injectLogout();
     }).catch(function () {
@@ -220,6 +230,7 @@
     } else {
       // DEMO: no backend — the selected role opens that role's dashboard.
       window.GJAuth.user = { email: email, role: role, name: "" };
+      markSessionLive();
       window.GJ.enter(role);
       injectLogout();
     }
@@ -242,6 +253,7 @@
   /* ---------- secure logout ---------- */
   window.GJAuth.logout = function () {
     try { window.GJAuth.user = null; } catch (e) {}
+    try { sessionStorage.removeItem("gj_sess_live"); } catch (e) {}   // next open starts clean (bug 1)
     try { location.hash = ""; } catch (e) {}
     if (LIVE && auth) { auth.signOut().then(function () { location.reload(); }).catch(function () { location.reload(); }); }
     else { location.reload(); }
@@ -338,10 +350,13 @@
       var resolved = false;
       auth.onAuthStateChanged(function (user) {
         resolved = true;
-        if (user && !window.GJAuth.user) {
-          // restore — role not re-validated. Keep the splash up until the app shell
-          // (with its own data-loading state) is shown, so no login flash appears.
+        if (user && !window.GJAuth.user && !isFreshSession()) {
+          // same session, already signed in this session — restore without re-login.
+          // Keep the splash up until the app shell is shown, so no login flash appears.
           resolveAndEnter(user, null, user.email).then(endBoot, endBoot);
+        } else if (user && isFreshSession()) {
+          // NEW browser session → require an explicit sign-in (mandatory login panel, bug 1).
+          setBusy(false); endBoot();
         } else if (!user) { setBusy(false); endBoot(); }   // no session → reveal the login form
         else { endBoot(); }
       });
