@@ -334,9 +334,10 @@ html.gj-booting #gjBootSplash {
 }
 .card-pad { padding: clamp(16px, 2.6vw, 22px); }
 .card-head {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; row-gap: 10px;
   padding: 15px 18px; border-bottom: 1px solid var(--line-2);
 }
+.card-head > div { min-width: 0; }                 /* title block may shrink so long action buttons wrap instead of overflowing */
 .card-head h3 { font-size: 16px; }
 .card-head .en { font-size: 12.5px; }
 .card-head .ico { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; flex: none; }
@@ -781,6 +782,12 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 28px; }
 }
 .icon-btn:hover { background: var(--brand-050); border-color: #c7cdf0; color: var(--brand); }
 .icon-btn svg { width: 16px; height: 16px; }
+/* Comfortable touch targets on phones/tablets (secondary controls stay compact on desktop) */
+@media (max-width: 760px) {
+  .btn-sm { min-height: 40px; }
+  .icon-btn { width: 40px; height: 40px; }
+  .appbar .month-switch .btn, .appbar .worker-switch .btn { min-height: 40px; }
+}
 table.ledger td.act, table.ledger th.act { text-align:center; }
 
 /* ======================= WEEKLY BREAKDOWN ========================== */
