@@ -542,17 +542,24 @@
 
   /* ---------------------------------------------------------------- GATE (sheet list) */
   function viewGate() {
-    var list = sheetsFor(STATE.worker, STATE.month);
+    // Supervisor does gate entry for every worker, so their list shows ALL workers'
+    // sheets for the month (same set the dashboard counts) with a Job Worker column.
+    // Admin keeps the per-worker view (billing/ledger are per worker).
+    var isSup = STATE.role === "supervisor";
+    var list = isSup
+      ? SHEETS.filter(function (s) { return s.date.slice(0, 7) === STATE.month; }).sort(function (a, b) { return a.date < b.date ? -1 : 1; })
+      : sheetsFor(STATE.worker, STATE.month);
     var w = worker();
     var html = demoStrip();
     html += '<div class="page-head row-between"><div><h2>' + L("ગેટ · જોબ વર્ક શીટ", "Gate · Job Work Sheet") + '</h2>' +
-      '<div class="sub">' + L("ટેમ્પો આવે ત્યારે ગેટ પર આ શીટ ભરાય. ", "Filled at the gate when a tempo arrives. ") + w.name + ' · ' + monthName() + '</div></div>' +
+      '<div class="sub">' + L("ટેમ્પો આવે ત્યારે ગેટ પર આ શીટ ભરાય. ", "Filled at the gate when a tempo arrives. ") + (isSup ? L("બધા વર્કર", "all workers") : w.name) + ' · ' + monthName() + '</div></div>' +
       '<button class="btn btn-primary" data-newsheet="1">' + svg("plus") + ' ' + L("નવી શીટ", "New Sheet") + '</button></div>';
     html += '<div class="card"><div class="table-scroll"><table class="data"><thead><tr>' +
-      '<th>' + L("તારીખ", "Date") + '</th><th>' + L("ક્વોલિટી", "Quality") + '</th><th style="text-align:right">' + L("રોલ", "Roll") + '</th><th style="text-align:right">' + L("કુલ મીટર", "Total Mtr") + '</th><th style="text-align:right">KG</th><th style="text-align:right">' + L("કોકડી+કલર", "Kokdi+Color") + '</th><th></th></tr></thead><tbody>';
-    if (!list.length) html += '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:22px">' + L("આ વર્કર માટે આ મહિને કોઈ શીટ નથી. “નવી શીટ” દબાવો.", "No sheets for this worker this month. Press “New Sheet”.") + '</td></tr>';
+      '<th>' + L("તારીખ", "Date") + '</th>' + (isSup ? '<th>' + L("જોબ વર્કર", "Job Worker") + '</th>' : '') + '<th>' + L("ક્વોલિટી", "Quality") + '</th><th style="text-align:right">' + L("રોલ", "Roll") + '</th><th style="text-align:right">' + L("કુલ મીટર", "Total Mtr") + '</th><th style="text-align:right">KG</th><th style="text-align:right">' + L("કોકડી+કલર", "Kokdi+Color") + '</th><th></th></tr></thead><tbody>';
+    if (!list.length) html += '<tr><td colspan="' + (isSup ? 8 : 7) + '" style="text-align:center;color:var(--muted);padding:22px">' + L("આ મહિને કોઈ શીટ નથી. “નવી શીટ” દબાવો.", "No sheets this month. Press “New Sheet”.") + '</td></tr>';
     list.forEach(function (s) {
-      html += '<tr><td><b>' + dmy(s.date) + '</b></td><td>' + esc(s.quality) + '</td>' +
+      var sw = workerById(s.workerId);
+      html += '<tr><td><b>' + dmy(s.date) + '</b></td>' + (isSup ? '<td><b>' + esc(sw ? (STATE.lang === "en" ? sw.en : sw.name) : "—") + '</b></td>' : '') + '<td>' + esc(s.quality) + '</td>' +
         '<td style="text-align:right" class="num">' + sheetRolls(s) + '</td><td style="text-align:right" class="num">' + numI(sheetMt(s)) + '</td>' +
         '<td style="text-align:right" class="num">' + kgStr(B(sheetKgG(s))) + '</td><td style="text-align:right" class="num">' + kgStr(B(sheetKokdiG(s) + sheetColorG(s))) + '</td>' +
         '<td style="text-align:right"><button class="btn btn-soft btn-sm" data-opensheet="' + s.id + '">' + svg("edit") + ' ' + L("ખોલો", "Open") + '</button></td></tr>';
@@ -1482,8 +1489,18 @@
   }
   function go(v) { if (!viewAllowed(v)) return; STATE.view = v; render(); }
   function openSheet(id) { STATE.sheetId = id; STATE.view = "gatesheet"; render(); }
+  function isEmptySheet(sh) {
+    if (!sh) return false;
+    if (sheetRolls(sh) > 0 || sheetKgG(sh) > 0) return false;
+    for (var i = 0; i < (sh.parat || []).length; i++) { if (sh.parat[i].kokdi != null || sh.parat[i].color != null) return false; }
+    return true;
+  }
   function newSheet() {
     var m = monthObj(); var date = m.id + "-" + pad(Math.min(28, new Date().getDate()));
+    // Guard against a duplicate blank sheet from a double-tap/double submit: if an empty
+    // sheet for this worker already exists this month, reuse it instead of stacking another.
+    var existing = SHEETS.filter(function (s) { return s.workerId === STATE.worker && s.date.slice(0, 7) === STATE.month && isEmptySheet(s); });
+    if (existing.length) { openSheet(existing[existing.length - 1].id); return; }
     var sh = blankSheet(STATE.worker, date); SHEETS.push(sh); openSheet(sh.id);
     toast(L("નવી શીટ બની", "New sheet created"), "ok");
   }
@@ -2266,42 +2283,42 @@
 
   function schedulePersist() {
     if (!_persistOn || !(window.GJDB && window.GJDB.ready)) return;
-    saveBackup();                         // local safety-net on every change (instant, never lost)
     if (_persistT) clearTimeout(_persistT);
     _persistT = setTimeout(function () { _persistT = null; doPersist(1); }, 900);
   }
-  var _lastSaveErr = "";
+  // Firestore is the single source of truth — no localStorage/sessionStorage copy.
+  // "✓ Saved" shows only after the server acknowledges the write; on failure the write
+  // keeps retrying against the server until it succeeds (nothing is cached locally).
+  var _lastSaveErr = "", _retryT = null;
   function doPersist(attempt) {
-    setSync("saving"); saveBackup();
+    if (_retryT) { clearTimeout(_retryT); _retryT = null; }
+    setSync("saving");
     try {
       window.GJDB.saveStores(buildSnapshot(), STATE.role)
-        .then(function (n) { _lastSaveErr = ""; clearBackup(); setSync(n ? "saved" : "idle"); })
+        .then(function (n) { _lastSaveErr = ""; setSync(n ? "saved" : "idle"); })
         .catch(function (e) {
           var msg = (e && (e.code || e.message)) || "unknown error";
           _lastSaveErr = msg; console.warn("save failed (attempt " + attempt + ")", e);
           if (attempt < 3) { setSync("saving"); setTimeout(function () { doPersist(attempt + 1); }, 1500 * attempt); return; }
-          setSync("error", msg);   // data is still safe in local backup; it will sync once the server accepts writes
+          setSync("error", msg);
           if (msg === "permission-denied" || /permission/i.test(msg)) {
-            // The write reached Firestore but the security rules rejected it — almost always
-            // because the role-based rules have not been published yet. Make that explicit.
-            toast(L("સેવ બ્લોક થયું: Firestore સિક્યોરિટી રૂલ્સ પબ્લિશ કરવા જરૂરી છે. ડેટા લોકલી સુરક્ષિત છે.",
-                    "Save blocked: Firestore security rules need to be published. Your data is safe locally."), "info");
+            // Write reached Firestore but the role-based security rules rejected it —
+            // the rules have not been published for this project yet.
+            toast(L("સેવ બ્લોક: Firestore સિક્યોરિટી રૂલ્સ પબ્લિશ કરો (firebase deploy --only firestore:rules).",
+                    "Save blocked: publish the Firestore security rules (firebase deploy --only firestore:rules)."), "info");
           } else {
-            toast(L("સર્વરમાં સેવ નિષ્ફળ (ડેટા સુરક્ષિત છે): ", "Server save failed (your data is safe locally): ") + msg, "info");
+            toast(L("સર્વરમાં સેવ નિષ્ફળ — ઇન્ટરનેટ તપાસો. આપમેળે ફરી પ્રયાસ થશે.",
+                    "Not saved to the server — check your internet. It will keep retrying."), "info");
           }
+          // keep trying the server (no local fallback) so a transient failure self-heals
+          _retryT = setTimeout(function () { _retryT = null; doPersist(1); }, 10000);
         });
     } catch (e) { _lastSaveErr = (e && e.message) || ""; setSync("error", _lastSaveErr); }
   }
 
-  /* ---- local write-ahead backup: typed data survives refresh / crash / server failure ---- */
-  function saveBackup() {
-    try { if (window.GJDB && window.GJDB.enc) localStorage.setItem("gj_pending", JSON.stringify({ ts: Date.now(), role: STATE.role, snap: window.GJDB.enc(buildSnapshot()) })); } catch (e) {}
-  }
-  function clearBackup() { try { localStorage.removeItem("gj_pending"); } catch (e) {} }
-  function loadBackup() {
-    try { var raw = localStorage.getItem("gj_pending"); if (!raw) return null; var p = JSON.parse(raw); if (!p || !p.snap || !(window.GJDB && window.GJDB.dec)) return null; return window.GJDB.dec(p.snap); }
-    catch (e) { return null; }
-  }
+  // (Removed the localStorage write-ahead backup. Firestore is the single source of
+  //  truth; a failed write retries against the server instead of being cached locally.)
+  function dropLegacyLocalCopy() { try { localStorage.removeItem("gj_pending"); } catch (e) {} }
 
   /* tiny save-status pill in the app bar (reassures the owner data is stored) */
   function ensureSyncPill() {
@@ -2414,14 +2431,9 @@
       }).catch(function (e) { console.warn("load failed", e); })
         .then(function () {
           _persistOn = true;
-          // recover any locally-backed-up work that never reached the server (refresh/crash/denied write)
-          var pend = loadBackup();
-          if (pend) { try { hydrate(pend); toast(L("સેવ ન થયેલો ડેટા પાછો મળ્યો — સિંક થાય છે…", "Recovered unsaved data — syncing…"), "info"); } catch (e) {} }
+          dropLegacyLocalCopy();   // Firestore is the only source of truth — discard any legacy local copy
           render();
-          if (pend) schedulePersist();   // retry pushing the recovered data to the server
-          window.addEventListener("pagehide", function () { try { saveBackup(); } catch (e) {} });
-          window.addEventListener("beforeunload", function () { try { saveBackup(); } catch (e) {} });
-          // real-time sync: the other panel's changes now stream in live
+          // real-time sync: changes from any other device/panel stream in live
           try { if (window.GJDB && window.GJDB.watch) window.GJDB.watch(applyRemote); } catch (e) {}
         });
     } else {
