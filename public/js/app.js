@@ -542,30 +542,38 @@
 
   /* ---------------------------------------------------------------- GATE (sheet list) */
   function viewGate() {
-    // Supervisor does gate entry for every worker, so their list shows ALL workers'
-    // sheets for the month (same set the dashboard counts) with a Job Worker column.
-    // Admin keeps the per-worker view (billing/ledger are per worker).
+    // Supervisor does gate entry for every worker — list shows ALL workers' sheets.
+    // Admin has FULL ACCESS to the same shared data: all workers' sheets by default,
+    // with a worker filter to narrow when needed. Both roles read the same Firestore
+    // 'sheets' store, so each sees what the other saves (live).
     var isSup = STATE.role === "supervisor";
-    var list = isSup
-      ? SHEETS.filter(function (s) { return s.date.slice(0, 7) === STATE.month; }).sort(function (a, b) { return a.date < b.date ? -1 : 1; })
-      : sheetsFor(STATE.worker, STATE.month);
-    var w = worker();
+    if (STATE.gateFilter == null) STATE.gateFilter = "all";
+    var filterWid = isSup ? "all" : STATE.gateFilter;              // admin can filter; supervisor sees all
+    var monthList = SHEETS.filter(function (s) { return s.date.slice(0, 7) === STATE.month; });
+    var list = (filterWid === "all" ? monthList : monthList.filter(function (s) { return s.workerId === filterWid; }))
+      .slice().sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+    var showWorkerCol = (filterWid === "all");
+    var filterName = (filterWid === "all") ? L("બધા વર્કર", "all workers") : (function () { var ww = workerById(filterWid); return ww ? (STATE.lang === "en" ? ww.en : ww.name) : L("બધા વર્કર", "all workers"); })();
+
     var html = demoStrip();
     html += '<div class="page-head row-between"><div><h2>' + L("ગેટ · જોબ વર્ક શીટ", "Gate · Job Work Sheet") + '</h2>' +
-      '<div class="sub">' + L("ટેમ્પો આવે ત્યારે ગેટ પર આ શીટ ભરાય. ", "Filled at the gate when a tempo arrives. ") + (isSup ? L("બધા વર્કર", "all workers") : w.name) + ' · ' + monthName() + '</div></div>' +
-      '<button class="btn btn-primary" data-newsheet="1">' + svg("plus") + ' ' + L("નવી શીટ", "New Sheet") + '</button></div>';
+      '<div class="sub">' + L("ટેમ્પો આવે ત્યારે ગેટ પર આ શીટ ભરાય. ", "Filled at the gate when a tempo arrives. ") + filterName + ' · ' + monthName() + '</div></div>' +
+      '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
+      (isSup ? "" : '<select id="gateFilter" class="gate-filter"><option value="all"' + (filterWid === "all" ? " selected" : "") + '>' + L("બધા વર્કર", "All workers") + '</option>' + WORKERS.map(function (ww) { return '<option value="' + ww.id + '"' + (filterWid === ww.id ? " selected" : "") + '>' + esc(STATE.lang === "en" ? ww.en : ww.name) + '</option>'; }).join("") + '</select>') +
+      '<button class="btn btn-primary" data-newsheet="1">' + svg("plus") + ' ' + L("નવી શીટ", "New Sheet") + '</button></div></div>';
     html += '<div class="card"><div class="table-scroll"><table class="data"><thead><tr>' +
-      '<th>' + L("તારીખ", "Date") + '</th>' + (isSup ? '<th>' + L("જોબ વર્કર", "Job Worker") + '</th>' : '') + '<th>' + L("ક્વોલિટી", "Quality") + '</th><th style="text-align:right">' + L("રોલ", "Roll") + '</th><th style="text-align:right">' + L("કુલ મીટર", "Total Mtr") + '</th><th style="text-align:right">KG</th><th style="text-align:right">' + L("કોકડી+કલર", "Kokdi+Color") + '</th><th></th></tr></thead><tbody>';
-    if (!list.length) html += '<tr><td colspan="' + (isSup ? 8 : 7) + '" style="text-align:center;color:var(--muted);padding:22px">' + L("આ મહિને કોઈ શીટ નથી. “નવી શીટ” દબાવો.", "No sheets this month. Press “New Sheet”.") + '</td></tr>';
+      '<th>' + L("તારીખ", "Date") + '</th>' + (showWorkerCol ? '<th>' + L("જોબ વર્કર", "Job Worker") + '</th>' : '') + '<th>' + L("ક્વોલિટી", "Quality") + '</th><th style="text-align:right">' + L("રોલ", "Roll") + '</th><th style="text-align:right">' + L("કુલ મીટર", "Total Mtr") + '</th><th style="text-align:right">KG</th><th style="text-align:right">' + L("કોકડી+કલર", "Kokdi+Color") + '</th><th></th></tr></thead><tbody>';
+    if (!list.length) html += '<tr><td colspan="' + (showWorkerCol ? 8 : 7) + '" style="text-align:center;color:var(--muted);padding:22px">' + L("આ મહિને કોઈ શીટ નથી. “નવી શીટ” દબાવો.", "No sheets this month. Press “New Sheet”.") + '</td></tr>';
     list.forEach(function (s) {
       var sw = workerById(s.workerId);
-      html += '<tr><td><b>' + dmy(s.date) + '</b></td>' + (isSup ? '<td><b>' + esc(sw ? (STATE.lang === "en" ? sw.en : sw.name) : "—") + '</b></td>' : '') + '<td>' + esc(s.quality) + '</td>' +
+      html += '<tr><td><b>' + dmy(s.date) + '</b></td>' + (showWorkerCol ? '<td><b>' + esc(sw ? (STATE.lang === "en" ? sw.en : sw.name) : "—") + '</b></td>' : '') + '<td>' + esc(s.quality) + '</td>' +
         '<td style="text-align:right" class="num">' + sheetRolls(s) + '</td><td style="text-align:right" class="num">' + numI(sheetMt(s)) + '</td>' +
         '<td style="text-align:right" class="num">' + kgStr(B(sheetKgG(s))) + '</td><td style="text-align:right" class="num">' + kgStr(B(sheetKokdiG(s) + sheetColorG(s))) + '</td>' +
-        '<td style="text-align:right"><button class="btn btn-soft btn-sm" data-opensheet="' + s.id + '">' + svg("edit") + ' ' + L("ખોલો", "Open") + '</button></td></tr>';
+        '<td style="text-align:right;white-space:nowrap"><button class="btn btn-soft btn-sm" data-opensheet="' + s.id + '">' + svg("edit") + ' ' + L("ખોલો", "Open") + '</button>' +
+        (isSup ? "" : ' <button class="btn btn-soft btn-sm" data-delsheet="' + s.id + '" title="' + L("શીટ કાઢો", "Delete sheet") + '">' + svg("trash") + '</button>') + '</td></tr>';
     });
     html += '</tbody></table></div></div>';
-    html += '<div class="hint mt">' + L("💡 દરેક શીટ = ખાતાવહીની એક એન્ટ્રી. શીટ ભરતાં જ બિલિંગ/લોન/વર્ષાંત અપડેટ થાય.", "💡 Each sheet = one ledger entry. Filling a sheet updates billing / loans / year-end automatically.") + '</div>';
+    html += '<div class="hint mt">' + L("💡 દરેક શીટ = ખાતાવહીની એક એન્ટ્રી. શીટ ભરતાં જ બિલિંગ/લોન/વર્ષાંત અપડેટ થાય. એડમિન બધા વર્કરની શીટ જોઈ અને મેનેજ કરી શકે.", "💡 Each sheet = one ledger entry. Filling a sheet updates billing / loans / year-end automatically. Admin can view and manage every worker's sheet.") + '</div>';
     return html;
   }
 
@@ -1544,6 +1552,7 @@
   function wire() {
     document.querySelectorAll("[data-go]").forEach(function (b) { b.onclick = function () { go(b.getAttribute("data-go")); }; });
     document.querySelectorAll("[data-opensheet]").forEach(function (b) { b.onclick = function () { openSheet(b.getAttribute("data-opensheet")); }; });
+    var gf = $("#gateFilter"); if (gf) gf.onchange = function () { STATE.gateFilter = gf.value; render(); };
     document.querySelectorAll("[data-newsheet]").forEach(function (b) { b.onclick = function () { newSheet(); }; });
     document.querySelectorAll("[data-openworker]").forEach(function (b) { b.onclick = function () { STATE.worker = b.getAttribute("data-openworker"); syncSwitchers(); go("ledger"); }; });
     document.querySelectorAll("[data-lock]").forEach(function (b) { b.onclick = function () { infoModal(b.getAttribute("data-lock"), L("જોબ વર્કર ઉમેરવા/બદલવાનું લાઇવ બિલ્ડમાં સક્ષમ થશે.", "Adding or editing job workers will be enabled in the live build.")); }; });
