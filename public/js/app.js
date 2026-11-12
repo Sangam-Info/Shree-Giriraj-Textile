@@ -584,7 +584,7 @@
     var wopts = WORKERS.map(function (w) { return '<option value="' + w.id + '"' + (w.id === sh.workerId ? " selected" : "") + '>' + (STATE.lang === "en" ? w.en : w.name) + '</option>'; }).join("");
     html += '<div class="jws-head"><div class="jws-hfields">' +
       '<label class="jws-hf"><span>' + L("જોબ વર્કર (નામ)", "Job Worker (Name)") + '</span><select data-sh="workerId">' + wopts + '</select></label>' +
-      '<label class="jws-hf"><span>' + L("તારીખ", "Date") + '</span><input type="date" data-sh="date" value="' + esc(sh.date) + '"' + dateAttrs() + '></label>' +
+      '<label class="jws-hf"><span>' + L("તારીખ", "Date") + '</span><input type="date" data-sh="date" value="' + esc(sh.date) + '"' + monthDateAttrs(STATE.month) + '></label>' +
       '<label class="jws-hf"><span>' + L("ક્વોલિટી", "Quality") + '</span><input type="text" data-sh="quality" value="' + esc(sh.quality) + '"></label>' +
       '</div></div>';
 
@@ -776,7 +776,7 @@
     /* header: party / date */
     html += '<div class="card"><div class="card-pad"><div class="form-grid">' +
       '<div class="fg"><label>' + L("પાર્ટી", "Party") + '</label><div class="field"><input value="' + esc(pname) + '" disabled></div></div>' +
-      '<div class="fg"><label>' + L("તારીખ", "Date") + '</label><div class="field"><input type="date" data-nh="date" value="' + s.date + '"' + dateAttrs() + '></div></div>' +
+      '<div class="fg"><label>' + L("તારીખ", "Date") + '</label><div class="field"><input type="date" data-nh="date" value="' + s.date + '"' + monthDateAttrs(STATE.month) + '></div></div>' +
       '</div></div></div>';
 
     /* product blocks — jobwork-style 3-digit grid, max 5 lines per size */
@@ -1247,6 +1247,42 @@
     var d = new Date(iso + "T00:00:00"); if (isNaN(d.getTime())) return fallback;
     return iso;
   }
+  /* ---- month-bounded dates ----------------------------------------
+     A gate/niwar sheet is filed under the month it is created in. If its date
+     could fall in a month the switcher doesn't list (e.g. Jan while only Aug–Oct
+     exist), the sheet would be saved but invisible. These keep every sheet date
+     inside its own month so a saved sheet always shows up. */
+  function monthLastDay(mid) { return new Date(+mid.slice(0, 4), +mid.slice(5, 7), 0).getDate(); }
+  function monthDateAttrs(mid) { return ' min="' + mid + '-01" max="' + mid + '-' + pad(monthLastDay(mid)) + '"'; }
+  function clampDateToMonth(iso, mid, fallback) {
+    var lo = mid + "-01", hi = mid + "-" + pad(monthLastDay(mid));
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return (fallback && fallback.slice(0, 7) === mid) ? fallback : lo;
+    if (iso < lo) return lo;
+    if (iso > hi) return hi;
+    return iso;
+  }
+  // Rescue any already-saved sheet whose date fell outside the listed months,
+  // snapping it into the nearest valid month so it becomes visible again.
+  function nearestMonthId(ym) {
+    var ids = MONTHS.map(function (m) { return m.id; });
+    if (ym < ids[0]) return ids[0];
+    if (ym > ids[ids.length - 1]) return ids[ids.length - 1];
+    return ids[0];
+  }
+  function healOrphanDates() {
+    var valid = {}; MONTHS.forEach(function (m) { valid[m.id] = 1; });
+    var changed = false;
+    function fix(rec) {
+      if (!rec || !rec.date) return;
+      var ym = rec.date.slice(0, 7);
+      if (valid[ym]) return;
+      var mid = nearestMonthId(ym);
+      rec.date = clampDateToMonth(rec.date, mid, mid + "-01");
+      changed = true;
+    }
+    SHEETS.forEach(fix); NSHEETS.forEach(fix);
+    return changed;
+  }
   function blankPacking() {
     var meters = [], kg = [];
     for (var s = 0; s < PK_STEPS; s++) { meters.push(new Array(PK_ROWS).fill(null)); kg.push(null); }
@@ -1487,7 +1523,7 @@
     fab.onclick = function () { go(t); };
     fab.classList.add("show");
   }
-  function go(v) { if (!viewAllowed(v)) return; STATE.view = v; render(); }
+  function go(v) { if (!viewAllowed(v)) return; var wasEditor = /sheet$/.test(STATE.view); STATE.view = v; render(); if (wasEditor) flushPersistNow(); /* save at once when leaving an editor (Done/Back) */ }
   function openSheet(id) { STATE.sheetId = id; STATE.view = "gatesheet"; render(); }
   function isEmptySheet(sh) {
     if (!sh) return false;
@@ -1575,7 +1611,7 @@
   /* --- sheet editor live wiring (no full re-render) --- */
   function wireSheetEditor() {
     var sh = sheetById(STATE.sheetId); if (!sh || STATE.view !== "gatesheet") return;
-    document.querySelectorAll("[data-sh]").forEach(function (el) { el.onchange = function () { var k = el.getAttribute("data-sh"); if (k === "date") { var v = clampDate(el.value, sh.date); if (v !== el.value) { el.value = v; toast(L("માન્ય તારીખ દાખલ કરો", "Enter a valid date"), "info"); } sh.date = v; schedulePersist(); return; } sh[k] = el.value; if (k === "workerId") render(); else schedulePersist(); }; });
+    document.querySelectorAll("[data-sh]").forEach(function (el) { el.onchange = function () { var k = el.getAttribute("data-sh"); if (k === "date") { var v = clampDateToMonth(el.value, STATE.month, sh.date); if (v !== el.value) { el.value = v; toast(L("તારીખ " + monthName() + " માં જ રાખો", "Date must be within " + monthName()), "info"); } sh.date = v; schedulePersist(); return; } sh[k] = el.value; if (k === "workerId") render(); else schedulePersist(); }; });
     document.querySelectorAll("[data-mt]").forEach(function (el) {
       el.oninput = function () {
         var d = el.value.replace(/\D/g, "").slice(0, 2);     /* digits only, max 2 */
@@ -1716,7 +1752,7 @@
     if (STATE.view !== "niwarsheet") return;
     var s = curNSheet(); if (!s) return;
     function pf(v) { v = parseFloat(v); return isNaN(v) ? 0 : Math.max(0, v); }
-    document.querySelectorAll("[data-nh]").forEach(function (el) { el.onchange = function () { var k = el.getAttribute("data-nh"); if (k === "date") { var v = clampDate(el.value, s.date); if (v !== el.value) { el.value = v; toast(L("માન્ય તારીખ દાખલ કરો", "Enter a valid date"), "info"); } s.date = v; nRecalc(); render(); return; } s[k] = el.value; nRecalc(); render(); }; });
+    document.querySelectorAll("[data-nh]").forEach(function (el) { el.onchange = function () { var k = el.getAttribute("data-nh"); if (k === "date") { var v = clampDateToMonth(el.value, STATE.month, s.date); if (v !== el.value) { el.value = v; toast(L("તારીખ " + monthName() + " માં જ રાખો", "Date must be within " + monthName()), "info"); } s.date = v; nRecalc(); render(); return; } s[k] = el.value; nRecalc(); render(); }; });
     document.querySelectorAll("[data-np-size]").forEach(function (el) { el.onchange = function () { var pi = +el.getAttribute("data-np-size"); if (s.products[pi]) { s.products[pi].size = el.value; nRecalc(); render(); } }; });
     /* 3-digit weight cells: strip to digits, cap 3, store whole kg, auto-advance to next line on the 3rd digit */
     var cells = document.querySelectorAll("[data-np-cell]");
@@ -2213,6 +2249,7 @@
     NWORKERS.forEach(function (p) { NUPAD[p.id] = NUPAD[p.id] || []; NLOANS[p.id] = NLOANS[p.id] || []; });
     if (!workerById(STATE.worker) && WORKERS[0]) STATE.worker = WORKERS[0].id;
     if (!nwById(STATE.niwarParty) && NWORKERS[0]) STATE.niwarParty = NWORKERS[0].id;
+    healOrphanDates();   // rescue any sheet dated outside the listed months (self-heals on next save)
     buildSwitchers();
   }
   function assign(t, s) { for (var k in s) if (s.hasOwnProperty(k)) t[k] = s[k]; return t; }
@@ -2289,14 +2326,22 @@
   // Firestore is the single source of truth — no localStorage/sessionStorage copy.
   // "✓ Saved" shows only after the server acknowledges the write; on failure the write
   // keeps retrying against the server until it succeeds (nothing is cached locally).
-  var _lastSaveErr = "", _retryT = null;
+  var _lastSaveErr = "", _retryT = null, _saving = false;
+  // True while an edit is pending or a write is in flight — used to hold back the
+  // new-build auto-refresh so a reload never happens mid-save.
+  function savePending() { return _saving || !!_persistT; }
+  // Flush any debounced edit to the server immediately (e.g. when leaving an editor
+  // or the tab is closing) instead of waiting out the 900 ms debounce.
+  function flushPersistNow() { if (_persistT) { clearTimeout(_persistT); _persistT = null; } if (_persistOn && window.GJDB && window.GJDB.ready) doPersist(1); }
   function doPersist(attempt) {
     if (_retryT) { clearTimeout(_retryT); _retryT = null; }
+    _saving = true;
     setSync("saving");
     try {
       window.GJDB.saveStores(buildSnapshot(), STATE.role)
-        .then(function (n) { _lastSaveErr = ""; setSync(n ? "saved" : "idle"); })
+        .then(function (n) { _saving = false; _lastSaveErr = ""; setSync(n ? "saved" : "idle"); })
         .catch(function (e) {
+          _saving = false;
           var msg = (e && (e.code || e.message)) || "unknown error";
           _lastSaveErr = msg; console.warn("save failed (attempt " + attempt + ")", e);
           if (attempt < 3) { setSync("saving"); setTimeout(function () { doPersist(attempt + 1); }, 1500 * attempt); return; }
@@ -2357,7 +2402,9 @@
           if (!j || !j.build || !BUILD || j.build === BUILD) return;
           try { var last = +sessionStorage.getItem("gj_reload_at") || 0; if (Date.now() - last < 20000) return; sessionStorage.setItem("gj_reload_at", String(Date.now())); } catch (e) {}
           try { toast(L("નવું વર્ઝન મળ્યું — રિફ્રેશ થાય છે…", "New version available — refreshing…"), "info"); } catch (e) {}
-          setTimeout(function () { try { location.reload(); } catch (e) {} }, 900);
+          // never reload mid-save: flush, then wait until the write settles before reloading
+          flushPersistNow();
+          (function waitSave(tries) { if (savePending() && tries > 0) { setTimeout(function () { waitSave(tries - 1); }, 1000); return; } setTimeout(function () { try { location.reload(); } catch (e) {} }, 300); })(15);
         }).catch(function () {});
     } catch (e) {}
   }
@@ -2433,6 +2480,10 @@
           _persistOn = true;
           dropLegacyLocalCopy();   // Firestore is the only source of truth — discard any legacy local copy
           render();
+          // best-effort: push a pending edit to the server when the tab is hidden/closed
+          // (Firestore write, no local cache). Keeps a last-second edit from being lost.
+          window.addEventListener("visibilitychange", function () { if (document.hidden) flushPersistNow(); });
+          window.addEventListener("pagehide", flushPersistNow);
           // real-time sync: changes from any other device/panel stream in live
           try { if (window.GJDB && window.GJDB.watch) window.GJDB.watch(applyRemote); } catch (e) {}
         });
