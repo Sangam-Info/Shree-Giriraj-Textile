@@ -34,7 +34,6 @@
     window.GJAuth.db   = db;
   }
 
-  var USERS = window.__APP_USERS || {};
   function $(s) { return document.querySelector(s); }
 
   // Clear the boot splash (bug 1): reveals whatever is underneath — the app (if a
@@ -337,7 +336,7 @@
     var fp = $("#forgotPw"); if (fp) fp.addEventListener("click", doForgot);
     $("#authEmail") && $("#authEmail").addEventListener("input", clearErr);
     $("#authPass")  && $("#authPass").addEventListener("input", clearErr);
-    // role dropdown → pre-fill that role's email when configured in __APP_USERS
+    // role dropdown → remember the choice; the email field is never auto-populated
     var sel = $("#loginRole");
     if (sel) sel.addEventListener("change", function () {
       clearErr();

@@ -121,22 +121,28 @@
     { id: "2026-10", g: "ઓક્ટોબર 2026", e: "October 2026", mm: 10, yy: 26 }
   ];
   var AV = ["#30397e", "#bd7c16", "#2f74c0", "#1f9d6b", "#8a4fb0", "#c75a3a", "#3a7d7b", "#b03a63"];
-  var WORKERS = [
-    { id: "w0", name: "વિઠ્ઠલ ટેક્ષટાઇલ વર્ક્સ", en: "Vitthal Textile Works", phone: "+91 98240 11001", cloth: "કોટન 40s", rate: 3.55 },
-    { id: "w1", name: "રમેશ પ્રોસેસર્સ", en: "Ramesh Processors", phone: "+91 98240 11002", cloth: "રેયોન", rate: 3.40 },
-    { id: "w2", name: "જયંતિ ડાઇંગ", en: "Jayanti Dyeing", phone: "+91 98240 11003", cloth: "પોલિએસ્ટર", rate: 3.80 },
-    { id: "w3", name: "કિશોર જોબવર્ક", en: "Kishor Jobwork", phone: "+91 98240 11004", cloth: "કોટન", rate: 3.25 },
-    { id: "w4", name: "મહેશ પ્રિન્ટર્સ", en: "Mahesh Printers", phone: "+91 98240 11005", cloth: "સિલ્ક", rate: 4.00 },
-    { id: "w5", name: "દિનેશ ફેબ્રિક્સ", en: "Dinesh Fabrics", phone: "+91 98240 11006", cloth: "રેયોન", rate: 3.60 },
-    { id: "w6", name: "સુરેશ ટેક્ષટાઇલ", en: "Suresh Textile", phone: "+91 98240 11007", cloth: "કોટન", rate: 3.45 },
-    { id: "w7", name: "નીલેશ પ્રોસેસ હાઉસ", en: "Nilesh Process House", phone: "+91 98240 11008", cloth: "પોલિએસ્ટર", rate: 3.90 },
-    { id: "w8", name: "ભાવેશ વીવર્સ", en: "Bhavesh Weavers", phone: "+91 98240 11009", cloth: "કોટન", rate: 3.30 }
-  ];
+  var WORKERS = [];                                  // starts empty — the admin adds real job workers
   WORKERS.forEach(function (w, i) { w.color = AV[i % AV.length]; w.idx = i; });
-  var GH_SEED = { w0: 2.75, w1: 2.90, w2: 3.00, w4: 2.80, w6: 2.85 };
-  WORKERS.forEach(function (w) { w.actualGhati = GH_SEED[w.id] != null ? GH_SEED[w.id] : 2.85; });
+  // Demo/sample data is OFF for production — the system starts completely empty.
+  // (Flip to true only for local prototype previews; never ships enabled.)
+  var SEED_DEMO = false;
   var GHATI_RATE = { v: 120 };
-  function worker() { return WORKERS.filter(function (w) { return w.id === STATE.worker; })[0]; }
+  function worker() { var w = WORKERS.filter(function (x) { return x.id === STATE.worker; })[0]; if (!w && WORKERS[0]) { STATE.worker = WORKERS[0].id; w = WORKERS[0]; } return w; }
+  // Empty-state card shown when a list has no data yet (e.g. no job workers added).
+  function emptyState(ic, title, sub, btnLabel, btnAttr) {
+    return '<div class="empty-state"><div class="empty-ic">' + svg(ic || "inbox") + '</div><div class="empty-title">' + title + '</div>' +
+      (sub ? '<div class="empty-sub">' + sub + '</div>' : '') +
+      (btnLabel ? '<button class="btn btn-primary" ' + (btnAttr || "") + '>' + svg("plus") + ' ' + btnLabel + '</button>' : '') + '</div>';
+  }
+  // Guard views that need at least one job worker / niwar party.
+  function noWorkersView(g, e) {
+    return '<div class="page-head"><h2>' + L(g, e) + '</h2></div>' +
+      emptyState("users", L("હજી કોઈ જોબ વર્કર નથી", "No job workers yet"), L("પહેલા જોબ વર્કર ઉમેરો — પછી આ વિભાગ ભરાશે.", "Add a job worker first — this section fills in from there."), L("જોબ વર્કર ઉમેરો", "Add Job Worker"), 'data-addworker="1"');
+  }
+  function noPartiesView(g, e) {
+    return '<div class="page-head"><h2>' + L(g, e) + '</h2></div>' +
+      emptyState("roll", L("હજી કોઈ નિવાર પાર્ટી નથી", "No niwar parties yet"), L("પહેલા નિવાર પાર્ટી ઉમેરો — પછી નિવાર ગેટ એન્ટ્રી કરો.", "Add a niwar party first — then record niwar gate entries."), L("નિવાર પાર્ટી ઉમેરો", "Add Niwar Party"), 'data-addnparty="1"');
+  }
   function workerById(id) { return WORKERS.filter(function (w) { return w.id === id; })[0]; }
   function monthObj() { return MONTHS.filter(function (m) { return m.id === STATE.month; })[0]; }
   function monthName() { var m = monthObj(); return L(m.g, m.e); }
@@ -149,7 +155,7 @@
 
   /* SHEETS = the single source of truth (one per gate event) */
   var SHEETS = [];
-  (function seedSheets() {
+  (function seedSheets() { if (!SEED_DEMO) return;
     WORKERS.forEach(function (w) {
       MONTHS.forEach(function (m, mi) {
         var rnd = mulberry32(w.idx * 131 + mi * 17 + 7);
@@ -207,7 +213,7 @@
 
   /* loans */
   var LOANS = {};
-  (function seedLoans() {
+  (function seedLoans() { if (!SEED_DEMO) return;
     WORKERS.forEach(function (w) { LOANS[w.id] = []; });
     LOANS.w0 = [{ id: rid(), d: "2026-07-20", type: "loan", amt: 50000, note: "મશીન રિપેર / Machine repair" }, { id: rid(), d: "2026-08-05", type: "topup", amt: 10000, note: "એડવાન્સ / Advance" }, { id: rid(), d: "2026-08-31", type: "repay", amt: 3000, note: "ઓગસ્ટ બિલ સામે / Against Aug bill" }];
     LOANS.w1 = [{ id: rid(), d: "2026-08-10", type: "loan", amt: 25000, note: "કાચો માલ / Raw material" }, { id: rid(), d: "2026-09-30", type: "repay", amt: 8000, note: "સપ્ટે. બિલ સામે / Against Sep bill" }];
@@ -224,7 +230,7 @@
      month's upad total is fetched automatically and deducted from that worker's bill.
      Upad never carries across months on its own — only the resulting bill balance does. */
   var UPAD = {};
-  (function seedUpad() {
+  (function seedUpad() { if (!SEED_DEMO) return;
     WORKERS.forEach(function (w) { UPAD[w.id] = []; });
     /* weekly Saturday advances (same pattern as the client's niwar sheet: 15/8, 22/8) */
     UPAD.w0 = [
@@ -256,12 +262,7 @@
      Yarn balance = (opening yarn + Σ yarn out) − Σ niwar received  → next month opening.
      ============================================================================ */
   var NIWAR_SIZES = ["0.5", "0.75", "1", "1.25", "1.5", "2", "2.5", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]; /* inches */
-  var NWORKERS = [
-    { id: "n0", name: "ગુરુ ગોવિંદ નિવાર", en: "Guru Govind Niwar", phone: "+91 98240 22001" },
-    { id: "n1", name: "જય અંબે નિવાર", en: "Jay Ambe Niwar", phone: "+91 98240 22002" },
-    { id: "n2", name: "શિવ નિવાર વર્ક્સ", en: "Shiv Niwar Works", phone: "+91 98240 22003" },
-    { id: "n3", name: "રમેશભાઈ પડાયા", en: "Rameshbhai Padaya", phone: "+91 98240 22004" }
-  ];
+  var NWORKERS = [];                                 // starts empty — the admin adds real niwar parties
   function nwById(id) { return NWORKERS.filter(function (p) { return p.id === id; })[0]; }
   function niwarParty() { return nwById(STATE.niwarParty) || NWORKERS[0]; }
   function kgToG(kg) { return BigInt(Math.round(Number(kg) * 1000)); }
@@ -285,7 +286,7 @@
   }
   function nSizeRate(pid, mid, size) { var pr = nParam(pid, mid); return pr.sizeRates[size] != null ? pr.sizeRates[size] : 14.50; }
 
-  (function seedNiwar() {
+  (function seedNiwar() { if (!SEED_DEMO) return;
     /* n0 Guru Govind, August — 0.75" niwar in whole-kg lots (678+885+500+439 = 2502),
        Parat (sent) 2216 → closing 286 kg. Bill still reconciles: 2502×14.50 − 17000 − 3250 − 300 = ₹15,729 */
     var a = blankNSheet("n0", "2026-08-22");
@@ -321,7 +322,7 @@
 
   /* niwar upad — separate store, same mechanics as textile upad */
   var NUPAD = {};
-  (function seedNUpad() {
+  (function seedNUpad() { if (!SEED_DEMO) return;
     NWORKERS.forEach(function (p) { NUPAD[p.id] = []; });
     /* the client's August upad on the niwar sheet: 7000 (15/8) + 10000 (22/8) = 17000 */
     NUPAD.n0 = [
@@ -335,7 +336,7 @@
 
   /* niwar loans — separate store */
   var NLOANS = {};
-  (function seedNLoans() {
+  (function seedNLoans() { if (!SEED_DEMO) return;
     NWORKERS.forEach(function (p) { NLOANS[p.id] = []; });
     /* ₹95,000 outstanding, nothing recovered this month (as on the client's sheet) */
     NLOANS.n0 = [{ id: rid(), d: "2026-07-18", type: "loan", amt: 95000, note: "લોન / Loan" }];
@@ -417,7 +418,7 @@
   }
 
   /* ---------------------------------------------------------------- STATE / NAV */
-  var STATE = { role: "admin", view: "dashboard", worker: "w0", month: "2026-08", lang: "gu", sheetId: null, packingId: null, niwarParty: "n0", niwarSheetId: null };
+  var STATE = { role: "admin", view: "dashboard", worker: null, month: "2026-08", lang: "gu", sheetId: null, packingId: null, niwarParty: null, niwarSheetId: null };
   var NAV = [
     { id: "dashboard", g: "ડેશબોર્ડ", e: "Dashboard", ic: "dash", roles: ["admin", "supervisor"] },
     { id: "gate", g: "ગેટ · જોબ વર્ક શીટ", e: "Gate · Job Work Sheet", ic: "sheet", roles: ["admin", "supervisor"] },
@@ -471,6 +472,10 @@
   /* ---------------------------------------------------------------- DASHBOARD */
   function viewDashboard() {
     if (STATE.role === "supervisor") return dashSupervisor();
+    if (!WORKERS.length) {
+      return '<div class="page-head"><h2>' + L("ડેશબોર્ડ", "Dashboard") + '</h2><div class="sub">' + monthName() + '</div></div>' +
+        emptyState("users", L("હજી કોઈ જોબ વર્કર નથી", "No job workers yet"), L("શરૂ કરવા પહેલો જોબ વર્કર ઉમેરો — પછી ડેશબોર્ડ, ખાતાવહી અને બિલિંગ ભરાશે.", "Add your first job worker to get started — the dashboard, ledger and billing fill in from there."), L("જોબ વર્કર ઉમેરો", "Add Job Worker"), 'data-go="workers"');
+    }
     var w = worker(); var b = billMonth(w.id, STATE.month);
     var ranks = WORKERS.map(function (ww) { return { w: ww, mtr: billMonth(ww.id, STATE.month).mtr }; }).sort(function (a, z) { return z.mtr - a.mtr; }).slice(0, 5);
     var maxMtr = ranks[0].mtr || 1;
@@ -639,6 +644,7 @@
 
   /* ---------------------------------------------------------------- LEDGER (from sheets) */
   function viewLedger() {
+    if (!WORKERS.length) return noWorkersView("ખાતાવહી", "Jobwork Ledger");
     var w = worker(); var rows = ledgerRows(w.id, STATE.month);
     var t = { roll: 0, mtr: 0, kapadG: 0n, kokdiG: 0n, colorG: 0n };
     rows.forEach(function (r) { t.roll += r.roll; t.mtr += r.mtr; t.kapadG += B(r.kapadG); t.kokdiG += B(r.kokdiG); t.colorG += B(r.colorG); });
@@ -673,6 +679,7 @@
   }
   function nProdSummary(s) { return (s.products || []).map(function (pr) { return pr.size + '" ' + kgStr(nProductG(pr)); }).join(" · ") || "—"; }
   function viewNiwar() {
+    if (!NWORKERS.length) return noPartiesView("નિવાર જોબવર્ક", "Niwar Jobwork");
     var p = niwarParty(); var mid = STATE.month; var mi = niwarMonthIdx(mid);
     var sheets = nMonthSheets(p.id, mid);
     var pname = (STATE.lang === "en" ? p.en : p.name);
@@ -815,6 +822,7 @@
 
   /* ---------------------------------------------------------------- UPAD (advances) */
   function viewUpad() {
+    if (!WORKERS.length) return noWorkersView("ઉપડ", "Upad (Advances)");
     var w = worker(); var mid = STATE.month; var mi = monthIndexOf(mid);
     var rows = upadEntries(w.id, mid);
     var upTot = upadMP(w.id, mid);
@@ -841,6 +849,7 @@
   }
 
   function viewBilling() {
+    if (!WORKERS.length) return noWorkersView("બિલિંગ", "Billing");
     var w = worker(); var mid = STATE.month; var mi = monthIndexOf(mid);
     var b = billMonth(w.id, mid); var bl = BILL[w.id][mid]; var s = settleM(w.id, mi);
     var loanOpen = loanOpeningBalanceP(w.id, mid), loanClosing = loanOpen - s.deduct;
@@ -887,6 +896,7 @@
 
   /* ---------------------------------------------------------------- LOANS */
   function viewLoans() {
+    if (!WORKERS.length) return noWorkersView("લોન એકાઉન્ટ", "Loan Accounts");
     var w = worker(); var txns = (LOANS[w.id] || []).slice().sort(function (a, b) { return a.d < b.d ? -1 : 1; });
     var bal = loanBalanceP(w.id), totalOut = WORKERS.reduce(function (a, ww) { return a + loanBalanceP(ww.id); }, 0n);
     var givenP = 0n, repaidP = 0n; (LOANS[w.id] || []).forEach(function (t) { if (t.type === "repay") repaidP += rupToP(t.amt); else givenP += rupToP(t.amt); });
@@ -911,6 +921,7 @@
 
   /* ---------------------------------------------------------------- YEAR-END */
   function viewYearEnd() {
+    if (!WORKERS.length) return noWorkersView("વર્ષાંત", "Year-End");
     var w = worker(); var ye = yearEnd(w.id); var g = ye.ghati; var actualPct = (g.actualBP / 100).toFixed(2);
     var html = demoStrip();
     html += '<div class="page-head"><h2>' + L("વર્ષાંત સેટલમેન્ટ (દિવાળી)", "Year-End Settlement (Diwali)") + '</h2><div class="sub">' + w.name + ' — ' + L("લોન + ઘટ + કેરી ફોરવર્ડ એકસાથે.", "loan + ghati + carry-forward, together.") + '</div></div>';
@@ -1297,7 +1308,7 @@
     return { id: rid(), name: "", date: todayISO(), quality: "", city: "", transport: "", nSteps: 1, meters: meters, kg: kg, rate: 0, packing: 0, tax: 0, basis: "mtr" };
   }
   var PACKING = [];
-  (function seedPacking() {
+  (function seedPacking() { if (!SEED_DEMO) return;
     var p = blankPacking();
     p.name = "Guru Govind"; p.date = "2026-10-28"; p.quality = "80 Khadi"; p.city = ""; p.transport = "Inland X"; p.nSteps = 7;
     var data = [
@@ -1664,6 +1675,7 @@
   /* --- billing live wiring --- */
   function wireBilling() {
     if (STATE.view !== "billing") return;
+    if (!WORKERS.length) return;         // empty state shown — nothing to wire
     var w = worker(), mid = STATE.month, bl = BILL[w.id][mid];
     function pf(v) { v = parseFloat(v); return isNaN(v) ? 0 : Math.max(0, v); }
     var rate = $("#rate"); if (rate) { rate.oninput = function () { setTxt("#rateV", rateStr(rupToP(pf(rate.value)))); }; rate.onchange = function () { bl.rate = pf(rate.value); render(); }; }
@@ -1738,6 +1750,7 @@
 
   /* ---------------------------------------------------------------- NIWAR actions */
   function newNSheet() {
+    if (!NWORKERS.length) { toast(L("પહેલા નિવાર પાર્ટી ઉમેરો", "Add a niwar party first"), "info"); return; }
     var p = niwarParty(), mid = STATE.month;
     var sh = blankNSheet(p.id, mid + "-" + pad(Math.min(28, new Date().getDate())));
     NSHEETS.push(sh); STATE.niwarSheetId = sh.id; STATE.view = "niwarsheet"; render(); toast(L("નિવાર શીટ બની", "Niwar sheet created"), "ok");
@@ -1781,6 +1794,7 @@
   }
   function wireNiwar() {
     if (STATE.view !== "niwar") return;
+    if (!NWORKERS.length) return;        // empty state shown — nothing to wire
     var p = niwarParty(), mid = STATE.month, pr = nParam(p.id, mid);
     var sel = $("#niwarPartySel"); if (sel) sel.onchange = function () { STATE.niwarParty = sel.value; render(); };
     function pf(v) { v = parseFloat(v); return isNaN(v) ? 0 : Math.max(0, v); }
