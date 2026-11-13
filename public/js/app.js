@@ -1128,7 +1128,8 @@
 
   /* ---- user-limit editing (meta/appconfig) ---- */
   function umEditLimit() {
-    var body = fRow(L("અનુમત યુઝર (મર્યાદા)", "Allowed users (limit)"), fInput("umMax", UM.maxUsers, 'type="number" min="1" max="100" step="1"'));
+    var body = fRow(L("કુલ અનુમત નોન-એડમિન યુઝર", "Allowed (non-admin) users"), fInput("umMax", UM.maxUsers, 'type="number" min="1" max="100" step="1" inputmode="numeric"')) +
+      '<div class="msg" style="margin:-7px 0 2px">' + L("અત્યારે વપરાયા: ", "Currently used: ") + umNonAdminCount() + '</div>';
     showModal("users", L("યુઝર મર્યાદા", "User limit"), L("કેટલા (નોન-એડમિન) યુઝર અનુમત છે.", "How many (non-admin) users are allowed."), body, umSaveLimit);
   }
   function umSaveLimit() {
@@ -1136,22 +1137,14 @@
     if (isNaN(n) || n < 1) { toast(L("માન્ય સંખ્યા દાખલ કરો", "Enter a valid number"), "info"); return; }
     if (n < umNonAdminCount()) { toast(L("મર્યાદા હાલના યુઝર કરતાં ઓછી ન હોય", "Limit can't be below the current user count"), "info"); return; }
     closeModal();
-    umDb().collection("meta").doc("appconfig").set({ maxUsers: n }).then(function () { UM.maxUsers = n; toast(L("મર્યાદા સેવ થઈ", "Limit saved"), "ok"); render(); })
-      .catch(function (e) { toast((e && (e.code || e.message)) || L("સેવ નિષ્ફળ", "Save failed"), "info"); });
-  }
-
-  /* ---- user-limit editing (meta/appconfig) ---- */
-  function umEditLimit() {
-    var body = fRow(L("કુલ અનુમત યુઝર", "Allowed users (limit)"), fInput("umMax", UM.maxUsers, 'type="number" min="1" max="100" step="1"'));
-    showModal("users", L("યુઝર મર્યાદા", "User limit"), L("કેટલા લોગિન એકાઉન્ટ અનુમત છે.", "How many login accounts are allowed."), body, umSaveLimit);
-  }
-  function umSaveLimit() {
-    var n = parseInt(fVal("#umMax"), 10);
-    if (isNaN(n) || n < 1) { toast(L("માન્ય સંખ્યા દાખલ કરો", "Enter a valid number"), "info"); return; }
-    if (UM.users && n < UM.users.length) { toast(L("મર્યાદા હાલના યુઝર કરતાં ઓછી ન હોય", "Limit can't be below the current user count"), "info"); return; }
-    closeModal();
-    umDb().collection("meta").doc("appconfig").set({ maxUsers: n }).then(function () { UM.maxUsers = n; toast(L("મર્યાદા સેવ થઈ", "Limit saved"), "ok"); render(); })
-      .catch(function (e) { toast((e && (e.code || e.message)) || L("સેવ નિષ્ફળ", "Save failed"), "info"); });
+    umDb().collection("meta").doc("appconfig").set({ maxUsers: n }, { merge: true }).then(function () { UM.maxUsers = n; toast(L("મર્યાદા સેવ થઈ", "Limit saved"), "ok"); render(); })
+      .catch(function (e) {
+        var code = e && e.code;
+        var msg = code === "permission-denied"
+          ? L("સેવ બ્લોક થઈ — Firestore રૂલ્સ પબ્લિશ કરો", "Save blocked — publish the Firestore rules in the Firebase console")
+          : ((e && (e.code || e.message)) || L("સેવ નિષ્ફળ", "Save failed"));
+        toast(msg, "info");
+      });
   }
 
   function umAddForm() {
