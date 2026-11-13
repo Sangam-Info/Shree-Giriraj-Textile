@@ -1200,6 +1200,8 @@
     var u = umFind(uid); if (!u) return; var self = umSelf(uid);
     var body =
       fRow(L("નામ", "Name"), fInput("umEName", u.name, "")) +
+      fRow(L("ઈમેલ", "Email"), fInput("umEEmail", u.email, 'type="email" autocomplete="off" placeholder="name@example.com"')) +
+      '<div class="msg" style="margin:-7px 0 13px">' + L("પાસવર્ડ રીસેટ લિંક આ ઈમેલ પર જાય છે — Firebase લોગિન ઈમેલ જેવું જ રાખો.", "Password-reset links go to this email — keep it the same as the Firebase login email.") + '</div>' +
       '<div class="fg fg-full"><label>' + L("ભૂમિકા", "Role") + '</label><div class="field"><select id="umERole"' + (self ? " disabled" : "") + '><option value="supervisor"' + (u.role === "supervisor" ? " selected" : "") + '>' + L("સુપરવાઇઝર", "Supervisor") + '</option><option value="admin"' + (u.role === "admin" ? " selected" : "") + '>' + L("એડમિન", "Admin") + '</option></select></div>' + (self ? '<div class="msg">' + L("તમે તમારી પોતાની ભૂમિકા બદલી ન શકો", "You can't change your own role") + '</div>' : "") + '</div>';
     showModal("shield", L("યુઝર ફેરફાર", "Edit User"), u.email || u.name, body, function () { umSave(uid); });
   }
@@ -1207,8 +1209,11 @@
   function umSave(uid) {
     var u = umFind(uid); if (!u) return; var self = umSelf(uid);
     var name = fVal("#umEName").trim();
+    var email = fVal("#umEEmail").trim().toLowerCase();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast(L("માન્ય ઈમેલ દાખલ કરો", "Enter a valid email"), "info"); return; }
+    email = email || u.email || "";
     var role = self ? u.role : (fVal("#umERole") === "admin" ? "admin" : "supervisor");
-    var doc = { role: role, active: u.active, name: name || u.email || u.name, email: u.email };
+    var doc = { role: role, active: u.active, name: name || email || u.name, email: email };
     // keep existing permissions; seed defaults when a user becomes a supervisor with none
     if (role === "supervisor") {
       if (u.perms) doc.perms = u.perms;
