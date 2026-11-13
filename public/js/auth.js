@@ -258,28 +258,81 @@
     else { location.reload(); }
   };
 
-  function injectLogout() {
-    if ($("#gjLogout")) return;
-    var bar = $(".appbar"); if (!bar) return;
-    var who = window.GJAuth.user || {};
-    if (!$("#gjAuthStyle")) {
-      var st = document.createElement("style"); st.id = "gjAuthStyle";
-      st.textContent =
-        "#gjLogout{display:inline-flex;align-items:center;gap:7px}" +
-        "#gjUser{font-size:11.5px;color:var(--muted);font-weight:600;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}";
-      document.head.appendChild(st);
-    }
-    var holder = document.createElement("div");
-    holder.style.cssText = "display:flex;align-items:center;gap:10px;margin-left:8px";
-    holder.innerHTML =
-      '<span id="gjUser" title="' + (who.email || "") + '">' + (who.name || who.email || "") + '</span>' +
-      '<button class="btn btn-sm btn-ghost" id="gjLogout" aria-label="Log out">' +
-      '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-      '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>' +
-      '<span>' + tr("Log out", "લોગ આઉટ") + '</span></button>';
-    bar.appendChild(holder);
-    $("#gjLogout").onclick = window.GJAuth.logout;
+  function escA(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function roleLabel(role) {
+    if (role === "admin") return tr("Admin", "એડમિન");
+    if (role === "supervisor") return tr("Supervisor", "સુપરવાઇઝર");
+    return role ? escA(role) : tr("User", "યુઝર");
   }
+
+  function profileStyle() {
+    if ($("#gjAuthStyle")) return;
+    var st = document.createElement("style"); st.id = "gjAuthStyle";
+    st.textContent =
+      ".gj-profile{position:relative;margin-left:8px;flex:0 0 auto}" +
+      ".gj-pf-btn{display:inline-flex;align-items:center;gap:9px;padding:5px 9px 5px 5px;border:1px solid var(--line);background:var(--surface);border-radius:999px;cursor:pointer;font-family:inherit;min-height:42px;transition:background .14s ease,border-color .14s ease}" +
+      ".gj-pf-btn:hover{background:var(--surface-2);border-color:var(--brand)}" +
+      ".gj-pf-av{width:32px;height:32px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;color:#fff;font-weight:800;font-size:12.5px;background:var(--brand);letter-spacing:.3px}" +
+      ".gj-pf-meta{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15;max-width:150px}" +
+      ".gj-pf-name{font-size:13px;font-weight:800;color:var(--ink);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
+      ".gj-pf-role{font-size:11px;font-weight:600;color:var(--muted)}" +
+      ".gj-pf-cvt{color:var(--muted);flex:0 0 auto;transition:transform .16s ease}" +
+      ".gj-profile.open .gj-pf-cvt{transform:rotate(180deg)}" +
+      ".gj-pf-menu{position:absolute;top:calc(100% + 8px);right:0;min-width:244px;max-width:calc(100vw - 24px);background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 44px rgba(28,46,82,.20),0 3px 10px rgba(28,46,82,.10);padding:6px;z-index:120;display:none;animation:gjpf .14s ease}" +
+      ".gj-profile.open .gj-pf-menu{display:block}" +
+      "@keyframes gjpf{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}" +
+      ".gj-pf-card{display:flex;align-items:center;gap:11px;padding:10px 10px 12px}" +
+      ".gj-pf-card .gj-pf-av{width:40px;height:40px;font-size:15px}" +
+      ".gj-pf-info{min-width:0}" +
+      ".gj-pf-fn{font-size:14px;font-weight:800;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:168px}" +
+      ".gj-pf-em{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:168px}" +
+      ".gj-pf-badge{display:inline-block;margin-top:5px;font-size:10.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:var(--brand);background:color-mix(in srgb,var(--brand) 12%,transparent);border-radius:999px;padding:2px 9px}" +
+      ".gj-pf-div{height:1px;background:var(--line);margin:4px 6px}" +
+      ".gj-pf-item{display:flex;align-items:center;gap:10px;width:100%;padding:10px 10px;border:none;background:none;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:700;color:var(--ink);text-align:left}" +
+      ".gj-pf-item:hover{background:var(--surface-2)}" +
+      ".gj-pf-item.danger{color:var(--upad)}" +
+      ".gj-pf-item svg{width:17px;height:17px;flex:0 0 auto}" +
+      "@media (max-width:560px){.gj-pf-meta{display:none}.gj-pf-cvt{display:none}.gj-pf-btn{padding:4px}}";
+    document.head.appendChild(st);
+  }
+
+  // Build (or rebuild) the user-profile chip + dropdown in the appbar.
+  function injectLogout() {
+    var bar = $(".appbar"); if (!bar) return;
+    profileStyle();
+    var who = window.GJAuth.user || {};
+    var name = who.name || who.email || tr("User", "યુઝર");
+    var ini = (who.name || who.email || "?").trim().slice(0, 2).toUpperCase();
+    var holder = $("#gjProfile");
+    if (!holder) { holder = document.createElement("div"); holder.id = "gjProfile"; holder.className = "gj-profile"; bar.appendChild(holder); }
+    holder.innerHTML =
+      '<button type="button" class="gj-pf-btn" id="gjPfBtn" aria-haspopup="menu" aria-expanded="false">' +
+        '<span class="gj-pf-av">' + escA(ini) + '</span>' +
+        '<span class="gj-pf-meta"><span class="gj-pf-name">' + escA(name) + '</span><span class="gj-pf-role">' + roleLabel(who.role) + '</span></span>' +
+        '<svg class="gj-pf-cvt" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>' +
+      '</button>' +
+      '<div class="gj-pf-menu" role="menu">' +
+        '<div class="gj-pf-card"><span class="gj-pf-av">' + escA(ini) + '</span><div class="gj-pf-info">' +
+          '<div class="gj-pf-fn">' + escA(name) + '</div>' +
+          (who.email ? '<div class="gj-pf-em" title="' + escA(who.email) + '">' + escA(who.email) + '</div>' : '') +
+          '<span class="gj-pf-badge">' + roleLabel(who.role) + '</span>' +
+        '</div></div>' +
+        '<div class="gj-pf-div"></div>' +
+        '<button type="button" class="gj-pf-item danger" id="gjLogout">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>' +
+          '<span>' + tr("Log out", "લોગ આઉટ") + '</span></button>' +
+      '</div>';
+    var btn = $("#gjPfBtn");
+    btn.onclick = function (e) { e.stopPropagation(); var open = holder.classList.toggle("open"); btn.setAttribute("aria-expanded", open ? "true" : "false"); };
+    $("#gjLogout").onclick = window.GJAuth.logout;
+    if (!window.__gjPfDoc) {
+      window.__gjPfDoc = true;
+      document.addEventListener("click", function (e) { var h = $("#gjProfile"); if (h && !h.contains(e.target)) h.classList.remove("open"); });
+      document.addEventListener("keydown", function (e) { if (e.key === "Escape") { var h = $("#gjProfile"); if (h) h.classList.remove("open"); } });
+    }
+  }
+  // let app.js refresh the chip (e.g. after a language switch) without a reload
+  window.GJAuth.renderProfile = function () { if (window.GJAuth.user) injectLogout(); };
 
   // kept for backward compatibility with app.js boot()
   window.GJAuth.attempt = function () { doLogin(); };

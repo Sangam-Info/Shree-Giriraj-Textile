@@ -728,6 +728,7 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 28px; }
   .appbar .brand .bt b { overflow: hidden; text-overflow: ellipsis; }
   .lang-toggle { order: 2; flex: none; }
   .lang-toggle button { padding: 6px 11px; }
+  .appbar #gjProfile { order: 2; }   /* keep the profile chip on row 1, right of the language toggle */
   .worker-switch {
     order: 3; flex: 1 1 60%; min-width: 0; max-width: none; padding: 3px 6px 3px 12px;
   }

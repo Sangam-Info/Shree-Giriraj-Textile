@@ -1000,7 +1000,7 @@
         window.GJAuth.user.role = d.role;
         if (roleChanged) STATE.role = d.role;
         if (!viewAllowed(STATE.view)) STATE.view = (STATE.role === "supervisor" ? "gate" : "dashboard");
-        buildShell(); render();
+        buildShell(); try { if (window.GJAuth && window.GJAuth.renderProfile) window.GJAuth.renderProfile(); } catch (e) {} render();
       }, function () {});
     } catch (e) {}
   }
@@ -1875,7 +1875,7 @@
   function refreshMonthOptions() { var ms = $("#monthSelect"); ms.innerHTML = MONTHS.map(function (m) { return '<option value="' + m.id + '">' + L(m.g, m.e) + '</option>'; }).join(""); ms.value = STATE.month; }
   function stepMonth(dir) { var idx = MONTHS.map(function (m) { return m.id; }).indexOf(STATE.month); idx = Math.min(MONTHS.length - 1, Math.max(0, idx + dir)); STATE.month = MONTHS[idx].id; syncSwitchers(); render(); }
   function syncSwitchers() { $("#workerSelect").value = STATE.worker; $("#monthSelect").value = STATE.month; }
-  function setLang(lang) { STATE.lang = lang; try { document.documentElement.lang = lang === "en" ? "en" : "gu"; localStorage.setItem("gj_lang", lang); } catch (e) {} $("#langGu").classList.toggle("on", lang === "gu"); $("#langEn").classList.toggle("on", lang === "en"); buildShell(); buildSwitchers(); render(); }
+  function setLang(lang) { STATE.lang = lang; try { document.documentElement.lang = lang === "en" ? "en" : "gu"; localStorage.setItem("gj_lang", lang); } catch (e) {} $("#langGu").classList.toggle("on", lang === "gu"); $("#langEn").classList.toggle("on", lang === "en"); buildShell(); buildSwitchers(); try { if (window.GJAuth && window.GJAuth.renderProfile) window.GJAuth.renderProfile(); } catch (e) {} render(); }
   function setRole(role) { STATE.role = role; if (!viewAllowed(STATE.view)) STATE.view = "dashboard"; buildShell(); render(); }
   function login(role) { STATE.role = (role === "supervisor" ? "supervisor" : "admin"); STATE.view = "dashboard"; buildShell(); startApp(); }
 
