@@ -1049,16 +1049,19 @@
       '<span class="um-user-tag' + (u.role === "admin" ? " um-tag-admin" : "") + '">' + tag + '</span></button>';
   }
 
-  // right column — the selected user's access actions row
-  function umAccessActions(u) {
-    var self = umSelf(u.uid), b = "";
-    b += '<button class="btn btn-soft btn-sm" data-umedit="' + u.uid + '" title="' + L("ફેરફાર", "Edit") + '">' + svg("edit") + '</button>';
-    b += ' <button class="btn btn-soft btn-sm" data-umreset="' + u.uid + '" title="' + L("પાસવર્ડ રીસેટ", "Reset password") + '">' + svg("key") + '</button>';
-    if (!self) {
-      b += ' <button class="btn btn-soft btn-sm" data-umtoggle="' + u.uid + '" title="' + (u.active ? L("બંધ કરો", "Disable") : L("સક્રિય કરો", "Enable")) + '">' + svg(u.active ? "lock" : "check") + '</button>';
-      b += ' <button class="btn btn-soft btn-sm" data-umremove="' + u.uid + '" title="' + L("કાઢો", "Remove") + '">' + svg("trash") + '</button>';
-    }
-    return '<div class="um-access-actions">' + b + '</div>';
+  // right column — bottom action footer for the selected user (ref: Screenshot 2)
+  // Text links on the left (Edit · Reset · Delete), an Active toggle on the right.
+  function umAccessFoot(u) {
+    var self = umSelf(u.uid);
+    var links = '<button type="button" class="um-link" data-umedit="' + u.uid + '">' + svg("edit") + '<span>' + L("વિગતો ફેરફાર", "Edit details") + '</span></button>' +
+      '<span class="um-link-sep" aria-hidden="true">·</span>' +
+      '<button type="button" class="um-link" data-umreset="' + u.uid + '">' + svg("key") + '<span>' + L("પાસવર્ડ રીસેટ લિંક", "Send password reset") + '</span></button>';
+    if (!self) links += '<span class="um-link-sep" aria-hidden="true">·</span>' +
+      '<button type="button" class="um-link um-link-danger" data-umremove="' + u.uid + '">' + svg("trash") + '<span>' + L("યુઝર કાઢો", "Delete user") + '</span></button>';
+    var active = self ? '<span class="um-active um-active-self">' + svg("shield") + ' ' + L("તમારું એકાઉન્ટ", "Your account") + '</span>'
+      : '<label class="um-active"><span class="um-active-lbl">' + L("સક્રિય", "Active") + '</span>' +
+        '<span class="switch"><input type="checkbox" data-umactive="' + u.uid + '"' + (u.active ? " checked" : "") + '><span class="slider"></span></span></label>';
+    return '<div class="um-foot-bar"><div class="um-foot-links">' + links + '</div>' + active + '</div>';
   }
 
   // right column — inline module toggles for the selected user
@@ -1066,7 +1069,7 @@
     if (!u) return '<div class="card um-access"><div class="card-pad"><div class="hint">' + L("ડાબી બાજુથી યુઝર પસંદ કરો.", "Select a user on the left.") + '</div></div></div>';
     var adminFull = (u.role === "admin");
     var head = '<div class="um-access-head"><div class="um-access-h"><div class="um-access-title">' + L("એક્સેસ — ", "Access for ") + esc(u.name || u.email) + ' <span class="um-dot">·</span> ' + (adminFull ? L("એડમિન", "Admin") : L("સુપરવાઇઝર", "Supervisor")) + '</div>' +
-      '<div class="um-access-sub">' + (adminFull ? L("આ યુઝર પાસે દરેક મોડ્યુલ છે.", "Every module is on for this user.") : L("આ યુઝર માટે મોડ્યુલ ચાલુ/બંધ કરો.", "Turn modules on or off for this user.")) + '</div></div>' + umAccessActions(u) + '</div>';
+      '<div class="um-access-sub">' + (adminFull ? L("આ યુઝર પાસે દરેક મોડ્યુલ છે.", "Every module is on for this user.") : L("આ યુઝર માટે મોડ્યુલ ચાલુ/બંધ કરો.", "Turn modules on or off for this user.")) + '</div></div></div>';
     var rows = PERM_MODULES.map(function (id) {
       var n = NAV.filter(function (x) { return x.id === id; })[0]; if (!n) return "";
       var grantable = moduleGrantable(id), locked = (id === "dashboard");
@@ -1077,8 +1080,7 @@
         '<span class="um-mod-name">' + (STATE.lang === "en" ? n.e : n.g) + subtxt + '</span>' +
         '<label class="switch"><input type="checkbox" data-ptoggle="' + id + '" data-puser="' + u.uid + '"' + (on ? " checked" : "") + (dis ? " disabled" : "") + '><span class="slider"></span></label></div>';
     }).join("");
-    var foot = adminFull ? '<div class="um-access-foot">' + L("એડમિન પાસે દરેક મોડ્યુલની એક્સેસ છે.", "The admin has access to every module.") + '</div>' : '';
-    return '<div class="card um-access"><div class="card-pad">' + head + '<div class="um-mod-list">' + rows + '</div>' + foot + '</div></div>';
+    return '<div class="card um-access"><div class="card-pad">' + head + '<div class="um-mod-list">' + rows + '</div>' + umAccessFoot(u) + '</div></div>';
   }
 
   // flip one module for a supervisor and save immediately
@@ -1587,6 +1589,7 @@
     document.querySelectorAll("[data-umremove]").forEach(function (b) { b.onclick = function () { umRemove(b.getAttribute("data-umremove")); }; });
     document.querySelectorAll("[data-umsel]").forEach(function (b) { b.onclick = function () { UM.sel = b.getAttribute("data-umsel"); render(); }; });
     document.querySelectorAll("[data-ptoggle]").forEach(function (el) { el.onchange = function () { umTogglePerm(el.getAttribute("data-puser"), el.getAttribute("data-ptoggle"), el.checked); }; });
+    document.querySelectorAll("[data-umactive]").forEach(function (el) { el.onchange = function () { umToggleActive(el.getAttribute("data-umactive")); }; });
     document.querySelectorAll("[data-umlimit]").forEach(function (b) { b.onclick = function () { umEditLimit(); }; });
     document.querySelectorAll("[data-addnparty]").forEach(function (b) { b.onclick = function () { nPartyForm(null); }; });
     document.querySelectorAll("[data-editnparty]").forEach(function (b) { b.onclick = function () { nPartyForm(b.getAttribute("data-editnparty")); }; });
