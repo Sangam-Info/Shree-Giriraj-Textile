@@ -1252,7 +1252,7 @@
      entry + calculation + its own PDF.  50 rows per step.
      Amount = (Total Metre × Rate) + Packing Charge + Tax   (all BigInt).
      ================================================================ */
-  var PK_ROWS = 25, PK_STEPS = 35;   /* packaging grid: max 25 rows per step, up to 35 step columns */
+  var PK_ROWS = 25, PK_STEPS = 25;   /* packaging grid: max 25 rows per step, up to 25 step columns */
   function todayISO() { var d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
   /* ---- date bounds & validation (prevents 6-digit / absurd years) ---- */
   function dateMin() { return "2015-01-01"; }
@@ -2237,6 +2237,11 @@
     for (var st = 0; st < nStepsMax; st++) { var src = m[st] || [], row = new Array(nRows).fill(null); for (var r = 0; r < Math.min(src.length, nRows); r++) row[r] = src[r]; meters.push(row); }
     s.meters = meters;
     var kg = s.kg || [], kg2 = []; for (var k = 0; k < nStepsMax; k++) kg2.push(kg[k] != null ? kg[k] : null); s.kg = kg2;
+    // clamp step count to the current column cap so a sheet saved with more
+    // steps than the cap (e.g. an old 35-step packing sheet) can never render
+    // past its allocated columns.
+    if (!s.nSteps || s.nSteps < 1) s.nSteps = 1;
+    if (s.nSteps > nStepsMax) s.nSteps = nStepsMax;
     return s;
   }
 
