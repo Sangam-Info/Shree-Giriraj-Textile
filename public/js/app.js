@@ -1102,22 +1102,16 @@
 
   function viewUserMgmt() {
     var html = '<div class="page-head row-between"><div><h2>' + L("યુઝર મેનેજમેન્ટ", "User Management") + '</h2><div class="sub">' + L("એકાઉન્ટ, ભૂમિકા અને મોડ્યુલ પરમિશન.", "Accounts, roles and module permissions.") + '</div></div>' +
-      (umLive() ? '<div style="display:flex;gap:10px"><button class="btn btn-soft" data-umreload="1" title="' + L("ફરી લોડ", "Reload") + '">' + svg("week") + '</button><button class="btn btn-primary" data-umadd="1">' + svg("plus") + ' ' + L("યુઝર ઉમેરો", "Add user") + '</button></div>' : '') + '</div>';
+      (umLive() ? '<div style="display:flex;gap:10px"><button class="btn btn-primary" data-umadd="1">' + svg("plus") + ' ' + L("યુઝર ઉમેરો", "Add user") + '</button></div>' : '') + '</div>';
     if (!umLive()) { html += '<div class="card"><div class="card-pad"><div class="hint">' + L("યુઝર મેનેજમેન્ટ લાઇવ મોડમાં (Firebase સાઇન-ઇન) ઉપલબ્ધ છે.", "User management is available in live mode (signed in to Firebase).") + '</div></div></div>'; return html; }
     if (UM.loading || UM.users === null) { html += '<div class="card"><div class="card-pad"><div class="hint">' + L("લોડ થઈ રહ્યું છે…", "Loading…") + '</div></div></div>'; return html; }
     if (UM.err) { html += '<div class="card"><div class="card-pad"><div class="hint" style="color:var(--upad)">' + L("લોડ ન થયું: ", "Couldn't load: ") + esc(UM.err) + '</div></div></div>'; return html; }
 
-    var admins = UM.users.filter(function (u) { return u.role === "admin"; }).length;
-    var used = umNonAdminCount();
     // pick the selected user: keep current, else self, else first
     var sel = (UM.sel && umFind(UM.sel)) || umFind((window.GJAuth.user || {}).uid) || UM.users[0];
     if (sel) UM.sel = sel.uid;
 
     html += '<h2 class="um-h2">' + L("યુઝર અને એક્સેસ", "Users & access") + '</h2>';
-    html += '<div class="um-lead">' + admins + ' ' + L("એડમિન", "admin") + ' + ' + UM.maxUsers + ' ' + L("યુઝર", "users") + '. ' +
-      L("એડમિન નક્કી કરે કે દરેક યુઝર શું જોઈ અને વાપરી શકે. ", "The admin decides exactly what each user can see and use. ") +
-      '<b>' + used + '/' + UM.maxUsers + ' ' + L("યુઝર વપરાયા", "users used") + '.</b> ' +
-      '<button class="um-lead-edit" data-umlimit="1">' + svg("edit") + ' ' + L("મર્યાદા", "limit") + '</button></div>';
 
     html += '<div class="um-split">';
     html += '<div class="card um-users"><div class="card-head"><b>' + L("યુઝર", "Users") + '</b></div><div class="um-user-list">' + UM.users.map(umUserListRow).join("") + '</div></div>';
@@ -1160,7 +1154,6 @@
     var email = fVal("#umEmail").trim().toLowerCase(), pass = fVal("#umPass"), name = fVal("#umName").trim(), role = fVal("#umRole") === "admin" ? "admin" : "supervisor";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast(L("માન્ય ઈમેલ દાખલ કરો", "Enter a valid email"), "info"); return; }
     if (!pass || pass.length < 6) { toast(L("પાસવર્ડ ઓછામાં ઓછા 6 અક્ષર", "Password must be at least 6 characters"), "info"); return; }
-    if (role === "supervisor" && umNonAdminCount() >= UM.maxUsers) { toast(L("યુઝર મર્યાદા પૂરી — મર્યાદા વધારો", "User limit reached — raise the limit first"), "info"); return; }
     // new supervisors start with all staff modules granted; admins get full access
     var perms = null;
     if (role === "supervisor") { perms = {}; PERM_MODULES.forEach(function (id) { perms[id] = moduleGrantable(id); }); }
