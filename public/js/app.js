@@ -1252,7 +1252,7 @@
      entry + calculation + its own PDF.  50 rows per step.
      Amount = (Total Metre × Rate) + Packing Charge + Tax   (all BigInt).
      ================================================================ */
-  var PK_ROWS = 25, PK_STEPS = 12;   /* packaging grid: max 25 rows per step (bug 7) */
+  var PK_ROWS = 25, PK_STEPS = 35;   /* packaging grid: max 25 rows per step, up to 35 step columns */
   function todayISO() { var d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
   /* ---- date bounds & validation (prevents 6-digit / absurd years) ---- */
   function dateMin() { return "2015-01-01"; }
@@ -1462,7 +1462,8 @@
         for (var s5 = 0; s5 < p.nSteps; s5++) tfoot += '<td>' + (p.kg[s5] == null ? "" : kgStr(B(Math.round(p.kg[s5] * 1000)))) + '</td>';
         tfoot += '</tr></tfoot>';
       }
-      var h = '<div class="sheet">' + sheetTop('<span class="copy-chip copy-company">પેકિંગ લિસ્ટ · PACKING LIST</span>', "પેકિંગ લિસ્ટ<br>Packing List" + (totalPages > 1 ? ' <span style="font-size:11px">(' + (pg + 1) + '/' + totalPages + ')</span>' : '')) + party +
+      var pland = (p.nSteps || 1) > 8, ppkw = (p.nSteps || 1) > 16;   // wide step grids → landscape (+ tighter for 17–35)
+      var h = '<div class="sheet' + (pland ? ' land' : '') + (ppkw ? ' pkw' : '') + '">' + sheetTop('<span class="copy-chip copy-company">પેકિંગ લિસ્ટ · PACKING LIST</span>', "પેકિંગ લિસ્ટ<br>Packing List" + (totalPages > 1 ? ' <span style="font-size:11px">(' + (pg + 1) + '/' + totalPages + ')</span>' : '')) + party +
         '<h4 class="sh-h">મીટર · Metres' + (totalPages > 1 ? ' — Sr. ' + (start + 1) + '–' + end : '') + '</h4>' +
         '<table class="pt jws-pt"><thead><tr><th class="l">Sr.</th>' + head + '</tr></thead><tbody>' + body + '</tbody>' + tfoot + '</table>';
       if (isLast) {
@@ -1485,7 +1486,7 @@
     }
     return pages;
   }
-  function makePackingPDF(id) { var p = packingById(id); toast(L("PDF તૈયાર…", "Generating…"), "info"); renderPages(packingPages(id), "Girijaj_PackingList_" + slug(p.name) + "_" + p.date + ".pdf").then(pdfDone).catch(pdfFail); }
+  function makePackingPDF(id) { var p = packingById(id); var orient = (p.nSteps || 1) > 8 ? "l" : "p"; toast(L("PDF તૈયાર…", "Generating…"), "info"); renderPages(packingPages(id), "Girijaj_PackingList_" + slug(p.name) + "_" + p.date + ".pdf", orient).then(pdfDone).catch(pdfFail); }
 
   /* ---------------------------------------------------------------- HELP */
   function viewHelp() {

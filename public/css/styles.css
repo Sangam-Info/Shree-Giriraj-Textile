@@ -591,6 +591,8 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 28px; }
 .sheet.land { width: 1123px; }                 /* A4 landscape — wide step grids (9–15 steps) */
 .sheet.land table.jws-pt { font-size: 9.5px; }
 .sheet.land table.jws-pt th, .sheet.land table.jws-pt td { padding: 3px 4px; }
+.sheet.land.pkw table.jws-pt { font-size: 8px; }                                   /* 17–35 step columns stay legible */
+.sheet.land.pkw table.jws-pt th, .sheet.land.pkw table.jws-pt td { padding: 2px 3px; }
 .sheet .sh-top { display:flex; align-items:flex-start; justify-content: space-between; border-bottom: 3px solid var(--brand); padding-bottom: 16px; }
 .sheet .sh-top .co b { font-size: 22px; color: var(--brand-700); letter-spacing: -.01em; }
 .sheet .sh-top .co .tag { font-size: 12.5px; color:#666; margin-top: 3px; }
