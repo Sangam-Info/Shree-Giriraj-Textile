@@ -44,6 +44,22 @@
     { k: "nloans",   col: "niwarLoans",   role: "admin" }   // niwar loans
   ];
 
+  // Which permission module owns WRITE access to each store. A non-admin may
+  // write a store only when their perms grant the owning module. This mirrors
+  // the Firestore security rules so the client never attempts a denied write.
+  var STORE_MODULE = {
+    workers: "workers", nworkers: "niwar",
+    sheets: "gate", packing: "packing", nsheets: "niwar",
+    bills: "billing", nparam: "niwar",
+    loans: "loans", upad: "upad", nupad: "niwar", nloans: "niwar"
+  };
+  function canWriteStore(k, role) {
+    if (role === "admin") return true;
+    var m = STORE_MODULE[k]; if (!m) return false;
+    var perms = (window.GJAuth && window.GJAuth.user && window.GJAuth.user.perms) || null;
+    return !!(perms && perms[m] === true);
+  }
+
   /* ---- BigInt-safe encode / decode -------------------------------- */
   function enc(v) {
     if (typeof v === "bigint") return { $b: v.toString() };
@@ -98,7 +114,7 @@
     var batch = db.batch(), prev = [], n = 0;
     STORES.forEach(function (s) {
       if (!Object.prototype.hasOwnProperty.call(map, s.k)) return;
-      if (role !== "admin" && s.role === "admin") return;      // supervisor: no accounting/dir writes
+      if (!canWriteStore(s.k, role)) return;                   // only stores this user's perms allow
       var encoded = enc(map[s.k]);
       var js = JSON.stringify(encoded);
       if (lastJSON[s.k] === js) return;                        // unchanged — skip the write

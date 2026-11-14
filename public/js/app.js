@@ -423,13 +423,13 @@
     { id: "dashboard", g: "ડેશબોર્ડ", e: "Dashboard", ic: "dash", roles: ["admin", "supervisor"] },
     { id: "gate", g: "ગેટ · જોબ વર્ક શીટ", e: "Gate · Job Work Sheet", ic: "sheet", roles: ["admin", "supervisor"] },
     { id: "packing", g: "પેકેજિંગ", e: "Packaging", ic: "box", roles: ["admin", "supervisor"] },
-    { id: "ledger", g: "જોબવર્ક ખાતાવહી", e: "Jobwork Ledger", ic: "ledger", roles: ["admin"] },
+    { id: "ledger", g: "જોબવર્ક ખાતાવહી", e: "Jobwork Ledger", ic: "ledger", roles: ["admin", "supervisor"] },
     { id: "niwar", g: "નિવાર જોબવર્ક", e: "Niwar Jobwork", ic: "roll", roles: ["admin", "supervisor"] },
-    { id: "upad", g: "ઉપડ (એડવાન્સ)", e: "Upad (Advances)", ic: "wallet", roles: ["admin"] },
-    { id: "billing", g: "બિલિંગ અને PDF", e: "Billing & PDF", ic: "bill", roles: ["admin"] },
-    { id: "loans", g: "લોન ખાતા", e: "Loan Accounts", ic: "rupee", roles: ["admin"] },
-    { id: "yearend", g: "વર્ષાંત (દિવાળી)", e: "Year-End (Diwali)", ic: "spark", roles: ["admin"] },
-    { id: "workers", g: "જોબ વર્કર્સ", e: "Job Workers", ic: "users", roles: ["admin"] },
+    { id: "upad", g: "ઉપડ (એડવાન્સ)", e: "Upad (Advances)", ic: "wallet", roles: ["admin", "supervisor"] },
+    { id: "billing", g: "બિલિંગ અને PDF", e: "Billing & PDF", ic: "bill", roles: ["admin", "supervisor"] },
+    { id: "loans", g: "લોન ખાતા", e: "Loan Accounts", ic: "rupee", roles: ["admin", "supervisor"] },
+    { id: "yearend", g: "વર્ષાંત (દિવાળી)", e: "Year-End (Diwali)", ic: "spark", roles: ["admin", "supervisor"] },
+    { id: "workers", g: "જોબ વર્કર્સ", e: "Job Workers", ic: "users", roles: ["admin", "supervisor"] },
     { id: "usermgmt", g: "યુઝર મેનેજમેન્ટ", e: "User Management", ic: "shield", roles: ["admin"] },
     { id: "help", g: "માહિતી", e: "How it works", ic: "help", roles: ["admin", "supervisor"] }
   ];
@@ -439,17 +439,21 @@
      data is admin-only server-side, so they stay locked for supervisors).
      Dashboard is always on so every user has a landing page. */
   var PERM_MODULES = ["dashboard", "gate", "packing", "ledger", "niwar", "upad", "billing", "loans", "yearend", "workers"];
-  var STAFF_GRANTABLE = ["dashboard", "gate", "packing", "niwar"];   // functional for supervisors
+  // Default modules switched ON for a brand-new supervisor. The Owner can then
+  // grant or revoke ANY module per user — every module is grantable.
+  var STAFF_DEFAULT = ["dashboard", "gate", "packing", "niwar"];
   var PERM_ALWAYS = ["dashboard", "help"];                            // never hidden
-  function moduleGrantable(id) { return STAFF_GRANTABLE.indexOf(id) > -1; }
+  // Every real module can be granted to any user; dashboard stays always-on.
+  function moduleGrantable(id) { return PERM_MODULES.indexOf(id) > -1; }
   function myPerms() { return (window.GJAuth && window.GJAuth.user && window.GJAuth.user.perms) || null; }
-  // Is a module permitted for the signed-in user? Admin: always. Supervisor: by perms
-  // (default allow when no perms map is set, for back-compat with older accounts).
+  // Is a module permitted for the signed-in user? Admin: always. Supervisor: only
+  // when their perms map explicitly grants it (dashboard/help are always allowed).
   function modulePermitted(id) {
     if (STATE.role === "admin") return true;
     if (PERM_ALWAYS.indexOf(id) > -1) return true;
-    var p = myPerms(); if (!p) return true;
-    return p[id] !== false;
+    var p = myPerms();
+    if (!p) return STAFF_DEFAULT.indexOf(id) > -1;   // legacy account without a perms map
+    return p[id] === true;
   }
   function navForRole() { return NAV.filter(function (n) { return n.roles.indexOf(STATE.role) > -1 && modulePermitted(n.id); }); }
   function viewAllowed(v) {
@@ -1030,10 +1034,13 @@
   function umGrantedCount(u) {
     if (u.role === "admin") return PERM_MODULES.length;
     var p = u.perms, n = 0;
-    PERM_MODULES.forEach(function (id) { if (STAFF_GRANTABLE.indexOf(id) > -1 && (!p || p[id] !== false)) n++; });
+    PERM_MODULES.forEach(function (id) {
+      if (id === "dashboard") { n++; return; }                       // always on
+      if (p ? p[id] === true : STAFF_DEFAULT.indexOf(id) > -1) n++;
+    });
     return n;
   }
-  function umStaffGrantableCount() { return STAFF_GRANTABLE.length; }
+  function umStaffGrantableCount() { return PERM_MODULES.length; }
 
   function umNonAdminCount() { return UM.users ? UM.users.filter(function (u) { return u.role !== "admin"; }).length : 0; }
 
@@ -1072,11 +1079,11 @@
       '<div class="um-access-sub">' + (adminFull ? L("આ યુઝર પાસે દરેક મોડ્યુલ છે.", "Every module is on for this user.") : L("આ યુઝર માટે મોડ્યુલ ચાલુ/બંધ કરો.", "Turn modules on or off for this user.")) + '</div></div></div>';
     var rows = PERM_MODULES.map(function (id) {
       var n = NAV.filter(function (x) { return x.id === id; })[0]; if (!n) return "";
-      var grantable = moduleGrantable(id), locked = (id === "dashboard");
-      var on = adminFull ? true : (grantable ? (locked ? true : (u.perms ? u.perms[id] !== false : true)) : false);
-      var dis = adminFull || !grantable || locked;
-      var subtxt = adminFull ? "" : (!grantable ? '<span class="um-mod-sub">' + L("ફક્ત એડમિન", "Admin only") + '</span>' : (locked ? '<span class="um-mod-sub">' + L("હંમેશા ચાલુ", "Always on") + '</span>' : ""));
-      return '<div class="um-mod' + (dis && !adminFull ? " um-mod-dis" : "") + '"><span class="um-mod-ic ' + ((grantable || adminFull) ? "tint-ok" : "tint-out") + '">' + svg(n.ic) + '</span>' +
+      var locked = (id === "dashboard");
+      var on = adminFull ? true : (locked ? true : (u.perms ? u.perms[id] === true : STAFF_DEFAULT.indexOf(id) > -1));
+      var dis = adminFull || locked;   // admin = everything on; dashboard always on; all others toggleable
+      var subtxt = (adminFull || !locked) ? "" : '<span class="um-mod-sub">' + L("હંમેશા ચાલુ", "Always on") + '</span>';
+      return '<div class="um-mod' + (dis && !adminFull ? " um-mod-dis" : "") + '"><span class="um-mod-ic tint-ok">' + svg(n.ic) + '</span>' +
         '<span class="um-mod-name">' + (STATE.lang === "en" ? n.e : n.g) + subtxt + '</span>' +
         '<label class="switch"><input type="checkbox" data-ptoggle="' + id + '" data-puser="' + u.uid + '"' + (on ? " checked" : "") + (dis ? " disabled" : "") + '><span class="slider"></span></label></div>';
     }).join("");
@@ -1085,12 +1092,11 @@
 
   // flip one module for a supervisor and save immediately
   function umTogglePerm(uid, id, on) {
-    var u = umFind(uid); if (!u || u.role === "admin" || id === "dashboard" || !moduleGrantable(id)) return;
+    var u = umFind(uid); if (!u || u.role === "admin" || id === "dashboard") return;
     var perms = {};
     PERM_MODULES.forEach(function (m) {
       if (m === "dashboard") { perms[m] = true; return; }
-      if (!moduleGrantable(m)) { perms[m] = false; return; }
-      perms[m] = u.perms ? (u.perms[m] !== false) : true;
+      perms[m] = u.perms ? (u.perms[m] === true) : (STAFF_DEFAULT.indexOf(m) > -1);
     });
     perms[id] = !!on;
     u.perms = perms;                        // optimistic
@@ -1156,7 +1162,7 @@
     if (!pass || pass.length < 6) { toast(L("પાસવર્ડ ઓછામાં ઓછા 6 અક્ષર", "Password must be at least 6 characters"), "info"); return; }
     // new supervisors start with all staff modules granted; admins get full access
     var perms = null;
-    if (role === "supervisor") { perms = {}; PERM_MODULES.forEach(function (id) { perms[id] = moduleGrantable(id); }); }
+    if (role === "supervisor") { perms = {}; PERM_MODULES.forEach(function (id) { perms[id] = STAFF_DEFAULT.indexOf(id) > -1; }); }
     var cfg = window.__FIREBASE_CONFIG || {};
     var secApp;
     try { secApp = (firebase.apps || []).filter(function (a) { return a.name === "userCreator"; })[0] || firebase.initializeApp(cfg, "userCreator"); }
@@ -1186,8 +1192,10 @@
     var u = umFind(uid); if (!u) return; var self = umSelf(uid);
     var body =
       fRow(L("નામ", "Name"), fInput("umEName", u.name, "")) +
-      fRow(L("ઈમેલ", "Email"), fInput("umEEmail", u.email, 'type="email" autocomplete="off" placeholder="name@example.com"')) +
-      '<div class="msg" style="margin:-7px 0 13px">' + L("પાસવર્ડ રીસેટ લિંક આ ઈમેલ પર જાય છે — Firebase લોગિન ઈમેલ જેવું જ રાખો.", "Password-reset links go to this email — keep it the same as the Firebase login email.") + '</div>' +
+      // registered login email — read-only, fetched from the account; it can't be
+      // changed here because it is the Firebase sign-in identity.
+      '<div class="fg fg-full"><label>' + L("લોગિન ઈમેલ", "Login email") + '</label><div class="field"><input id="umEEmail" type="email" value="' + esc(u.email || "") + '" readonly disabled></div>' +
+      '<div class="msg" style="margin-top:6px">' + L("રજિસ્ટર્ડ લોગિન ઈમેલ — પાસવર્ડ રીસેટ લિંક આના પર જ જાય છે.", "Registered login email — password-reset links go here.") + '</div></div>' +
       '<div class="fg fg-full"><label>' + L("ભૂમિકા", "Role") + '</label><div class="field"><select id="umERole"' + (self ? " disabled" : "") + '><option value="supervisor"' + (u.role === "supervisor" ? " selected" : "") + '>' + L("સુપરવાઇઝર", "Supervisor") + '</option><option value="admin"' + (u.role === "admin" ? " selected" : "") + '>' + L("એડમિન", "Admin") + '</option></select></div>' + (self ? '<div class="msg">' + L("તમે તમારી પોતાની ભૂમિકા બદલી ન શકો", "You can't change your own role") + '</div>' : "") + '</div>';
     showModal("shield", L("યુઝર ફેરફાર", "Edit User"), u.email || u.name, body, function () { umSave(uid); });
   }
@@ -1195,15 +1203,13 @@
   function umSave(uid) {
     var u = umFind(uid); if (!u) return; var self = umSelf(uid);
     var name = fVal("#umEName").trim();
-    var email = fVal("#umEEmail").trim().toLowerCase();
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast(L("માન્ય ઈમેલ દાખલ કરો", "Enter a valid email"), "info"); return; }
-    email = email || u.email || "";
+    var email = u.email || "";   // registered login email — never editable here
     var role = self ? u.role : (fVal("#umERole") === "admin" ? "admin" : "supervisor");
     var doc = { role: role, active: u.active, name: name || email || u.name, email: email };
     // keep existing permissions; seed defaults when a user becomes a supervisor with none
     if (role === "supervisor") {
       if (u.perms) doc.perms = u.perms;
-      else { var p = {}; PERM_MODULES.forEach(function (id) { p[id] = moduleGrantable(id); }); doc.perms = p; }
+      else { var p = {}; PERM_MODULES.forEach(function (id) { p[id] = STAFF_DEFAULT.indexOf(id) > -1; }); doc.perms = p; }
     } else if (u.perms) { doc.perms = u.perms; }   // harmless to keep; ignored for admins
     closeModal();
     umDb().collection("users").doc(uid).set(doc).then(function () {
@@ -2529,6 +2535,7 @@
       SHEETS: SHEETS, WORKERS: WORKERS, MONTHS: MONTHS, LOANS: LOANS, BILL: BILL, navForRole: navForRole, blankSheet: blankSheet, blankPacking: blankPacking,
       buildSnapshot: buildSnapshot, hydrate: hydrate, seedInitial: seedInitial, workerForm: workerForm, saveWorkerForm: saveWorkerForm, delWorker: delWorker, nPartyForm: nPartyForm, saveNParty: saveNParty, delNParty: delNParty,
       getStores: function () { return { WORKERS: WORKERS, SHEETS: SHEETS, BILL: BILL, LOANS: LOANS, UPAD: UPAD, PACKING: PACKING, NWORKERS: NWORKERS, NSHEETS: NSHEETS, NPARAM: NPARAM, NUPAD: NUPAD, NLOANS: NLOANS, GHATI_RATE: GHATI_RATE, NSEQ: NSEQ, STATE: STATE }; },
-      setPersistOn: function (v) { _persistOn = !!v; }, schedulePersist: schedulePersist };
+      setPersistOn: function (v) { _persistOn = !!v; }, schedulePersist: schedulePersist,
+      viewAllowed: viewAllowed, modulePermitted: modulePermitted, PERM_MODULES: PERM_MODULES, STAFF_DEFAULT: STAFF_DEFAULT };
   }
 })();
