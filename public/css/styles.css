@@ -277,7 +277,7 @@ html.gj-booting #gjBootSplash {
 }
 .month-switch svg { width: 17px; height: 17px; color: var(--muted); }
 
-.layout { display: flex; align-items: flex-start; position: relative; z-index: 1; }
+.layout { display: flex; align-items: flex-start; position: relative; z-index: 1; }   /* content sits above the watermark */
 .sidebar {
   position: sticky; top: var(--topbar-h);
   width: var(--sidebar-w); flex: none;
@@ -302,6 +302,12 @@ html.gj-booting #gjBootSplash {
 .nav-foot { margin-top: auto; padding: 12px 10px 4px; font-size: 11.5px; color: var(--muted); }
 .nav-foot b { color: var(--ink-soft); }
 
+/* hamburger (shown on tablet/phone) + slide-in nav drawer backdrop */
+.nav-toggle { display: none; align-items: center; justify-content: center; width: 42px; height: 42px; flex: 0 0 auto; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 10px; cursor: pointer; }
+.nav-toggle svg { width: 22px; height: 22px; }
+.nav-toggle:active { background: var(--surface-2); }
+.nav-backdrop { position: fixed; inset: 0; background: rgba(16,23,42,.45); z-index: 59; opacity: 0; visibility: hidden; transition: opacity .2s ease, visibility .2s ease; }
+
 .content { flex: 1 1 auto; min-width: 0; padding: clamp(16px, 3vw, 30px); max-width: 1180px; position: relative; z-index: 0; }
 
 /* Company logo watermark across the whole app (privacy/branding). A fixed
@@ -309,7 +315,7 @@ html.gj-booting #gjBootSplash {
    never blocks any click; z-index sits above content but below the header,
    side menu, modals, toasts and the update banner, so those stay crisp. */
 #gjWatermark {
-  position: fixed; inset: 0; z-index: 0;
+  position: fixed; inset: 0; z-index: 0;   /* behind the content, above the page background */
   pointer-events: none;
   /* dead-centre of the screen, both axes */
   display: flex; align-items: center; justify-content: center;
@@ -691,7 +697,20 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 28px; }
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 960px) {
-  .sidebar { display: none; }
+  .nav-toggle { display: inline-flex; order: -1; }
+  /* sidebar becomes a slide-in drawer so EVERY module is reachable on tablet/phone */
+  .sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0; height: auto;
+    width: min(286px, 84vw); flex: none;
+    transform: translateX(-100%); transition: transform .24s ease;
+    z-index: 60; overflow-y: auto;
+    padding: 16px 12px calc(20px + env(safe-area-inset-bottom));
+    box-shadow: 0 18px 50px rgba(16,23,42,.22);
+    -webkit-overflow-scrolling: touch;
+  }
+  #app.nav-open .layout { z-index: 61; }      /* lift drawer + backdrop above the bottom nav */
+  #app.nav-open .sidebar { transform: translateX(0); }
+  #app.nav-open .nav-backdrop { opacity: 1; visibility: visible; }
   .content { max-width: 100%; padding-bottom: 92px; }
   .bill-grid { grid-template-columns: 1fr; }
   .grid-2 { grid-template-columns: 1fr; }

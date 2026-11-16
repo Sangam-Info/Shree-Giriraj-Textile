@@ -1542,7 +1542,7 @@
     fab.onclick = function () { go(t); };
     fab.classList.add("show");
   }
-  function go(v) { if (!viewAllowed(v)) return; var wasEditor = /sheet$/.test(STATE.view); STATE.view = v; render(); if (wasEditor) flushPersistNow(); /* save at once when leaving an editor (Done/Back) */ }
+  function go(v) { if (!viewAllowed(v)) return; try { if (window.__gjCloseNav) window.__gjCloseNav(); } catch (e) {} var wasEditor = /sheet$/.test(STATE.view); STATE.view = v; render(); if (wasEditor) flushPersistNow(); /* save at once when leaving an editor (Done/Back) */ }
   function openSheet(id) { STATE.sheetId = id; STATE.view = "gatesheet"; render(); }
   function isEmptySheet(sh) {
     if (!sh) return false;
@@ -2489,6 +2489,15 @@
     buildShell(); buildSwitchers(); initHero();
     $("#langGu") && ($("#langGu").onclick = function () { setLang("gu"); });
     $("#langEn") && ($("#langEn").onclick = function () { setLang("en"); });
+    // tablet/phone navigation drawer (hamburger) — makes every module reachable
+    (function () {
+      var app = $("#app"), tog = $("#navToggle"), bd = $("#navBackdrop");
+      function closeNav() { if (app) app.classList.remove("nav-open"); if (tog) tog.setAttribute("aria-expanded", "false"); }
+      window.__gjCloseNav = closeNav;
+      if (tog) tog.onclick = function () { var open = app && app.classList.toggle("nav-open"); tog.setAttribute("aria-expanded", open ? "true" : "false"); };
+      if (bd) bd.onclick = closeNav;
+      document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeNav(); });
+    })();
     // Login page: role selection decides which dashboard opens
     var pendingRole = "admin";
     var picker = $("#rolePicker");

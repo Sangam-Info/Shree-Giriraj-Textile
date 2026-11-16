@@ -15,14 +15,14 @@
 <!-- Build id (bug 1): bump this on every deploy, together with version.json and the
      ?v= query on the CSS/JS below (all three must match). Open tabs poll version.json
      and auto-refresh when the published build changes. -->
-<script>window.__BUILD="1112v";</script>
+<script>window.__BUILD="1112w";</script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Gujarati:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='12' fill='%23e0932a'/%3E%3Cg stroke='%233a2605' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M15 13h18M15 35h18M18 19h12M18 24h12M18 29h12'/%3E%3C/g%3E%3C/svg%3E">
-<link rel="stylesheet" href="./css/styles.css?v=1112v">
+<link rel="stylesheet" href="./css/styles.css?v=1112w">
 </head>
 <body>
 
@@ -107,6 +107,9 @@
   <!-- Company logo watermark shown across every app screen (see #gjWatermark in CSS) -->
   <div id="gjWatermark" aria-hidden="true"></div>
   <header class="appbar">
+    <button type="button" class="nav-toggle" id="navToggle" aria-label="Menu" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
     <div class="brand">
       <span style="display:inline-flex;align-items:center"><img src="./img/logo.png" alt="Shri Giriraj Textile" style="height:34px;width:auto;display:block"></span>
     </div>
@@ -131,6 +134,7 @@
   <div class="layout">
     <nav class="sidebar" id="sidebar"></nav>
     <main class="content" id="view"></main>
+    <div class="nav-backdrop" id="navBackdrop" aria-hidden="true"></div>
   </div>
   <nav class="botnav" id="botnav"></nav>
 
@@ -152,10 +156,10 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="./js/firebase-config.js?v=1112v"></script>
+<script src="./js/firebase-config.js?v=1112w"></script>
 
-<script src="./js/app.js?v=1112v"></script>
-<script src="./js/auth.js?v=1112v"></script>
-<script src="./js/db.js?v=1112v"></script>
+<script src="./js/app.js?v=1112w"></script>
+<script src="./js/auth.js?v=1112w"></script>
+<script src="./js/db.js?v=1112w"></script>
 </body>
 </html>
