@@ -2430,17 +2430,7 @@
         .then(function (r) { return r && r.ok ? r.json() : null; })
         .then(function (j) {
           if (!j || !j.build || !BUILD || j.build === BUILD) return;
-          try { var last = +sessionStorage.getItem("gj_reload_at") || 0; if (Date.now() - last < 20000) return; sessionStorage.setItem("gj_reload_at", String(Date.now())); } catch (e) {}
-          try { toast(L("નવું વર્ઝન મળ્યું — અપડેટ થાય છે…", "New version available — updating…"), "info"); } catch (e) {}
-          var nb = j.build;
-          // never reload mid-save: flush, then wait until the write settles before reloading.
-          // Reload with the new build as a query so a cached index.html can't be served again —
-          // this forces a fresh page + fresh ?v= assets so the update actually lands.
-          flushPersistNow();
-          (function waitSave(tries) {
-            if (savePending() && tries > 0) { setTimeout(function () { waitSave(tries - 1); }, 1000); return; }
-            setTimeout(function () { try { location.replace(location.pathname + "?v=" + encodeURIComponent(nb)); } catch (e) { try { location.reload(); } catch (e2) {} } }, 300);
-          })(15);
+          showUpdateBar(j.build);   // notify with a Refresh button instead of reloading on its own
         }).catch(function () {});
     } catch (e) {}
   }
@@ -2450,6 +2440,46 @@
     setInterval(checkBuild, 60000);      // then poll every minute
     document.addEventListener("visibilitychange", function () { if (!document.hidden) checkBuild(); });
     window.addEventListener("focus", checkBuild);
+  }
+
+  /* ---- "new version available" prompt with a Refresh button ----------------
+     Instead of reloading on its own, show a small banner so the person finishes
+     what they are doing and refreshes when ready. Refresh clears only the build
+     caches and reloads with ?v=<build> (fresh page + assets); it does NOT touch
+     cookies, localStorage or the Firebase login session, so they stay signed in. */
+  var _updBuild = "", _updDismissed = "";
+  function showUpdateBar(nb) {
+    _updBuild = nb;
+    if (nb === _updDismissed) return;          // they dismissed this version's prompt
+    if ($("#gjUpdateBar")) return;             // already showing
+    var refreshIc = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>';
+    var closeIc = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+    var bar = document.createElement("div");
+    bar.id = "gjUpdateBar"; bar.className = "update-bar"; bar.setAttribute("role", "status");
+    bar.innerHTML =
+      '<span class="ub-ic">' + refreshIc + '</span>' +
+      '<span class="ub-txt">' + L("નવું વર્ઝન ઉપલબ્ધ છે.", "A new version is available.") + '</span>' +
+      '<button type="button" class="ub-btn" id="gjUpdateBtn">' + refreshIc + '<span>' + L("રિફ્રેશ કરો", "Refresh") + '</span></button>' +
+      '<button type="button" class="ub-x" id="gjUpdateX" aria-label="' + L("બંધ કરો", "Dismiss") + '">' + closeIc + '</button>';
+    document.body.appendChild(bar);
+    $("#gjUpdateBtn").onclick = function () { applyUpdate(_updBuild); };
+    $("#gjUpdateX").onclick = function () { _updDismissed = _updBuild; bar.remove(); };
+  }
+  function applyUpdate(nb) {
+    var btn = $("#gjUpdateBtn");
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span>' + L("રિફ્રેશ થાય છે…", "Refreshing…") + '</span>'; }
+    try { flushPersistNow(); } catch (e) {}   // save any pending edit before reloading
+    // clear only the build/asset caches (if any) — keep cookies, localStorage and
+    // the Firebase login session so the person stays signed in.
+    var clearCaches = (window.caches && caches.keys)
+      ? caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }).catch(function () {})
+      : Promise.resolve();
+    clearCaches.then(function () {
+      (function waitSave(tries) {
+        if (savePending() && tries > 0) { setTimeout(function () { waitSave(tries - 1); }, 1000); return; }
+        try { location.replace(location.pathname + "?v=" + encodeURIComponent(nb)); } catch (e) { try { location.reload(); } catch (e2) {} }
+      })(15);
+    });
   }
 
   function boot() {

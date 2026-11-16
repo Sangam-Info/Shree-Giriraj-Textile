@@ -720,6 +720,32 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 28px; }
 .back-fab:active { transform: translateY(0); }
 .back-fab:focus-visible { outline: 2px solid #fff; outline-offset: -4px; }
 .back-fab svg { width: 19px; height: 19px; }
+
+/* "new version available" banner with a Refresh button */
+.update-bar {
+  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface, #fff); border: 1px solid var(--line);
+  border-radius: 14px; padding: 9px 10px 9px 16px;
+  box-shadow: 0 14px 38px rgba(28,46,82,.20), 0 3px 10px rgba(28,46,82,.10);
+  z-index: 300; max-width: calc(100vw - 32px);
+  animation: ubin .2s ease;
+}
+@keyframes ubin { from { opacity: 0; } to { opacity: 1; } }
+.update-bar .ub-ic { color: var(--brand); display: inline-flex; flex: 0 0 auto; }
+.update-bar .ub-ic svg { width: 20px; height: 20px; }
+.update-bar .ub-txt { font-size: 14px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+.update-bar .ub-btn { display: inline-flex; align-items: center; gap: 7px; background: var(--brand); color: #fff; border: none; border-radius: 10px; padding: 9px 15px; font-family: inherit; font-size: 13.5px; font-weight: 800; cursor: pointer; min-height: 40px; flex: 0 0 auto; }
+.update-bar .ub-btn:hover { background: var(--brand-600); }
+.update-bar .ub-btn:disabled { opacity: .7; cursor: default; }
+.update-bar .ub-btn svg { width: 16px; height: 16px; }
+.update-bar .ub-x { background: none; border: none; color: var(--muted); cursor: pointer; padding: 7px; display: inline-flex; border-radius: 8px; flex: 0 0 auto; }
+.update-bar .ub-x:hover { background: var(--surface-2); }
+.update-bar .ub-x svg { width: 16px; height: 16px; }
+@media (max-width: 480px) {
+  .update-bar { left: 14px; right: 14px; transform: none; bottom: 14px; }
+  .update-bar .ub-txt { white-space: normal; }
+}
 @media (max-width: 960px) {
   .back-fab { right: 14px; bottom: calc(80px + env(safe-area-inset-bottom)); height: 44px; padding: 0 18px 0 14px; }
 }

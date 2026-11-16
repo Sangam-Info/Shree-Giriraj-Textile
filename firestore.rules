@@ -2,12 +2,17 @@ rules_version = '2';
 
 // =====================================================================
 // Shri Giriraj Textile — Jobwork System · Firestore security rules
-// Roles are read from each account's own users/{uid} document
-//   users/{uid} = { role: "admin" | "supervisor", active: true, name: "…" }
-// created by tools/setup-firebase.js (go.js). This works for ANY account
-// email — no hardcoded addresses.
-//   admin      — full access, including accounting & packaging
-//   supervisor — gate entry, niwar gate entry & packaging only (NO accounting)
+//
+// Roles + per-module permissions are read from each account's own
+//   users/{uid} = { role:"admin"|"supervisor", active:true, name:"…",
+//                   email:"…", perms:{ gate:true, billing:false, … } }
+//
+//   admin       — full access to everything (perms ignored).
+//   supervisor  — access ONLY to the modules the Owner switched ON in
+//                 their perms map (User Management → Access toggles).
+//
+// The Owner can grant or revoke any module per user; access is enforced
+// here at the database, not only in the UI.
 // =====================================================================
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -20,32 +25,60 @@ service cloud.firestore {
     function isAdmin()  { return hasRole() && active() && role() == 'admin'; }
     function isStaff()  { return hasRole() && active() && (role() == 'admin' || role() == 'supervisor'); }
 
+    // A module is permitted when the user is admin, or an active user whose
+    // perms map grants it. Missing perms map / missing key => denied.
+    function has(m) {
+      return isAdmin() || (isStaff() && userDoc().get('perms', {}).get(m, false) == true);
+    }
+
     // --- identity & settings ---------------------------------------
     match /users/{uid} {
       allow read:  if signedIn() && (request.auth.uid == uid || isAdmin());
-      allow write: if isAdmin();                 // only the owner manages accounts
+      allow write: if isAdmin();                 // only the Owner manages accounts & perms
     }
     match /meta/{doc} {
       allow read:  if isStaff();
       allow write: if isAdmin();
     }
 
-    // --- gate entry + packaging (both roles) -----------------------
-    match /sheets/{id}       { allow read, write: if isStaff(); }   // job work sheet — source of truth
-    match /packing/{id}      { allow read, write: if isStaff(); }   // independent packing lists
-    match /niwarSheets/{id}  { allow read, write: if isStaff(); }   // niwar gate entry (weights only)
+    // --- gate job work sheet (source of truth) ---------------------
+    // read by gate + the modules that derive from it; written by gate.
+    match /sheets/{id} {
+      allow read:  if has('gate') || has('ledger') || has('billing') || has('yearend') || has('upad');
+      allow write: if has('gate');
+    }
 
-    // --- directories (staff read, admin manage) --------------------
-    match /workers/{id}       { allow read: if isStaff(); allow write: if isAdmin(); }
-    match /niwarParties/{id}  { allow read: if isStaff(); allow write: if isAdmin(); }
+    // --- packaging --------------------------------------------------
+    match /packing/{id} { allow read, write: if has('packing'); }
 
-    // --- accounting (admin only — supervisor has none) -------------
-    match /bills/{id}                     { allow read, write: if isAdmin(); }
-    match /niwarParams/{id}               { allow read, write: if isAdmin(); }
-    match /loans/{wid}/{document=**}      { allow read, write: if isAdmin(); }
-    match /upad/{wid}/{document=**}       { allow read, write: if isAdmin(); }
-    match /niwarUpad/{pid}/{document=**}  { allow read, write: if isAdmin(); }
-    match /niwarLoans/{pid}/{document=**} { allow read, write: if isAdmin(); }
+    // --- niwar jobwork (gate entry + its own accounting) -----------
+    match /niwarSheets/{id}           { allow read, write: if has('niwar'); }
+    match /niwarParties/{id}          { allow read, write: if has('niwar'); }
+    match /niwarParams/{id}           { allow read, write: if has('niwar'); }
+    match /niwarUpad/{pid}/{document=**}  { allow read, write: if has('niwar'); }
+    match /niwarLoans/{pid}/{document=**} { allow read, write: if has('niwar'); }
+
+    // --- job-worker directory (names) ------------------------------
+    // readable by any active staff (every module resolves worker names);
+    // written only by the Job Workers module.
+    match /workers/{id} {
+      allow read:  if isStaff();
+      allow write: if has('workers');
+    }
+
+    // --- textile accounting ----------------------------------------
+    match /bills/{id} {
+      allow read:  if has('billing') || has('ledger') || has('yearend');
+      allow write: if has('billing');
+    }
+    match /loans/{wid}/{document=**} {
+      allow read:  if has('loans') || has('yearend');
+      allow write: if has('loans');
+    }
+    match /upad/{wid}/{document=**} {
+      allow read:  if has('upad') || has('yearend') || has('billing');
+      allow write: if has('upad');
+    }
 
     // --- default deny ----------------------------------------------
     match /{document=**} { allow read, write: if false; }
