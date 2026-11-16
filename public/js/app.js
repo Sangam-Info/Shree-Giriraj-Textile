@@ -2376,10 +2376,11 @@
           if (attempt < 3) { setSync("saving"); setTimeout(function () { doPersist(attempt + 1); }, 1500 * attempt); return; }
           setSync("error", msg);
           if (msg === "permission-denied" || /permission/i.test(msg)) {
-            // Write reached Firestore but the role-based security rules rejected it —
-            // the rules have not been published for this project yet.
-            toast(L("સેવ બ્લોક: Firestore સિક્યોરિટી રૂલ્સ પબ્લિશ કરો (firebase deploy --only firestore:rules).",
-                    "Save blocked: publish the Firestore security rules (firebase deploy --only firestore:rules)."), "info");
+            // Write reached Firestore but the security rules rejected it. Keep the
+            // developer hint in the console; show end users a plain message.
+            console.warn("[Giriraj] Save blocked by Firestore security rules (permission-denied). Publish firestore.rules in the Firebase console (firebase deploy --only firestore:rules).");
+            toast(L("અત્યારે સેવ ન થયું — ફરી પ્રયાસ કરો. વારંવાર થાય તો એડમિનનો સંપર્ક કરો.",
+                    "Couldn't save right now — please try again. If it keeps happening, contact the administrator."), "info");
           } else {
             toast(L("સર્વરમાં સેવ નિષ્ફળ — ઇન્ટરનેટ તપાસો. આપમેળે ફરી પ્રયાસ થશે.",
                     "Not saved to the server — check your internet. It will keep retrying."), "info");
