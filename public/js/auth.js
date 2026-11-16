@@ -270,7 +270,7 @@
     var st = document.createElement("style"); st.id = "gjAuthStyle";
     st.textContent =
       ".gj-profile{position:relative;margin-left:8px;flex:0 0 auto}" +
-      ".gj-pf-btn{display:inline-flex;align-items:center;gap:9px;padding:5px 9px 5px 5px;border:1px solid var(--line);background:var(--surface);border-radius:999px;cursor:pointer;font-family:inherit;min-height:42px;transition:background .14s ease,border-color .14s ease}" +
+      ".gj-pf-btn{display:inline-flex;align-items:center;justify-content:center;padding:4px;border:1px solid var(--line);background:var(--surface);border-radius:50%;cursor:pointer;font-family:inherit;transition:background .14s ease,border-color .14s ease}" +
       ".gj-pf-btn:hover{background:var(--surface-2);border-color:var(--brand)}" +
       ".gj-pf-av{width:32px;height:32px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;color:#fff;font-weight:800;font-size:12.5px;background:var(--brand);letter-spacing:.3px}" +
       ".gj-pf-meta{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15;max-width:150px}" +
@@ -308,10 +308,8 @@
     if (!holder) { holder = document.createElement("div"); holder.id = "gjProfile"; holder.className = "gj-profile"; bar.appendChild(holder); }
     holder.classList.remove("open");
     holder.innerHTML =
-      '<button type="button" class="gj-pf-btn" id="gjPfBtn" aria-label="' + escA(tr("Open profile", "પ્રોફાઇલ ખોલો")) + '">' +
+      '<button type="button" class="gj-pf-btn" id="gjPfBtn" title="' + escA(name) + '" aria-label="' + escA(tr("Open profile", "પ્રોફાઇલ ખોલો")) + '">' +
         '<span class="gj-pf-av">' + escA(ini) + '</span>' +
-        '<span class="gj-pf-meta"><span class="gj-pf-name">' + escA(name) + '</span><span class="gj-pf-role">' + roleLabel(who.role) + '</span></span>' +
-        '<svg class="gj-pf-cvt" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>' +
       '</button>';
     // close any open nav drawer, then route to the profile page
     $("#gjPfBtn").onclick = function () {
