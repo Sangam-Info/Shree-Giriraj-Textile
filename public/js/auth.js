@@ -296,7 +296,8 @@
     document.head.appendChild(st);
   }
 
-  // Build (or rebuild) the user-profile chip + dropdown in the appbar.
+  // Build (or rebuild) the appbar profile chip. Clicking it opens the full
+  // Profile page (viewProfile in app.js) — there is no dropdown popup anymore.
   function injectLogout() {
     var bar = $(".appbar"); if (!bar) return;
     profileStyle();
@@ -305,32 +306,21 @@
     var ini = (who.name || who.email || "?").trim().slice(0, 2).toUpperCase();
     var holder = $("#gjProfile");
     if (!holder) { holder = document.createElement("div"); holder.id = "gjProfile"; holder.className = "gj-profile"; bar.appendChild(holder); }
+    holder.classList.remove("open");
     holder.innerHTML =
-      '<button type="button" class="gj-pf-btn" id="gjPfBtn" aria-haspopup="menu" aria-expanded="false">' +
+      '<button type="button" class="gj-pf-btn" id="gjPfBtn" aria-label="' + escA(tr("Open profile", "પ્રોફાઇલ ખોલો")) + '">' +
         '<span class="gj-pf-av">' + escA(ini) + '</span>' +
         '<span class="gj-pf-meta"><span class="gj-pf-name">' + escA(name) + '</span><span class="gj-pf-role">' + roleLabel(who.role) + '</span></span>' +
-        '<svg class="gj-pf-cvt" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>' +
-      '</button>' +
-      '<div class="gj-pf-menu" role="menu">' +
-        '<div class="gj-pf-card"><span class="gj-pf-av">' + escA(ini) + '</span><div class="gj-pf-info">' +
-          '<div class="gj-pf-fn">' + escA(name) + '</div>' +
-          (who.email ? '<div class="gj-pf-em" title="' + escA(who.email) + '">' + escA(who.email) + '</div>' : '') +
-          '<span class="gj-pf-badge">' + roleLabel(who.role) + '</span>' +
-        '</div></div>' +
-        '<div class="gj-pf-div"></div>' +
-        '<button type="button" class="gj-pf-item danger" id="gjLogout">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>' +
-          '<span>' + tr("Log out", "લોગ આઉટ") + '</span></button>' +
-      '</div>';
-    var btn = $("#gjPfBtn");
-    btn.onclick = function (e) { e.stopPropagation(); var open = holder.classList.toggle("open"); btn.setAttribute("aria-expanded", open ? "true" : "false"); };
-    $("#gjLogout").onclick = window.GJAuth.logout;
-    if (!window.__gjPfDoc) {
-      window.__gjPfDoc = true;
-      document.addEventListener("click", function (e) { var h = $("#gjProfile"); if (h && !h.contains(e.target)) h.classList.remove("open"); });
-      document.addEventListener("keydown", function (e) { if (e.key === "Escape") { var h = $("#gjProfile"); if (h) h.classList.remove("open"); } });
-    }
+        '<svg class="gj-pf-cvt" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>' +
+      '</button>';
+    // close any open nav drawer, then route to the profile page
+    $("#gjPfBtn").onclick = function () {
+      try { if (window.__gjCloseNav) window.__gjCloseNav(); } catch (e) {}
+      if (window.GJ && window.GJ.go) window.GJ.go("profile");
+    };
   }
+  // back-compat no-op: older callers may still ask to "close the profile popup"
+  window.__gjClosePf = window.__gjClosePf || function () {};
   // let app.js refresh the chip (e.g. after a language switch) without a reload
   window.GJAuth.renderProfile = function () { if (window.GJAuth.user) injectLogout(); };
 

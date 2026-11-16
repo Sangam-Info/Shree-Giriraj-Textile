@@ -457,6 +457,7 @@
   }
   function navForRole() { return NAV.filter(function (n) { return n.roles.indexOf(STATE.role) > -1 && modulePermitted(n.id); }); }
   function viewAllowed(v) {
+    if (v === "profile") return !!(window.GJAuth && window.GJAuth.user);   // own profile page — any signed-in role
     if (v === "gatesheet") return viewAllowed("gate"); if (v === "packingsheet") return viewAllowed("packing"); if (v === "niwarsheet") return viewAllowed("niwar");
     var n = NAV.filter(function (x) { return x.id === v; })[0];
     return !!(n && n.roles.indexOf(STATE.role) > -1 && modulePermitted(v));
@@ -1514,10 +1515,40 @@
   function fnode(n, t, s) { return '<div class="node"><div class="n">' + n + '</div><b>' + t + '</b><span>' + s + '</span></div>'; }
   function feat(t) { return '<li>' + svg("check") + '<span>' + t + '</span></li>'; }
 
+  /* ---------------------------------------------------------------- PROFILE PAGE */
+  function viewProfile() {
+    var u = (window.GJAuth && window.GJAuth.user) || {};
+    var name = u.name || u.email || L("યુઝર", "User");
+    var ini = (u.name || u.email || "?").trim().slice(0, 2).toUpperCase();
+    var email = u.email || "—";
+    var roleTxt = u.role === "admin" ? L("એડમિન (માલિક)", "Admin (Owner)") : L("સુપરવાઇઝર", "Supervisor");
+    var html = '<div class="page-head"><h2>' + L("પ્રોફાઇલ", "Profile") + '</h2><div class="sub">' + L("તમારું એકાઉન્ટ", "Your account") + '</div></div>';
+    html += '<div class="prof-wrap">';
+    html += '<div class="card card-pad prof-id">' +
+        '<div class="prof-av">' + esc(ini) + '</div>' +
+        '<div class="prof-idmeta"><div class="prof-name">' + esc(name) + '</div>' +
+        '<div class="prof-em" title="' + esc(email) + '">' + esc(email) + '</div>' +
+        '<span class="prof-badge">' + svg("shield") + roleTxt + '</span></div></div>';
+    html += '<div class="card card-pad prof-det"><h3 class="prof-h">' + L("એકાઉન્ટ વિગત", "Account details") + '</h3>' +
+        prow("users", L("નામ", "Name"), esc(name)) +
+        prow("inbox", L("ઈમેલ", "Email"), esc(email)) +
+        prow("shield", L("રોલ", "Role"), roleTxt) +
+        prow("check", L("સ્થિતિ", "Status"), '<span class="prof-on">' + L("સક્રિય", "Active") + '</span>') +
+        '</div>';
+    html += '<div class="card card-pad prof-out">' +
+        '<div class="prof-outtxt"><b>' + L("લોગ આઉટ", "Log out") + '</b><span>' + L("આ ઉપકરણમાંથી સુરક્ષિત સાઇન આઉટ.", "Securely sign out of this device.") + '</span></div>' +
+        '<button type="button" class="prof-logout" data-logout>' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>' +
+        '<span>' + L("લોગ આઉટ", "Log out") + '</span></button></div>';
+    html += '</div>';
+    return html;
+  }
+  function prow(ic, k, v) { return '<div class="prof-row"><span class="prof-k">' + svg(ic) + '<span>' + k + '</span></span><span class="prof-v">' + v + '</span></div>'; }
+
   /* ---------------------------------------------------------------- RENDER */
   function render() {
     if (!viewAllowed(STATE.view)) STATE.view = (STATE.role === "supervisor" ? "gate" : "dashboard");
-    var map = { dashboard: viewDashboard, gate: viewGate, gatesheet: viewGateSheet, packing: viewPacking, packingsheet: viewPackingSheet, ledger: viewLedger, niwar: viewNiwar, niwarsheet: viewNiwarSheet, upad: viewUpad, billing: viewBilling, loans: viewLoans, yearend: viewYearEnd, workers: viewWorkers, usermgmt: viewUserMgmt, help: viewHelp };
+    var map = { dashboard: viewDashboard, gate: viewGate, gatesheet: viewGateSheet, packing: viewPacking, packingsheet: viewPackingSheet, ledger: viewLedger, niwar: viewNiwar, niwarsheet: viewNiwarSheet, upad: viewUpad, billing: viewBilling, loans: viewLoans, yearend: viewYearEnd, workers: viewWorkers, usermgmt: viewUserMgmt, help: viewHelp, profile: viewProfile };
     $("#view").innerHTML = (map[STATE.view] || viewDashboard)();
     document.querySelectorAll("[data-nav]").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-nav") === (STATE.view === "gatesheet" ? "gate" : STATE.view)); });
     wire();
@@ -1542,7 +1573,7 @@
     fab.onclick = function () { go(t); };
     fab.classList.add("show");
   }
-  function go(v) { if (!viewAllowed(v)) return; try { if (window.__gjCloseNav) window.__gjCloseNav(); } catch (e) {} var wasEditor = /sheet$/.test(STATE.view); STATE.view = v; render(); if (wasEditor) flushPersistNow(); /* save at once when leaving an editor (Done/Back) */ }
+  function go(v) { if (!viewAllowed(v)) return; try { if (window.__gjCloseNav) window.__gjCloseNav(); } catch (e) {} try { if (window.__gjClosePf) window.__gjClosePf(); } catch (e) {} var wasEditor = /sheet$/.test(STATE.view); STATE.view = v; render(); if (wasEditor) flushPersistNow(); /* save at once when leaving an editor (Done/Back) */ }
   function openSheet(id) { STATE.sheetId = id; STATE.view = "gatesheet"; render(); }
   function isEmptySheet(sh) {
     if (!sh) return false;
@@ -1562,6 +1593,7 @@
 
   function wire() {
     document.querySelectorAll("[data-go]").forEach(function (b) { b.onclick = function () { go(b.getAttribute("data-go")); }; });
+    document.querySelectorAll("[data-logout]").forEach(function (b) { b.onclick = function () { try { if (window.GJAuth && window.GJAuth.logout) window.GJAuth.logout(); } catch (e) {} }; });
     document.querySelectorAll("[data-opensheet]").forEach(function (b) { b.onclick = function () { openSheet(b.getAttribute("data-opensheet")); }; });
     var gf = $("#gateFilter"); if (gf) gf.onchange = function () { STATE.gateFilter = gf.value; render(); };
     document.querySelectorAll("[data-newsheet]").forEach(function (b) { b.onclick = function () { newSheet(); }; });
@@ -2494,7 +2526,7 @@
       var app = $("#app"), tog = $("#navToggle"), bd = $("#navBackdrop");
       function closeNav() { if (app) app.classList.remove("nav-open"); if (tog) tog.setAttribute("aria-expanded", "false"); }
       window.__gjCloseNav = closeNav;
-      if (tog) tog.onclick = function () { var open = app && app.classList.toggle("nav-open"); tog.setAttribute("aria-expanded", open ? "true" : "false"); };
+      if (tog) tog.onclick = function () { var open = app && app.classList.toggle("nav-open"); tog.setAttribute("aria-expanded", open ? "true" : "false"); if (open) { try { if (window.__gjClosePf) window.__gjClosePf(); } catch (e) {} } };
       if (bd) bd.onclick = closeNav;
       document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeNav(); });
     })();
@@ -2570,6 +2602,7 @@
     }
   };
   window.GJ.setRole = setRole;
+  window.GJ.go = go;
   window.GJ.render = render;
   window.GJ.logout = function () { try { location.reload(); } catch (e) {} };
 
