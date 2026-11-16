@@ -277,7 +277,7 @@ html.gj-booting #gjBootSplash {
 }
 .month-switch svg { width: 17px; height: 17px; color: var(--muted); }
 
-.layout { display: flex; align-items: flex-start; }
+.layout { display: flex; align-items: flex-start; position: relative; z-index: 1; }
 .sidebar {
   position: sticky; top: var(--topbar-h);
   width: var(--sidebar-w); flex: none;
@@ -309,7 +309,7 @@ html.gj-booting #gjBootSplash {
    never blocks any click; z-index sits above content but below the header,
    side menu, modals, toasts and the update banner, so those stay crisp. */
 #gjWatermark {
-  position: fixed; inset: 0; z-index: 6;
+  position: fixed; inset: 0; z-index: 0;
   pointer-events: none;
   /* dead-centre of the screen, both axes */
   display: flex; align-items: center; justify-content: center;
