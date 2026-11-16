@@ -306,6 +306,10 @@ html.gj-booting #gjBootSplash {
 .nav-toggle { display: none; align-items: center; justify-content: center; width: 42px; height: 42px; flex: 0 0 auto; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 10px; cursor: pointer; }
 .nav-toggle svg { width: 22px; height: 22px; }
 .nav-toggle:active { background: var(--surface-2); }
+/* Close button inside the drawer — hidden on desktop (persistent sidebar), shown in drawer mode */
+.nav-close { display: none; align-items: center; gap: 8px; width: 100%; margin: 0 0 10px; padding: 11px 13px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); border-radius: 11px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.nav-close svg { width: 20px; height: 20px; flex: 0 0 auto; }
+.nav-close:active { background: var(--line); }
 .nav-backdrop { position: fixed; inset: 0; background: rgba(16,23,42,.45); z-index: 59; opacity: 0; visibility: hidden; transition: opacity .2s ease, visibility .2s ease; }
 
 .content { flex: 1 1 auto; min-width: 0; padding: clamp(16px, 3vw, 30px); max-width: 1180px; position: relative; z-index: 0; }
@@ -328,9 +332,6 @@ html.gj-booting #gjBootSplash {
   background-size: contain;
 }
 @media (max-width: 640px) { #gjWatermark::before { width: 86vw; height: 30vh; } }
-
-/* bottom nav (mobile) */
-.botnav { display: none; }
 
 /* ======================= DEMO BANNER ================================ */
 .demo-strip {
@@ -708,26 +709,14 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 28px; }
     box-shadow: 0 18px 50px rgba(16,23,42,.22);
     -webkit-overflow-scrolling: touch;
   }
-  #app.nav-open .layout { z-index: 61; }      /* lift drawer + backdrop above the bottom nav */
+  #app.nav-open .layout { z-index: 61; }      /* lift drawer + backdrop above page content */
   #app.nav-open .sidebar { transform: translateX(0); }
   #app.nav-open .nav-backdrop { opacity: 1; visibility: visible; }
-  .content { max-width: 100%; padding-bottom: 92px; }
+  .nav-close { display: inline-flex; }        /* single navbar: the drawer, dismissed with this button */
+  .content { max-width: 100%; padding-bottom: 24px; }
   .bill-grid { grid-template-columns: 1fr; }
   .grid-2 { grid-template-columns: 1fr; }
   .flow { grid-template-columns: repeat(2, 1fr); }
-  .botnav {
-    display: grid; grid-template-columns: repeat(5, 1fr);
-    position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
-    background: rgba(255,255,255,.96); backdrop-filter: blur(10px);
-    border-top: 1px solid var(--line); padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
-  }
-  .botnav a {
-    display:flex; flex-direction: column; align-items:center; gap: 3px;
-    padding: 7px 2px; border-radius: var(--r-sm); color: var(--muted); font-size: 10.5px; font-weight: 600;
-    min-height: 48px; justify-content:center;
-  }
-  .botnav a svg { width: 21px; height: 21px; }
-  .botnav a.active { color: var(--brand); }
   .worker-switch .lbl { display: none; }
   .worker-switch { padding-left: 10px; }
 }
@@ -774,7 +763,7 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 28px; }
   .update-bar .ub-txt { white-space: normal; }
 }
 @media (max-width: 960px) {
-  .back-fab { right: 14px; bottom: calc(80px + env(safe-area-inset-bottom)); height: 44px; padding: 0 18px 0 14px; }
+  .back-fab { right: 14px; bottom: calc(16px + env(safe-area-inset-bottom)); height: 44px; padding: 0 18px 0 14px; }
 }
 @media (max-width: 380px) {
   .back-fab { padding: 0; width: 46px; justify-content: center; }

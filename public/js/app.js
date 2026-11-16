@@ -2195,9 +2195,9 @@
   /* ---------------------------------------------------------------- SHELL / HERO / BOOT */
   function buildShell() {
     var nav = navForRole();
-    $("#sidebar").innerHTML = nav.map(function (n) { return '<a class="nav-item" data-nav="' + n.id + '" href="#' + n.id + '">' + svg(n.ic) + '<span>' + L(n.g, n.e) + '</span></a>'; }).join("") + '<div class="nav-foot">' + L(CO.nameGuj, CO.name) + '<br><b>' + L("જોબવર્ક સિસ્ટમ", "Jobwork System") + '</b></div>';
-    $("#botnav").innerHTML = nav.slice(0, 5).map(function (n) { return '<a data-nav="' + n.id + '" href="#' + n.id + '">' + svg(n.ic) + '<span>' + L(n.g, n.e) + '</span></a>'; }).join("");
+    $("#sidebar").innerHTML = '<button type="button" class="nav-close" id="navClose" aria-label="' + L("મેનૂ બંધ કરો", "Close menu") + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg><span>' + L("બંધ કરો", "Close") + '</span></button>' + nav.map(function (n) { return '<a class="nav-item" data-nav="' + n.id + '" href="#' + n.id + '">' + svg(n.ic) + '<span>' + L(n.g, n.e) + '</span></a>'; }).join("") + '<div class="nav-foot">' + L(CO.nameGuj, CO.name) + '<br><b>' + L("જોબવર્ક સિસ્ટમ", "Jobwork System") + '</b></div>';
     document.querySelectorAll("[data-nav]").forEach(function (a) { a.onclick = function (e) { e.preventDefault(); go(a.getAttribute("data-nav")); }; });
+    var nc = $("#navClose"); if (nc) nc.onclick = function () { try { if (window.__gjCloseNav) window.__gjCloseNav(); } catch (e) {} };
   }
   var vortex = null;
   function startApp() { $("#hero").classList.add("hide"); $("#app").classList.add("show"); if (vortex) { setTimeout(function () { try { vortex.dispose(); } catch (e) {} vortex = null; }, 900); } render(); }
