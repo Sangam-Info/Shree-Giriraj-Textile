@@ -2431,21 +2431,30 @@
         .then(function (j) {
           if (!j || !j.build || !BUILD || j.build === BUILD) return;
           try { var last = +sessionStorage.getItem("gj_reload_at") || 0; if (Date.now() - last < 20000) return; sessionStorage.setItem("gj_reload_at", String(Date.now())); } catch (e) {}
-          try { toast(L("નવું વર્ઝન મળ્યું — રિફ્રેશ થાય છે…", "New version available — refreshing…"), "info"); } catch (e) {}
-          // never reload mid-save: flush, then wait until the write settles before reloading
+          try { toast(L("નવું વર્ઝન મળ્યું — અપડેટ થાય છે…", "New version available — updating…"), "info"); } catch (e) {}
+          var nb = j.build;
+          // never reload mid-save: flush, then wait until the write settles before reloading.
+          // Reload with the new build as a query so a cached index.html can't be served again —
+          // this forces a fresh page + fresh ?v= assets so the update actually lands.
           flushPersistNow();
-          (function waitSave(tries) { if (savePending() && tries > 0) { setTimeout(function () { waitSave(tries - 1); }, 1000); return; } setTimeout(function () { try { location.reload(); } catch (e) {} }, 300); })(15);
+          (function waitSave(tries) {
+            if (savePending() && tries > 0) { setTimeout(function () { waitSave(tries - 1); }, 1000); return; }
+            setTimeout(function () { try { location.replace(location.pathname + "?v=" + encodeURIComponent(nb)); } catch (e) { try { location.reload(); } catch (e2) {} } }, 300);
+          })(15);
         }).catch(function () {});
     } catch (e) {}
   }
   function startAutoUpdate() {
     if (!BUILD) return;
-    setInterval(checkBuild, 90000);
+    setTimeout(checkBuild, 4000);        // early check catches a stale (cached) first load
+    setInterval(checkBuild, 60000);      // then poll every minute
     document.addEventListener("visibilitychange", function () { if (!document.hidden) checkBuild(); });
     window.addEventListener("focus", checkBuild);
   }
 
   function boot() {
+    // tidy the cache-busting ?v= that an auto-update reload may have added
+    try { if (location.search && /[?&]v=/.test(location.search)) history.replaceState(null, "", location.pathname + location.hash); } catch (e) {}
     startAutoUpdate();
     buildShell(); buildSwitchers(); initHero();
     $("#langGu") && ($("#langGu").onclick = function () { setLang("gu"); });
