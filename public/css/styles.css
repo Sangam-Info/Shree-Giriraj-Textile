@@ -303,17 +303,25 @@ html.gj-booting #gjBootSplash {
 .nav-foot b { color: var(--ink-soft); }
 
 .content { flex: 1 1 auto; min-width: 0; padding: clamp(16px, 3vw, 30px); max-width: 1180px; position: relative; z-index: 0; }
-/* subtle Giriraj Textile logo watermark behind the working area (shows in the
-   empty gaps around cards; never over text — opaque cards sit above it) */
-.content::before {
-  content: "";
-  position: absolute; left: 0; right: 0; top: 0; bottom: 0;
-  background: url("../img/logo.png") no-repeat center 46%;
-  background-size: min(500px, 46%) auto;
-  opacity: 0.06;
+
+/* Company logo watermark across the whole app (privacy/branding). A fixed
+   overlay on every screen, centered, light shade. pointer-events:none so it
+   never blocks any click; z-index sits above content but below the header,
+   side menu, modals, toasts and the update banner, so those stay crisp. */
+#gjWatermark {
+  position: fixed; inset: 0; z-index: 6;
   pointer-events: none;
-  z-index: -1;
+  /* dead-centre of the screen, both axes */
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0.15;
 }
+#gjWatermark::before {
+  content: "";
+  width: min(680px, 66vw); height: min(300px, 42vh);
+  background: url("../img/logo.png") no-repeat center center;
+  background-size: contain;
+}
+@media (max-width: 640px) { #gjWatermark::before { width: 86vw; height: 30vh; } }
 
 /* bottom nav (mobile) */
 .botnav { display: none; }
