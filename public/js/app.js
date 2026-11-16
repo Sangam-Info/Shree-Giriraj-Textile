@@ -1529,6 +1529,7 @@
         '<div class="prof-idmeta"><div class="prof-name">' + esc(name) + '</div>' +
         '<div class="prof-em" title="' + esc(email) + '">' + esc(email) + '</div>' +
         '<span class="prof-badge">' + svg("shield") + roleTxt + '</span></div></div>';
+    html += '<div class="prof-grid">';
     html += '<div class="card card-pad prof-det"><h3 class="prof-h">' + L("એકાઉન્ટ વિગત", "Account details") + '</h3>' +
         prow("users", L("નામ", "Name"), esc(name)) +
         prow("inbox", L("ઈમેલ", "Email"), esc(email)) +
@@ -1540,7 +1541,8 @@
         '<button type="button" class="prof-logout" data-logout>' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>' +
         '<span>' + L("લોગ આઉટ", "Log out") + '</span></button></div>';
-    html += '</div>';
+    html += '</div>';   // .prof-grid
+    html += '</div>';   // .prof-wrap
     return html;
   }
   function prow(ic, k, v) { return '<div class="prof-row"><span class="prof-k">' + svg(ic) + '<span>' + k + '</span></span><span class="prof-v">' + v + '</span></div>'; }
