@@ -276,6 +276,9 @@ html.gj-booting #gjBootSplash {
   padding: 2px 6px; box-shadow: var(--shadow-sm);
 }
 .month-switch svg { width: 17px; height: 17px; color: var(--muted); }
+/* Worker + month selectors relocated from the top bar onto the dashboard,
+   sitting between the info strip and the Dashboard title. */
+.dash-switchers { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 18px; }
 
 .layout { display: flex; align-items: flex-start; position: relative; z-index: 1; }   /* content sits above the watermark */
 .sidebar {

@@ -469,6 +469,19 @@
       L('<b>ગેટ જોબ વર્ક શીટ</b> આખી સિસ્ટમનો આધાર છે — શીટ ભરો → ખાતાવહી, બિલિંગ, લોન અને વર્ષાંત આપમેળે અપડેટ થાય.',
         '<b>The gate Job Work Sheet</b> is the single source of truth — fill a sheet → ledger, billing, loans & year-end update automatically.') + '</span></div>';
   }
+  // Worker + month selectors — same controls/ids as before, now shown on the
+  // dashboard (between the info strip and the title) instead of the top bar.
+  function switcherBar() {
+    return '<div class="dash-switchers">' +
+      '<div class="worker-switch"><span class="lbl" id="workerLbl">' + L("જોબ વર્કર", "Job Worker") + '</span>' +
+        '<select id="workerSelect" aria-label="Select job worker"></select></div>' +
+      '<div class="month-switch">' +
+        '<button class="btn btn-sm btn-ghost" id="monthPrev" aria-label="Previous month" style="min-height:34px;padding:0 8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>' +
+        '<select id="monthSelect" class="mlabel" aria-label="Select month"></select>' +
+        '<button class="btn btn-sm btn-ghost" id="monthNext" aria-label="Next month" style="min-height:34px;padding:0 8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>' +
+      '</div>' +
+    '</div>';
+  }
   function stat(tint, ic, k, v, vs, d) {
     return '<div class="stat"><div class="ico ' + tint + '">' + svg(ic) + '</div><div class="k">' + k + '</div><div class="v num">' + v + (vs ? ' <small>' + vs + '</small>' : '') + '</div>' + (d ? '<div class="d">' + d + '</div>' : '') + '</div>';
   }
@@ -488,7 +501,7 @@
     var loanTot = WORKERS.reduce(function (a, ww) { return a + loanBalanceP(ww.id); }, 0n);
     var upadTot = WORKERS.reduce(function (a, ww) { return a + upadMP(ww.id, STATE.month); }, 0n);
 
-    var html = demoStrip();
+    var html = demoStrip() + switcherBar();
     html += '<div class="page-head"><h2>' + L("ડેશબોર્ડ", "Dashboard") + '</h2><div class="sub">' + w.name + ' · ' + monthName() + '</div></div>';
     html += '<div class="stat-grid">' +
       stat("tint-brand", "sheet", L("આ મહિને શીટ", "Sheets this month"), monthSheets.length, "", L("બધા વર્કર", "all workers")) +
@@ -1555,6 +1568,7 @@
     $("#view").innerHTML = (map[STATE.view] || viewDashboard)();
     document.querySelectorAll("[data-nav]").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-nav") === (STATE.view === "gatesheet" ? "gate" : STATE.view)); });
     wire();
+    buildSwitchers();                 // populate + wire the worker/month selectors (dashboard only)
     decorateEditor();                 // editing banner + view-only enforcement for sheet editors
     updateBackFab();
     if (window.scrollTo) window.scrollTo(0, 0);
@@ -1915,14 +1929,18 @@
 
   /* ---------------------------------------------------------------- SWITCHERS / ROLE / LANG */
   function buildSwitchers() {
-    var wl = $("#workerLbl"); if (wl) wl.textContent = L("જોબ વર્કર", "Job Worker");    // localize the appbar label
-    var ws = $("#workerSelect"); ws.innerHTML = WORKERS.map(function (w) { return '<option value="' + w.id + '">' + esc(STATE.lang === "en" ? (w.en || w.name) : (w.name || w.en)) + '</option>'; }).join(""); ws.value = STATE.worker; ws.onchange = function () { STATE.worker = ws.value; render(); };
-    refreshMonthOptions(); $("#monthSelect").onchange = function () { STATE.month = $("#monthSelect").value; render(); };
-    $("#monthPrev").onclick = function () { stepMonth(-1); }; $("#monthNext").onclick = function () { stepMonth(1); };
+    // The switchers now live inside the dashboard view (rebuilt each render),
+    // so these are no-ops on any other screen where the controls aren't present.
+    var ws = $("#workerSelect"); if (!ws) return;
+    var wl = $("#workerLbl"); if (wl) wl.textContent = L("જોબ વર્કર", "Job Worker");
+    ws.innerHTML = WORKERS.map(function (w) { return '<option value="' + w.id + '">' + esc(STATE.lang === "en" ? (w.en || w.name) : (w.name || w.en)) + '</option>'; }).join(""); ws.value = STATE.worker; ws.onchange = function () { STATE.worker = ws.value; render(); };
+    var ms = $("#monthSelect"); if (ms) { refreshMonthOptions(); ms.onchange = function () { STATE.month = $("#monthSelect").value; render(); }; }
+    var mp = $("#monthPrev"); if (mp) mp.onclick = function () { stepMonth(-1); };
+    var mn = $("#monthNext"); if (mn) mn.onclick = function () { stepMonth(1); };
   }
-  function refreshMonthOptions() { var ms = $("#monthSelect"); ms.innerHTML = MONTHS.map(function (m) { return '<option value="' + m.id + '">' + L(m.g, m.e) + '</option>'; }).join(""); ms.value = STATE.month; }
-  function stepMonth(dir) { var idx = MONTHS.map(function (m) { return m.id; }).indexOf(STATE.month); idx = Math.min(MONTHS.length - 1, Math.max(0, idx + dir)); STATE.month = MONTHS[idx].id; syncSwitchers(); render(); }
-  function syncSwitchers() { $("#workerSelect").value = STATE.worker; $("#monthSelect").value = STATE.month; }
+  function refreshMonthOptions() { var ms = $("#monthSelect"); if (!ms) return; ms.innerHTML = MONTHS.map(function (m) { return '<option value="' + m.id + '">' + L(m.g, m.e) + '</option>'; }).join(""); ms.value = STATE.month; }
+  function stepMonth(dir) { var idx = MONTHS.map(function (m) { return m.id; }).indexOf(STATE.month); idx = Math.min(MONTHS.length - 1, Math.max(0, idx + dir)); STATE.month = MONTHS[idx].id; render(); }
+  function syncSwitchers() { var ws = $("#workerSelect"); if (ws) ws.value = STATE.worker; var ms = $("#monthSelect"); if (ms) ms.value = STATE.month; }
   function setLang(lang) { STATE.lang = lang; try { document.documentElement.lang = lang === "en" ? "en" : "gu"; localStorage.setItem("gj_lang", lang); } catch (e) {} $("#langGu").classList.toggle("on", lang === "gu"); $("#langEn").classList.toggle("on", lang === "en"); buildShell(); buildSwitchers(); try { if (window.GJAuth && window.GJAuth.renderProfile) window.GJAuth.renderProfile(); } catch (e) {} render(); }
   function setRole(role) { STATE.role = role; if (!viewAllowed(STATE.view)) STATE.view = "dashboard"; buildShell(); render(); }
   function login(role) { STATE.role = (role === "supervisor" ? "supervisor" : "admin"); STATE.view = "dashboard"; buildShell(); startApp(); }
