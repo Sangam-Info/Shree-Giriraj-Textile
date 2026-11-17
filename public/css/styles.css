@@ -706,6 +706,10 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 28px; }
 }
 @media (max-width: 960px) {
   .nav-toggle { display: inline-flex; order: -1; }
+  /* Drawer is active here, and its header already shows the logo — so hide the
+     appbar logo to leave exactly one logo on tablet/phone. The spacer keeps its
+     base flex-grow, so the language toggle and profile stay right-aligned. */
+  .appbar .brand { display: none; }
   /* sidebar becomes a slide-in drawer so EVERY module is reachable on tablet/phone */
   .sidebar {
     position: fixed; top: 0; left: 0; bottom: 0; height: auto;
@@ -784,8 +788,10 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 28px; }
     gap: 8px 8px; row-gap: 8px;
     padding: 8px max(12px, env(safe-area-inset-left, 0px)) 8px max(12px, env(safe-area-inset-right, 0px));
   }
-  .appbar .spacer { display: none; }
-  .appbar .brand { order: 1; flex: 1 1 auto; min-width: 0; gap: 9px; }
+  .appbar .spacer { display: block; }        /* reclaim the flex-grow that the (now-hidden) brand used to provide */
+  /* Mobile/tablet (drawer active): the only logo lives in the drawer header,
+     so hide the appbar logo to avoid a duplicate. Desktop (>960px) unchanged. */
+  .appbar .brand { display: none; }
   .appbar .brand img, .appbar .brand svg { width: 30px; height: 30px; }
   .appbar .brand .bt { min-width: 0; overflow: hidden; }
   .appbar .brand .bt b { overflow: hidden; text-overflow: ellipsis; }
