@@ -251,6 +251,7 @@
 
   /* ---------- secure logout ---------- */
   window.GJAuth.logout = function () {
+    try { if (window.GJ && window.GJ.releaseLock) window.GJ.releaseLock(); } catch (e) {}   // free any sheet I was editing
     try { window.GJAuth.user = null; } catch (e) {}
     try { sessionStorage.removeItem("gj_sess_live"); } catch (e) {}   // next open starts clean (bug 1)
     try { location.hash = ""; } catch (e) {}

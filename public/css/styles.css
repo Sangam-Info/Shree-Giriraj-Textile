@@ -1112,3 +1112,26 @@ table.jws-parat-tbl tfoot .grand td { background: var(--out-050); color: var(--o
   .prof-idmeta { text-align: center; }
   .prof-em { white-space: normal; }
 }
+
+/* ============ MULTI-USER EDIT BANNER (sheet editors) ============== */
+.edit-banner {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 0 0 14px; padding: 11px 15px; border-radius: 12px;
+  font-size: 14px; font-weight: 600; line-height: 1.35;
+  background: #eaf3ff; color: #1b4e8f; border: 1px solid #c7ddf7;
+}
+.edit-banner .eb-ic { font-size: 16px; flex: 0 0 auto; }
+.edit-banner .eb-tx { min-width: 0; }
+.edit-banner.locked { background: #fff4e5; color: #9a5b00; border-color: #f3d9a8; }
+.edit-banner .eb-save {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 18px; border-radius: 10px; cursor: pointer;
+  font-family: inherit; font-size: 14px; font-weight: 800;
+  color: #fff; background: #1f9d6b; border: 1px solid #1a875b;
+}
+.edit-banner .eb-save:hover { background: #1a885c; }
+.edit-banner .eb-save:active { transform: translateY(1px); }
+.edit-banner .eb-save svg { width: 17px; height: 17px; }
+@media (max-width: 520px) {
+  .edit-banner .eb-save { margin-left: 0; width: 100%; justify-content: center; }
+}

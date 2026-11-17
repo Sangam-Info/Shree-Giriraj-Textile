@@ -88,7 +88,12 @@
       loadAll: function () { return Promise.resolve({}); },
       saveStores: function () { return Promise.resolve(0); },
       cacheSeed: function () {},
-      watch: function () {}, unwatch: function () {}
+      watch: function () {}, unwatch: function () {},
+      // locking is a no-op offline/demo: a single local user is always granted the edit
+      acquireLock: function () { return Promise.resolve({ ok: true }); },
+      heartbeatLock: function () { return Promise.resolve(); },
+      releaseLock: function () { return Promise.resolve(); },
+      watchLocks: function () { return function () {}; }
     };
     return;
   }
@@ -158,5 +163,76 @@
   }
   function unwatch() { unsub.forEach(function (u) { try { u(); } catch (e) {} }); unsub = []; watching = false; }
 
-  window.GJDB = { ready: true, STORES: STORES, enc: enc, dec: dec, loadAll: loadAll, saveStores: saveStores, cacheSeed: cacheSeed, watch: watch, unwatch: unwatch };
+  /* ================= EDIT LOCKS (multi-user presence) =================
+     A single document  presence/all  holds a map of active edit locks:
+         { locks: { "<lockKey>": { uid, name, ts } }, at }
+     One user holds the lock on a given sheet at a time; others open it
+     view-only. Locks carry a timestamp and are considered stale after
+     LOCK_TTL so a crashed/closed tab never blocks a sheet forever — the
+     holder refreshes ts on a heartbeat while the editor stays open.
+
+     Requires the published rules to allow  presence/all  for any signed-in
+     user. If that write is denied (rules not yet published) every call
+     fails safe: acquireLock resolves {ok:true} so editing still works —
+     the app simply runs without cross-user locking until rules land. */
+  var PRES = "presence";
+  var LOCK_TTL = 45000;            // ms a lock stays valid without a heartbeat
+  function presRef() { return db.collection(PRES).doc(DOC); }
+  function meInfo() {
+    var u = (window.GJAuth && window.GJAuth.user) || {};
+    return { uid: u.uid || (A.user && A.user.uid) || "?", name: u.name || u.email || "User" };
+  }
+  var FV = (window.firebase && firebase.firestore && firebase.firestore.FieldValue) || null;
+
+  // Try to take the lock for lockKey. Resolves {ok:true} if granted (or if
+  // locking is unavailable), else {ok:false, by:{uid,name,ts}} with the holder.
+  function acquireLock(lockKey) {
+    var me = meInfo();
+    if (!db.runTransaction) return Promise.resolve({ ok: true, degraded: true });   // older/stub SDK: don't block
+    return db.runTransaction(function (tx) {
+      return tx.get(presRef()).then(function (snap) {
+        var data = (snap.exists && snap.data()) || {};
+        var locks = data.locks || {};
+        var cur = locks[lockKey], now = Date.now();
+        if (cur && cur.uid !== me.uid && (now - (cur.ts || 0) < LOCK_TTL)) {
+          return { ok: false, by: cur };                 // held by someone else, still fresh
+        }
+        locks[lockKey] = { uid: me.uid, name: me.name, ts: now };
+        tx.set(presRef(), { locks: locks, at: now }, { merge: true });
+        return { ok: true };
+      });
+    }).catch(function (e) {
+      console.warn("acquireLock (locking unavailable — editing allowed)", e && (e.code || e.message));
+      return { ok: true, degraded: true };               // fail safe: never block editing on a lock error
+    });
+  }
+  // Refresh my lock's timestamp so it does not go stale while I keep editing.
+  function heartbeatLock(lockKey) {
+    var me = meInfo(), upd = {};
+    upd["locks." + lockKey] = { uid: me.uid, name: me.name, ts: Date.now() };
+    upd.at = Date.now();
+    return presRef().update(upd).catch(function () {});
+  }
+  // Release my lock (dotted-path delete leaves everyone else's locks intact).
+  function releaseLock(lockKey) {
+    if (!lockKey) return Promise.resolve();
+    var upd = {};
+    upd["locks." + lockKey] = FV ? FV.delete() : null;
+    return presRef().update(upd).catch(function () {});
+  }
+  // Live stream of the whole locks map. cb(locks) on every change. Returns unsub.
+  function watchLocks(cb) {
+    try {
+      return presRef().onSnapshot(function (snap) {
+        var d = (snap.exists && snap.data()) || {};
+        try { cb(d.locks || {}); } catch (e) {}
+      }, function () {});
+    } catch (e) { return function () {}; }
+  }
+
+  window.GJDB = {
+    ready: true, STORES: STORES, enc: enc, dec: dec, loadAll: loadAll, saveStores: saveStores,
+    cacheSeed: cacheSeed, watch: watch, unwatch: unwatch,
+    acquireLock: acquireLock, heartbeatLock: heartbeatLock, releaseLock: releaseLock, watchLocks: watchLocks
+  };
 })();

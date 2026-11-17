@@ -80,6 +80,14 @@ service cloud.firestore {
       allow write: if has('upad');
     }
 
+    // --- presence / edit locks -------------------------------------
+    // One shared doc (presence/all) holds a map of who is editing which
+    // sheet, so a second user opens it view-only. Any active staff may
+    // read it and set/clear their own lock entry.
+    match /presence/{doc} {
+      allow read, write: if isStaff();
+    }
+
     // --- default deny ----------------------------------------------
     match /{document=**} { allow read, write: if false; }
   }

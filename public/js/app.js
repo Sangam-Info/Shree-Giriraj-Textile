@@ -418,7 +418,7 @@
   }
 
   /* ---------------------------------------------------------------- STATE / NAV */
-  var STATE = { role: "admin", view: "dashboard", worker: null, month: "2026-08", lang: "gu", sheetId: null, packingId: null, niwarParty: null, niwarSheetId: null };
+  var STATE = { role: "admin", view: "dashboard", worker: null, month: "2026-08", lang: "gu", sheetId: null, packingId: null, niwarParty: null, niwarSheetId: null, lock: null };
   var NAV = [
     { id: "dashboard", g: "ડેશબોર્ડ", e: "Dashboard", ic: "dash", roles: ["admin", "supervisor"] },
     { id: "gate", g: "ગેટ · જોબ વર્ક શીટ", e: "Gate · Job Work Sheet", ic: "sheet", roles: ["admin", "supervisor"] },
@@ -640,7 +640,7 @@
     html += '</tbody><tfoot><tr><td class="sr-col">' + L("કુલ", "Total") + '</td><td class="num" id="pkTot">' + kgStr(B(sheetKokdiG(sh))) + '</td><td class="num" id="pcTot">' + kgStr(B(sheetColorG(sh))) + '</td><td class="act"></td></tr>' +
       '<tr class="grand"><td class="sr-col">' + L("કોકડી+કલર", "Kokdi+Color") + '</td><td colspan="2" class="num" id="pBoth">' + kgStr(B(sheetKokdiG(sh) + sheetColorG(sh))) + '</td><td></td></tr></tfoot></table></div></div>';
 
-    html += '<div class="card mt"><div class="card-pad" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center"><div class="free-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + I.check + '</svg>' + L("આપમેળે સેવ — ખાતાવહીમાં દેખાશે", "Auto-saved — appears in the ledger") + '</div><div class="spacer"></div>' +
+    html += '<div class="card mt"><div class="card-pad" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center"><div class="free-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + I.check + '</svg>' + L("“થઈ ગયું” અથવા “સેવ” થી ખાતાવહીમાં દેખાશે", "Saved to the ledger on Done / Save") + '</div><div class="spacer"></div>' +
       '<button class="btn btn-ghost btn-sm" data-delsheet="' + sh.id + '">' + svg("trash") + ' ' + L("શીટ કાઢો", "Delete sheet") + '</button>' +
       '<button class="btn btn-primary" data-go="gate">' + svg("check") + ' ' + L("થઈ ગયું", "Done") + '</button></div></div>';
     return html;
@@ -1414,7 +1414,7 @@
       '</div></div></div>';
     html += '</div>';
 
-    if (canEditPacking()) html += '<div class="card mt"><div class="card-pad" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center"><div class="free-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + I.check + '</svg>' + L("આપમેળે સેવ", "Auto-saved") + '</div><div class="spacer"></div><button class="btn btn-ghost btn-sm" data-delpacking="' + p.id + '">' + svg("trash") + ' ' + L("કાઢો", "Delete") + '</button><button class="btn btn-primary" data-go="packing">' + svg("check") + ' ' + L("થઈ ગયું", "Done") + '</button></div></div>';
+    if (canEditPacking()) html += '<div class="card mt"><div class="card-pad" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center"><div class="free-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + I.check + '</svg>' + L("“થઈ ગયું” અથવા “સેવ” થી સેવ થશે", "Saved on Done / Save") + '</div><div class="spacer"></div><button class="btn btn-ghost btn-sm" data-delpacking="' + p.id + '">' + svg("trash") + ' ' + L("કાઢો", "Delete") + '</button><button class="btn btn-primary" data-go="packing">' + svg("check") + ' ' + L("થઈ ગયું", "Done") + '</button></div></div>';
     return html;
   }
 
@@ -1438,9 +1438,9 @@
     var sp = $("#pStepPlus"); if (sp) sp.onclick = function () { if (p.nSteps < PK_STEPS) { p.nSteps++; render(); } };
     var sm = $("#pStepMinus"); if (sm) sm.onclick = function () { if (p.nSteps > 1) { p.nSteps--; render(); } };
   }
-  function newPacking() { var p = blankPacking(); PACKING.unshift(p); STATE.packingId = p.id; STATE.view = "packingsheet"; render(); toast(L("નવું પેકિંગ લિસ્ટ", "New packing list"), "ok"); }
-  function openPacking(id) { STATE.packingId = id; STATE.view = "packingsheet"; render(); }
-  function delPacking(id) { infoModalConfirm(L("પેકિંગ લિસ્ટ કાઢવું?", "Delete packing list?"), L("આ પેકિંગ લિસ્ટ કાઢી નાખશે.", "This removes the packing list."), function () { PACKING = PACKING.filter(function (p) { return p.id !== id; }); STATE.view = "packing"; render(); toast(L("કાઢ્યું", "Deleted"), "ok"); }); }
+  function newPacking() { var p = blankPacking(); PACKING.unshift(p); STATE.packingId = p.id; STATE.view = "packingsheet"; _pendingEdit = false; render(); acquireEditorLock(); toast(L("નવું પેકિંગ લિસ્ટ", "New packing list"), "ok"); }
+  function openPacking(id) { STATE.packingId = id; STATE.view = "packingsheet"; _pendingEdit = false; render(); acquireEditorLock(); }
+  function delPacking(id) { infoModalConfirm(L("પેકિંગ લિસ્ટ કાઢવું?", "Delete packing list?"), L("આ પેકિંગ લિસ્ટ કાઢી નાખશે.", "This removes the packing list."), function () { PACKING = PACKING.filter(function (p) { return p.id !== id; }); STATE.view = "packing"; render(); flushPersistNow(); toast(L("કાઢ્યું", "Deleted"), "ok"); }); }
 
   /* packing PDF (separate format, paginated) */
   function packingPages(id) {
@@ -1551,12 +1551,15 @@
   function render() {
     if (!viewAllowed(STATE.view)) STATE.view = (STATE.role === "supervisor" ? "gate" : "dashboard");
     var map = { dashboard: viewDashboard, gate: viewGate, gatesheet: viewGateSheet, packing: viewPacking, packingsheet: viewPackingSheet, ledger: viewLedger, niwar: viewNiwar, niwarsheet: viewNiwarSheet, upad: viewUpad, billing: viewBilling, loans: viewLoans, yearend: viewYearEnd, workers: viewWorkers, usermgmt: viewUserMgmt, help: viewHelp, profile: viewProfile };
+    _inRender = true;
     $("#view").innerHTML = (map[STATE.view] || viewDashboard)();
     document.querySelectorAll("[data-nav]").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-nav") === (STATE.view === "gatesheet" ? "gate" : STATE.view)); });
     wire();
+    decorateEditor();                 // editing banner + view-only enforcement for sheet editors
     updateBackFab();
     if (window.scrollTo) window.scrollTo(0, 0);
     schedulePersist();
+    _inRender = false;
   }
   // Global Back button — editor screens step back to their list; any other screen
   // returns to the dashboard; the dashboard itself (home) hides it.
@@ -1575,8 +1578,19 @@
     fab.onclick = function () { go(t); };
     fab.classList.add("show");
   }
-  function go(v) { if (!viewAllowed(v)) return; try { if (window.__gjCloseNav) window.__gjCloseNav(); } catch (e) {} try { if (window.__gjClosePf) window.__gjClosePf(); } catch (e) {} var wasEditor = /sheet$/.test(STATE.view); STATE.view = v; render(); if (wasEditor) flushPersistNow(); /* save at once when leaving an editor (Done/Back) */ }
-  function openSheet(id) { STATE.sheetId = id; STATE.view = "gatesheet"; render(); }
+  function go(v) {
+    if (!viewAllowed(v)) return;
+    try { if (window.__gjCloseNav) window.__gjCloseNav(); } catch (e) {}
+    try { if (window.__gjClosePf) window.__gjClosePf(); } catch (e) {}
+    var wasEditor = /sheet$/.test(STATE.view);
+    var wasEditable = wasEditor && editableEditorNow();
+    if (wasEditable) mergePendingRemoteBeforeSave();    // fold in others' saves before I push mine
+    if (wasEditor) releaseEditorLock();                 // let other users edit this sheet now
+    STATE.view = v; _pendingEdit = false;
+    render();
+    if (wasEditable) flushPersistNow();                 // Done/Back = save → everyone sees it
+  }
+  function openSheet(id) { STATE.sheetId = id; STATE.view = "gatesheet"; _pendingEdit = false; render(); acquireEditorLock(); }
   function isEmptySheet(sh) {
     if (!sh) return false;
     if (sheetRolls(sh) > 0 || sheetKgG(sh) > 0) return false;
@@ -1704,7 +1718,7 @@
     else { kgEl.title = L("પહેલાં આ સ્ટેપમાં મીટર ભરો", "Enter metres in this step first"); if (sh.kg[s] != null) { sh.kg[s] = null; kgEl.value = ""; setTxt("#sumKg", kgStr(B(sheetKgG(sh)))); schedulePersist(); } }
   }
   function delSheet(id) {
-    infoModalConfirm(L("શીટ કાઢવી?", "Delete sheet?"), L("આ શીટ અને તેની ખાતાવહી એન્ટ્રી કાઢી નાખશે.", "This removes the sheet and its ledger entry."), function () { SHEETS = SHEETS.filter(function (s) { return s.id !== id; }); STATE.view = "gate"; render(); toast(L("શીટ કાઢી", "Sheet deleted"), "ok"); });
+    infoModalConfirm(L("શીટ કાઢવી?", "Delete sheet?"), L("આ શીટ અને તેની ખાતાવહી એન્ટ્રી કાઢી નાખશે.", "This removes the sheet and its ledger entry."), function () { SHEETS = SHEETS.filter(function (s) { return s.id !== id; }); STATE.view = "gate"; render(); flushPersistNow(); toast(L("શીટ કાઢી", "Sheet deleted"), "ok"); });
   }
 
   /* --- billing live wiring --- */
@@ -1788,12 +1802,12 @@
     if (!NWORKERS.length) { toast(L("પહેલા નિવાર પાર્ટી ઉમેરો", "Add a niwar party first"), "info"); return; }
     var p = niwarParty(), mid = STATE.month;
     var sh = blankNSheet(p.id, mid + "-" + pad(Math.min(28, new Date().getDate())));
-    NSHEETS.push(sh); STATE.niwarSheetId = sh.id; STATE.view = "niwarsheet"; render(); toast(L("નિવાર શીટ બની", "Niwar sheet created"), "ok");
+    NSHEETS.push(sh); STATE.niwarSheetId = sh.id; STATE.view = "niwarsheet"; _pendingEdit = false; render(); acquireEditorLock(); toast(L("નિવાર શીટ બની", "Niwar sheet created"), "ok");
   }
-  function openNSheet(id) { STATE.niwarSheetId = id; STATE.view = "niwarsheet"; render(); }
+  function openNSheet(id) { STATE.niwarSheetId = id; STATE.view = "niwarsheet"; _pendingEdit = false; render(); acquireEditorLock(); }
   function delNSheet(id) {
     infoModalConfirm(L("નિવાર શીટ કાઢવી?", "Delete niwar sheet?"), L("આ ડિલિવરી શીટ કાઢી નાખશે; ખાતાવહી/બિલ ફરી ગણાશે.", "This removes the delivery sheet; the ledger/bill recomputes."), function () {
-      NSHEETS = NSHEETS.filter(function (s) { return s.id !== id; }); STATE.view = "niwar"; render(); toast(L("કાઢ્યું", "Deleted"), "ok");
+      NSHEETS = NSHEETS.filter(function (s) { return s.id !== id; }); STATE.view = "niwar"; render(); flushPersistNow(); toast(L("કાઢ્યું", "Deleted"), "ok");
     });
   }
   function curNSheet() { return nSheetById(STATE.niwarSheetId); }
@@ -2341,8 +2355,9 @@
 
   /* ---- real-time sync: apply the other panel's changes, but never while the
           current user is mid-edit (defer until they stop typing) ---- */
-  var _remoteQ = {}, _remoteTimer = null;
+  var _remoteQ = {}, _remoteTimer = null, _pendingEdit = false, _inRender = false;
   function isEditingNow() {
+    if (editableEditorNow()) return true;              // hold ALL remote applies while a sheet editor is open
     var a = document.activeElement;
     if (a && a !== document.body) {
       var t = (a.tagName || "").toLowerCase();
@@ -2371,6 +2386,110 @@
     render();
   }
 
+  /* =================================================================
+     MULTI-USER EDIT LOCKS + "reflect only on save"
+     -----------------------------------------------------------------
+     • Only one user edits a given sheet at a time. A second user who
+       opens it gets a view-only copy with a "<name> is editing" banner.
+     • While a sheet editor is open, this user's keystrokes stay LOCAL —
+       they are pushed to everyone only on Save / Done / Back. That stops
+       half-typed values from flashing onto the other users' screens.
+     • Deletes and saved changes made elsewhere are merged in without
+       wiping the row this user currently has open (per-id merge), so two
+       people editing different sheets never clobber each other.
+  ================================================================= */
+  function isSheetEditor(v) { return v === "gatesheet" || v === "packingsheet" || v === "niwarsheet"; }
+  function currentEditStoreKey() { return STATE.view === "gatesheet" ? "sheets" : STATE.view === "packingsheet" ? "packing" : STATE.view === "niwarsheet" ? "nsheets" : null; }
+  function currentEditItemId() { return STATE.view === "gatesheet" ? STATE.sheetId : STATE.view === "packingsheet" ? STATE.packingId : STATE.view === "niwarsheet" ? STATE.niwarSheetId : null; }
+  function currentEditLockKey() { var k = currentEditStoreKey(), id = currentEditItemId(); return (k && id) ? (STATE.view + ":" + id) : null; }
+  function editableEditorNow() { return isSheetEditor(STATE.view) && !(STATE.lock && STATE.lock.readOnly); }
+
+  function arrByKey(k) { return k === "sheets" ? SHEETS : k === "packing" ? PACKING : NSHEETS; }
+  // Apply a remote array-store value but keep the row this user has open intact.
+  function mergeArrayStoreById(key, remoteVal, editId) {
+    var local = editId ? arrByKey(key).filter(function (x) { return x.id === editId; })[0] : null;
+    hydrateStore(key, remoteVal);
+    if (local) {
+      var arr = arrByKey(key), found = false;
+      for (var i = 0; i < arr.length; i++) { if (arr[i].id === editId) { arr[i] = local; found = true; break; } }
+      if (!found) arr.unshift(local);               // the row I'm editing isn't on the server yet — keep it
+    }
+  }
+  // Pull in everything other users saved while I was editing, without touching
+  // the row I have open, so my upcoming write includes their changes too.
+  function mergePendingRemoteBeforeSave() {
+    var keys = Object.keys(_remoteQ); if (!keys.length) return;
+    var ek = currentEditStoreKey(), eid = currentEditItemId();
+    keys.forEach(function (k) {
+      if (ek && k === ek && eid) mergeArrayStoreById(k, _remoteQ[k], eid);
+      else hydrateStore(k, _remoteQ[k]);
+    });
+    _remoteQ = {};
+  }
+  function saveEditorNow() {
+    mergePendingRemoteBeforeSave();
+    _pendingEdit = false;
+    flushPersistNow();                               // push my sheet to everyone now
+    toast(L("સેવ થયું — બધાને દેખાશે", "Saved — now visible to everyone"), "ok");
+  }
+
+  /* ---- lock lifecycle ---- */
+  var _hbT = null;
+  function startHeartbeat(key) { stopHeartbeat(); _hbT = setInterval(function () { try { if (window.GJDB && window.GJDB.heartbeatLock) window.GJDB.heartbeatLock(key); } catch (e) {} }, 15000); }
+  function stopHeartbeat() { if (_hbT) { clearInterval(_hbT); _hbT = null; } }
+  function acquireEditorLock() {
+    var key = currentEditLockKey();
+    if (!key || !(window.GJDB && window.GJDB.ready && window.GJDB.acquireLock)) { STATE.lock = null; return; }
+    STATE.lock = { key: key, readOnly: false, by: null };    // optimistic until the server answers
+    window.GJDB.acquireLock(key).then(function (r) {
+      if (!STATE.lock || STATE.lock.key !== key) return;      // user already navigated away
+      if (r && r.ok) { STATE.lock = { key: key, readOnly: false, by: null }; startHeartbeat(key); }
+      else {
+        STATE.lock = { key: key, readOnly: true, by: (r && r.by) || null };
+        stopHeartbeat();
+        var who = (r && r.by && r.by.name) || L("બીજા યુઝર", "Another user");
+        toast(who + " " + L("આ શીટ એડિટ કરે છે — ફક્ત જોવા મળશે", "is editing this sheet — opened view-only"), "info");
+        render();
+      }
+    });
+  }
+  function releaseEditorLock() {
+    var k = STATE.lock && STATE.lock.key;
+    stopHeartbeat();
+    STATE.lock = null;
+    if (k) { try { if (window.GJDB && window.GJDB.releaseLock) window.GJDB.releaseLock(k); } catch (e) {} }
+  }
+  // Live locks map → if the sheet I'm viewing read-only becomes free, try to take it.
+  function onLocksChanged(locks) {
+    if (!STATE.lock || !STATE.lock.readOnly) return;
+    var cur = locks[STATE.lock.key], now = Date.now();
+    var free = !cur || (now - (cur.ts || 0) >= 45000);
+    if (free) acquireEditorLock();
+  }
+
+  // Draw the editing banner + enforce view-only. Called at the end of render().
+  function decorateEditor() {
+    if (!isSheetEditor(STATE.view)) return;
+    var view = $("#view"); if (!view) return;
+    var lock = STATE.lock || {};
+    var banner = document.createElement("div");
+    banner.className = "edit-banner" + (lock.readOnly ? " locked" : "");
+    if (lock.readOnly) {
+      var who = (lock.by && lock.by.name) || L("બીજા યુઝર", "Another user");
+      banner.innerHTML = '<span class="eb-ic">🔒</span><span class="eb-tx">' + esc(who) + ' ' + L("આ શીટ એડિટ કરે છે — ફક્ત જોવા માટે", "is editing this sheet — view only") + '</span>';
+      view.querySelectorAll("input,select,textarea").forEach(function (el) { el.disabled = true; });
+      view.querySelectorAll("button").forEach(function (b) {
+        if (b.hasAttribute("data-go")) return;                 // keep Done/navigation usable
+        b.disabled = true; b.style.opacity = "0.5"; b.style.pointerEvents = "none";
+      });
+    } else {
+      banner.innerHTML = '<span class="eb-ic">✎</span><span class="eb-tx">' + L("તમે એડિટ કરો છો — સેવ કરો ત્યારે બધાને દેખાશે", "You are editing — click Save to share with everyone") + '</span>' +
+        '<button type="button" class="eb-save" id="ebSave">' + svg("check") + ' ' + L("સેવ કરો", "Save") + '</button>';
+    }
+    view.insertBefore(banner, view.firstChild);
+    var sb = $("#ebSave"); if (sb) sb.onclick = saveEditorNow;
+  }
+
   // Fresh client database: keep the (editable) starter roster, wipe all demo transactions.
   function seedInitial() {
     SHEETS.length = 0; PACKING.length = 0; NSHEETS.length = 0;
@@ -2383,6 +2502,13 @@
 
   function schedulePersist() {
     if (!_persistOn || !(window.GJDB && window.GJDB.ready)) return;
+    // Reflect-only-on-save: while a sheet editor is open, keep edits local and
+    // do NOT push them — the user shares them explicitly via Save / Done / Back.
+    if (editableEditorNow()) {
+      if (!_inRender) { _pendingEdit = true; setSync("unsaved"); }
+      else if (_pendingEdit) { setSync("unsaved"); }
+      return;
+    }
     if (_persistT) clearTimeout(_persistT);
     _persistT = setTimeout(function () { _persistT = null; doPersist(1); }, 900);
   }
@@ -2443,6 +2569,7 @@
     else if (state === "saved") { el.style.background = "#e7f7ef"; el.style.color = "#1f9d6b"; el.textContent = "✓ " + L("સેવ થયું", "Saved"); }
     else if (state === "error") { el.style.background = "#fdecec"; el.style.color = "#c0392b"; el.style.cursor = "help"; el.textContent = "⚠ " + L("સેવ નથી થયું", "Not saved"); el.title = msg ? ("Save error: " + msg) : ""; el.onclick = function () { if (msg) alert("Save error: " + msg); }; }
     else if (state === "synced") { el.style.background = "#e8f0fe"; el.style.color = "#2f5fae"; el.textContent = "↻ " + L("અપડેટ થયું", "Updated"); setTimeout(function () { var e2 = $("#gjSync"); if (e2 && /Updated|અપડેટ/.test(e2.textContent)) setSync("idle"); }, 2500); }
+    else if (state === "unsaved") { el.style.background = "#fff4e5"; el.style.color = "#b26a00"; el.title = L("સેવ કરો ત્યારે બધાને દેખાશે", "Changes show to others when you Save"); el.textContent = "● " + L("સેવ બાકી", "Unsaved"); }
     else { el.style.display = "none"; }
   }
   function loadingHTML() {
@@ -2595,9 +2722,11 @@
           // best-effort: push a pending edit to the server when the tab is hidden/closed
           // (Firestore write, no local cache). Keeps a last-second edit from being lost.
           window.addEventListener("visibilitychange", function () { if (document.hidden) flushPersistNow(); });
-          window.addEventListener("pagehide", flushPersistNow);
+          window.addEventListener("pagehide", function () { try { releaseEditorLock(); } catch (e) {} flushPersistNow(); });
           // real-time sync: changes from any other device/panel stream in live
           try { if (window.GJDB && window.GJDB.watch) window.GJDB.watch(applyRemote); } catch (e) {}
+          // live edit-locks: who is editing which sheet, across all users
+          try { if (window.GJDB && window.GJDB.watchLocks) window.GJDB.watchLocks(onLocksChanged); } catch (e) {}
         });
     } else {
       startApp();   // DEMO mode — unchanged
@@ -2606,6 +2735,7 @@
   window.GJ.setRole = setRole;
   window.GJ.go = go;
   window.GJ.render = render;
+  window.GJ.releaseLock = releaseEditorLock;   // free my sheet lock on logout
   window.GJ.logout = function () { try { location.reload(); } catch (e) {} };
 
   if (typeof window !== "undefined" && window.__TEST) {
