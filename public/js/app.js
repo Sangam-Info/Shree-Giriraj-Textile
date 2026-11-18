@@ -819,7 +819,7 @@
     html += '<div class="grid-2">';
     (s.products || []).forEach(function (prod, pi) {
       html += '<div class="card"><div class="card-head"><div class="ico tint-brand">' + svg("roll") + '</div><div><h3 style="font-size:15px">' + L("સાઇઝ", "Size") + '</h3></div><div class="spacer"></div><div class="field" style="width:120px;margin:0"><select data-np-size="' + pi + '">' + sizeOpts(prod.size) + '</select></div><button class="icon-btn" data-np-delprod="' + pi + '" title="' + L("પ્રોડક્ટ કાઢો", "Remove product") + '" style="margin-left:8px">' + svg("trash") + '</button></div><div class="card-pad">';
-      html += '<table class="data"><thead><tr><th style="width:30px">#</th><th style="text-align:right">' + L("વજન (kg, 3 આંકડા)", "Weight (kg, 3-digit)") + '</th></tr></thead><tbody>';
+      html += '<table class="data np-wtbl"><thead><tr><th style="width:30px">#</th><th style="text-align:right">' + L("વજન (kg, 3 આંકડા)", "Weight (kg, 3-digit)") + '</th></tr></thead><tbody>';
       for (var ri = 0; ri < NL_ROWS; ri++) {
         var v = (prod.lots[ri] != null) ? String(Number(prod.lots[ri] / 1000n)) : "";
         html += '<tr><td style="color:var(--muted)">' + (ri + 1) + '</td><td style="text-align:right"><input type="text" inputmode="numeric" maxlength="3" data-np-cell="' + pi + '-' + ri + '" value="' + v + '" class="num" style="width:110px;text-align:right"></td></tr>';
