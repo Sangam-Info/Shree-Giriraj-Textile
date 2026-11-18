@@ -2059,7 +2059,7 @@
       BILL[nid] = {}; MONTHS.forEach(function (m) { BILL[nid][m.id] = { rate: rate, ghati: 3, tempo: 0, loanDeductP: null, paidP: null, openingSeed: 0n, openingWseedG: 0n }; });
       LOANS[nid] = []; UPAD[nid] = []; STATE.worker = nid;
     }
-    closeModal(); buildSwitchers(); render(); toast(id ? L("સેવ થયું", "Saved") : L("જોબ વર્કર ઉમેરાયો", "Job worker added"), "ok");
+    closeModal(); buildSwitchers(); render(); flushPersistNow(); toast(id ? L("સેવ થયું", "Saved") : L("જોબ વર્કર ઉમેરાયો", "Job worker added"), "ok");
   }
   function delWorker(id) {
     var w = workerById(id); if (!w) return;
@@ -2070,7 +2070,7 @@
       WORKERS = WORKERS.filter(function (x) { return x.id !== id; }); decorateWorkers();
       delete BILL[id]; delete LOANS[id]; delete UPAD[id];
       if (STATE.worker === id) STATE.worker = WORKERS[0] ? WORKERS[0].id : null;
-      buildSwitchers(); render(); toast(L("કાઢ્યું", "Deleted"), "ok");
+      buildSwitchers(); render(); flushPersistNow(); toast(L("કાઢ્યું", "Deleted"), "ok");
     });
   }
 
@@ -2088,7 +2088,7 @@
     if (!en) en = name; if (!name) name = en;
     if (id) { var p = nwById(id); if (p) { p.name = name; p.en = en; p.phone = phone; } }
     else { var nid = "n_" + rid(); NWORKERS.push({ id: nid, name: name, en: en, phone: phone }); NUPAD[nid] = []; NLOANS[nid] = []; STATE.niwarParty = nid; }
-    closeModal(); render(); toast(id ? L("સેવ થયું", "Saved") : L("પાર્ટી ઉમેરાઈ", "Party added"), "ok");
+    closeModal(); render(); flushPersistNow(); toast(id ? L("સેવ થયું", "Saved") : L("પાર્ટી ઉમેરાઈ", "Party added"), "ok");
   }
   function delNParty(id) {
     var p = nwById(id); if (!p) return;
@@ -2099,7 +2099,7 @@
       NWORKERS = NWORKERS.filter(function (x) { return x.id !== id; });
       delete NUPAD[id]; delete NLOANS[id]; if (NPARAM[id]) delete NPARAM[id];
       if (STATE.niwarParty === id) STATE.niwarParty = NWORKERS[0] ? NWORKERS[0].id : null;
-      render(); toast(L("કાઢ્યું", "Deleted"), "ok");
+      render(); flushPersistNow(); toast(L("કાઢ્યું", "Deleted"), "ok");
     });
   }
   function toast(msg, kind) { var tw = $("#toastWrap"); var t = document.createElement("div"); t.className = "toast " + (kind || ""); t.innerHTML = svg(kind === "info" ? "info" : "check") + "<span>" + msg + "</span>"; tw.appendChild(t); setTimeout(function () { t.style.opacity = "0"; t.style.transition = "opacity .3s"; setTimeout(function () { t.remove(); }, 320); }, 3000); }
@@ -2617,23 +2617,25 @@
     setSync("saving");
     try {
       window.GJDB.saveStores(buildSnapshot(), STATE.role)
-        .then(function (n) { _saving = false; _lastSaveErr = ""; setSync(n ? "saved" : "idle"); })
+        .then(function (n) { _saving = false; _lastSaveErr = ""; showSaveBlocked(false); setSync(n ? "saved" : "idle"); })
         .catch(function (e) {
           _saving = false;
           var msg = (e && (e.code || e.message)) || "unknown error";
           _lastSaveErr = msg; console.warn("save failed (attempt " + attempt + ")", e);
+          var denied = (msg === "permission-denied" || /permission/i.test(msg));
+          if (denied) {
+            // Security rules rejected the write — retrying won't help, and the data
+            // will be LOST on refresh. Surface it LOUDLY and at once (no silent retries).
+            setSync("error", msg);
+            console.warn("[Giriraj] Save blocked by Firestore security rules (permission-denied). Publish firestore.rules in the Firebase console (firebase deploy --only firestore:rules).");
+            showSaveBlocked(true);
+            _retryT = setTimeout(function () { _retryT = null; doPersist(1); }, 15000);  // re-check in case the rules get published
+            return;
+          }
           if (attempt < 3) { setSync("saving"); setTimeout(function () { doPersist(attempt + 1); }, 1500 * attempt); return; }
           setSync("error", msg);
-          if (msg === "permission-denied" || /permission/i.test(msg)) {
-            // Write reached Firestore but the security rules rejected it. Keep the
-            // developer hint in the console; show end users a plain message.
-            console.warn("[Giriraj] Save blocked by Firestore security rules (permission-denied). Publish firestore.rules in the Firebase console (firebase deploy --only firestore:rules).");
-            toast(L("અત્યારે સેવ ન થયું — ફરી પ્રયાસ કરો. વારંવાર થાય તો એડમિનનો સંપર્ક કરો.",
-                    "Couldn't save right now — please try again. If it keeps happening, contact the administrator."), "info");
-          } else {
-            toast(L("સર્વરમાં સેવ નિષ્ફળ — ઇન્ટરનેટ તપાસો. આપમેળે ફરી પ્રયાસ થશે.",
-                    "Not saved to the server — check your internet. It will keep retrying."), "info");
-          }
+          toast(L("સર્વરમાં સેવ નિષ્ફળ — ઇન્ટરનેટ તપાસો. આપમેળે ફરી પ્રયાસ થશે.",
+                  "Not saved to the server — check your internet. It will keep retrying."), "info");
           // keep trying the server (no local fallback) so a transient failure self-heals
           _retryT = setTimeout(function () { _retryT = null; doPersist(1); }, 10000);
         });
@@ -2643,6 +2645,23 @@
   // (Removed the localStorage write-ahead backup. Firestore is the single source of
   //  truth; a failed write retries against the server instead of being cached locally.)
   function dropLegacyLocalCopy() { try { localStorage.removeItem("gj_pending"); } catch (e) {} }
+
+  // Persistent, impossible-to-miss banner shown when Firestore rejects a write
+  // (permission-denied). Data is NOT being saved, so this stays up until a save
+  // succeeds — it is the clear signal that the security rules must be published.
+  function showSaveBlocked(on) {
+    var el = $("#saveBlocked");
+    if (!on) { if (el) el.remove(); return; }
+    if (el) return;
+    el = document.createElement("div");
+    el.id = "saveBlocked";
+    el.className = "save-blocked-bar";
+    el.innerHTML = '<span class="sbb-ic">⚠</span><span class="sbb-tx">' +
+      L("ફેરફારો ડેટાબેઝમાં સેવ થતા નથી — રિફ્રેશ પછી ખોવાઈ જશે. ડેટાબેઝ નિયમો (Firestore rules) પબ્લિશ કરવા જરૂરી છે.",
+        "Changes are NOT being saved to the database — they will be lost on refresh. The Firestore security rules need to be published.") +
+      '</span>';
+    document.body.appendChild(el);
+  }
 
   /* tiny save-status pill in the app bar (reassures the owner data is stored) */
   function ensureSyncPill() {
