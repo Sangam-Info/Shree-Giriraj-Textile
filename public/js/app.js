@@ -1408,7 +1408,7 @@
     html += '</tbody><tfoot><tr class="ft-total"><td class="sr-col">' + L("કુલ", "Total") + '</td>';
     for (var s3 = 0; s3 < p.nSteps; s3++) html += '<td class="num" id="pstot_' + s3 + '">' + numI(pkStepTotal(p, s3)) + '</td>';
     html += '</tr><tr class="ft-kg"><td class="sr-col">KG</td>';
-    for (var s4 = 0; s4 < p.nSteps; s4++) html += '<td><input class="cell kgcell" inputmode="decimal" data-pkg="' + s4 + '" value="' + (p.kg[s4] == null ? "" : p.kg[s4]) + '"' + dis + '></td>';
+    for (var s4 = 0; s4 < p.nSteps; s4++) { var pkgLock = pkStepTotal(p, s4) <= 0; html += '<td><input class="cell kgcell' + (pkgLock ? ' kg-locked' : '') + '" inputmode="decimal" data-pkg="' + s4 + '"' + (pkgLock ? ' disabled title="' + L("પહેલાં આ સ્ટેપમાં મીટર ભરો", "Enter metres in this step first") + '"' : '') + ' value="' + (p.kg[s4] == null ? "" : p.kg[s4]) + '"' + dis + '></td>'; }
     html += '</tr></tfoot></table></div><div class="hint" style="padding:10px 14px 0">' + L("એક સ્ટેપમાં " + PK_ROWS + " લાઇન. મીટરમાં 2 આંકડા — પછી આપમેળે આગળની લાઇને.", PK_ROWS + " lines per step. Metres are 2 digits — then it auto-jumps to the next line.") + '</div></div>';
 
     /* side: stats + amount */
@@ -1444,7 +1444,7 @@
         var d = el.value.replace(/\D/g, "").slice(0, 2); if (d !== el.value) el.value = d;
         var q = el.getAttribute("data-pmt").split("_"); var s = +q[0], r = +q[1];
         p.meters[s][r] = d === "" ? null : parseInt(d, 10);
-        setTxt("#pstot_" + s, numI(pkStepTotal(p, s))); refreshPk(); schedulePersist();
+        setTxt("#pstot_" + s, numI(pkStepTotal(p, s))); syncPkKgLock(p, s); refreshPk(); schedulePersist();
         if (d.length === 2) { var nx = document.querySelector('[data-pmt="' + s + '_' + (r + 1) + '"]'); if (nx) { nx.focus(); if (nx.select) nx.select(); } }
       };
     });
@@ -1766,6 +1766,16 @@
     var sm = $("#stepMinus"); if (sm) sm.onclick = function () { if (sh.nSteps > 1) { sh.nSteps--; render(); } };
   }
   function refreshParat(sh) { setTxt("#pkTot", kgStr(B(sheetKokdiG(sh)))); setTxt("#pcTot", kgStr(B(sheetColorG(sh)))); setTxt("#pBoth", kgStr(B(sheetKokdiG(sh) + sheetColorG(sh)))); }
+  // Packing: a step's KG box is usable only once that step has at least one metre entry
+  // (mirrors the gate sheet). Called live as metres are typed, so focus is preserved.
+  function syncPkKgLock(p, s) {
+    var kgEl = document.querySelector('[data-pkg="' + s + '"]'); if (!kgEl) return;
+    var has = pkStepTotal(p, s) > 0;
+    kgEl.disabled = !has;
+    kgEl.classList.toggle("kg-locked", !has);
+    if (has) { kgEl.removeAttribute("title"); }
+    else { kgEl.title = L("પહેલાં આ સ્ટેપમાં મીટર ભરો", "Enter metres in this step first"); if (p.kg[s] != null) { p.kg[s] = null; kgEl.value = ""; setTxt("#pSumKg", kgStr(B(pkKgG(p)))); refreshPk(); schedulePersist(); } }
+  }
   // bug 3: a step's KG box is enabled only once that step has at least one metre entry.
   // Called live as metres are typed (no full re-render), so focus is preserved.
   function syncKgLock(sh, s) {
