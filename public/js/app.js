@@ -144,6 +144,8 @@
       emptyState("roll", L("હજી કોઈ નિવાર પાર્ટી નથી", "No niwar parties yet"), L("પહેલા નિવાર પાર્ટી ઉમેરો — પછી નિવાર ગેટ એન્ટ્રી કરો.", "Add a niwar party first — then record niwar gate entries."), L("નિવાર પાર્ટી ઉમેરો", "Add Niwar Party"), 'data-addnparty="1"');
   }
   function workerById(id) { return WORKERS.filter(function (w) { return w.id === id; })[0]; }
+  // Language-aware display name for a worker / niwar party (both versions are stored).
+  function wNm(w) { return w ? (STATE.lang === "en" ? (w.en || w.name) : (w.name || w.en)) : ""; }
   function monthObj() { return MONTHS.filter(function (m) { return m.id === STATE.month; })[0]; }
   function monthName() { var m = monthObj(); return L(m.g, m.e); }
 
@@ -502,22 +504,22 @@
     var upadTot = WORKERS.reduce(function (a, ww) { return a + upadMP(ww.id, STATE.month); }, 0n);
 
     var html = demoStrip() + switcherBar();
-    html += '<div class="page-head"><h2>' + L("ડેશબોર્ડ", "Dashboard") + '</h2><div class="sub">' + w.name + ' · ' + monthName() + '</div></div>';
+    html += '<div class="page-head"><h2>' + L("ડેશબોર્ડ", "Dashboard") + '</h2><div class="sub">' + wNm(w) + ' · ' + monthName() + '</div></div>';
     html += '<div class="stat-grid">' +
       stat("tint-brand", "sheet", L("આ મહિને શીટ", "Sheets this month"), monthSheets.length, "", L("બધા વર્કર", "all workers")) +
-      stat("tint-in", "box", L("આ મહિને મીટર", "Meters this month"), numI(b.mtr), "mtr", w.name) +
+      stat("tint-in", "box", L("આ મહિને મીટર", "Meters this month"), numI(b.mtr), "mtr", wNm(w)) +
       stat("tint-out", "send", L("કોકડી+કલર", "Kokdi+Color"), kgStr(b.sentG), "", L("મોકલ્યું", "sent")) +
       stat("tint-upad", "wallet", L("આ મહિને ઉપડ", "Upad this month"), moneyPw(upadTot), "", L("બધા વર્કર", "all workers")) +
       stat("tint-out", "rupee", L("કુલ લોન બાકી", "Loan outstanding"), moneyPw(loanTot), "", L("બધા વર્કર", "all workers")) +
       '</div>';
     html += '<div class="grid-2">';
-    html += '<div class="card"><div class="card-head"><div class="ico tint-ok">' + svg("bill") + '</div><div><h3>' + w.name + ' <span class="en">' + monthName() + '</span></h3></div></div><div class="card-pad">' +
+    html += '<div class="card"><div class="card-head"><div class="ico tint-ok">' + svg("bill") + '</div><div><h3>' + wNm(w) + ' <span class="en">' + monthName() + '</span></h3></div></div><div class="card-pad">' +
       '<div class="bill-line"><span class="lab">' + L("કુલ મીટર", "Total meters") + ' <small>' + numI(b.mtr) + ' × ' + rateStr(b.ratePaise) + '</small></span><span class="val num">' + moneyP(b.grossP) + '</span></div>' +
       '<div class="bill-line"><span class="lab">' + L("કાપડ વજન (KG)", "Cloth weight (KG)") + '</span><span class="val num">' + kgStr(b.kapadG) + '</span></div>' +
       '<div class="bill-total"><span class="lab"><b>' + L("માસિક નેટ", "Month net") + '</b></span><span class="val num">' + moneyP(b.EP) + '</span></div>' +
       '<div class="page-actions"><button class="btn btn-soft btn-sm" data-go="ledger">' + svg("ledger") + ' ' + L("ખાતાવહી", "Ledger") + '</button><button class="btn btn-gold btn-sm" data-go="billing">' + svg("file") + ' PDF</button></div></div></div>';
     html += '<div class="card"><div class="card-head"><div class="ico tint-in">' + svg("dash") + '</div><div><h3>' + L("ટોપ જોબ વર્કર્સ", "Top job workers") + '</h3></div></div><div class="card-pad">';
-    ranks.forEach(function (rk) { var pc = Math.max(6, Math.round(rk.mtr / maxMtr * 100)); html += '<div style="margin-bottom:13px"><div style="display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:5px"><b>' + rk.w.name + '</b><span class="num" style="color:var(--muted)">' + numI(rk.mtr) + ' mtr</span></div><div style="height:9px;background:var(--bg-2);border-radius:999px;overflow:hidden"><div style="height:100%;width:' + pc + '%;background:linear-gradient(90deg,var(--brand),var(--brand-600));border-radius:999px"></div></div></div>'; });
+    ranks.forEach(function (rk) { var pc = Math.max(6, Math.round(rk.mtr / maxMtr * 100)); html += '<div style="margin-bottom:13px"><div style="display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:5px"><b>' + wNm(rk.w) + '</b><span class="num" style="color:var(--muted)">' + numI(rk.mtr) + ' mtr</span></div><div style="height:9px;background:var(--bg-2);border-radius:999px;overflow:hidden"><div style="height:100%;width:' + pc + '%;background:linear-gradient(90deg,var(--brand),var(--brand-600));border-radius:999px"></div></div></div>'; });
     html += '</div></div></div>';
     html += '<div class="card mt"><div class="card-head"><div class="ico tint-brand">' + svg("inbox") + '</div><div><h3>' + L("તાજેતરની શીટ", "Recent sheets") + '</h3></div><div class="spacer"></div><button class="btn btn-ghost btn-sm" data-go="gate">' + svg("chevR") + ' ' + L("ગેટ", "Gate") + '</button></div>' + sheetMiniTable(monthSheets.slice(0, 6)) + '</div>';
     return html;
@@ -668,7 +670,7 @@
     rows.forEach(function (r) { t.roll += r.roll; t.mtr += r.mtr; t.kapadG += B(r.kapadG); t.kokdiG += B(r.kokdiG); t.colorG += B(r.colorG); });
     var html = demoStrip();
     html += '<div class="page-head row-between"><div><h2>' + L("જોબવર્ક ખાતાવહી", "Jobwork Ledger") + '</h2>' +
-      '<div class="sub">' + w.name + ' · ' + monthName() + ' — ' + L("ગેટ શીટમાંથી આપમેળે", "auto from gate sheets") + '</div></div>' +
+      '<div class="sub">' + wNm(w) + ' · ' + monthName() + ' — ' + L("ગેટ શીટમાંથી આપમેળે", "auto from gate sheets") + '</div></div>' +
       '<div class="page-actions"><button class="btn btn-ghost" data-go="gate">' + svg("sheet") + ' ' + L("ગેટ શીટ", "Gate sheets") + '</button><button class="btn btn-gold" data-go="billing">' + svg("file") + ' ' + L("બિલ & PDF", "Bill & PDF") + '</button></div></div>';
     html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px"><span class="section-tag badge-in">' + svg("box") + ' ' + L("આવક", "IN") + '</span><span class="section-tag badge-out">' + svg("send") + ' ' + L("કોકડી+કલર મોકલ્યું", "Kokdi+Color sent") + '</span></div>';
     html += '<div class="card table-wrap"><div class="table-scroll"><table class="ledger"><thead><tr>' +
@@ -848,10 +850,10 @@
     var s = settleM(w.id, mi);
     var allUpad = WORKERS.reduce(function (a, ww) { return a + upadMP(ww.id, mid); }, 0n);
     var html = demoStrip();
-    html += '<div class="page-head row-between"><div><h2>' + L("ઉપડ (એડવાન્સ)", "Upad (Advances)") + '</h2><div class="sub">' + w.name + ' · ' + monthName() + ' — ' + L("અઠવાડિક ઉપડ — બિલમાં આપમેળે કપાય", "weekly advances — auto-deducted in the bill") + '</div></div>' +
+    html += '<div class="page-head row-between"><div><h2>' + L("ઉપડ (એડવાન્સ)", "Upad (Advances)") + '</h2><div class="sub">' + wNm(w) + ' · ' + monthName() + ' — ' + L("અઠવાડિક ઉપડ — બિલમાં આપમેળે કપાય", "weekly advances — auto-deducted in the bill") + '</div></div>' +
       '<button class="btn btn-primary" data-upadnew="1">' + svg("plus") + ' ' + L("ઉપડ એન્ટ્રી", "Add Upad Entry") + '</button></div>';
     html += '<div class="stat-grid">' +
-      stat("tint-upad", "wallet", L("આ મહિનાનું ઉપડ", "Upad this month"), moneyP(upTot), "", w.name) +
+      stat("tint-upad", "wallet", L("આ મહિનાનું ઉપડ", "Upad this month"), moneyP(upTot), "", wNm(w)) +
       stat("tint-in", "box", L("આ મહિનાની કમાણી", "Earnings this month"), moneyPw(earnP), "", L("મીટર×રેટ + ટેમ્પો", "metre×rate + transport")) +
       stat("tint-ok", "bill", L("ઉપડ પછી ચૂકવવાપાત્ર", "Payable after upad"), moneyP(s.payable), "", L("ઓપનિંગ સહિત", "incl. opening")) +
       stat("tint-brand", "users", L("બધા વર્કર ઉપડ", "All workers upad"), moneyPw(allUpad), "", L("આ મહિને કુલ", "this month total")) +
@@ -873,7 +875,7 @@
     var loanOpen = loanOpeningBalanceP(w.id, mid), loanClosing = loanOpen - s.deduct;
     var html = demoStrip();
     html += '<div class="page-head"><h2>' + L("બિલિંગ અને PDF", "Billing & PDF") + '</h2>' +
-      '<div class="sub">' + w.name + ' · ' + monthName() + ' — ' + L("માલ બેલેન્સ (વજન) કેરી ફોરવર્ડ + આ મહિનાની ચુકવણી", "material (weight) balance carry-forward + this month's payment") + '</div></div>';
+      '<div class="sub">' + wNm(w) + ' · ' + monthName() + ' — ' + L("માલ બેલેન્સ (વજન) કેરી ફોરવર્ડ + આ મહિનાની ચુકવણી", "material (weight) balance carry-forward + this month's payment") + '</div></div>';
     html += '<div class="bill-grid">';
     /* left: ledger summary + statement */
     html += '<div class="card"><div class="card-head"><div class="ico tint-brand">' + svg("week") + '</div><div><h3>' + L("માસિક સ્ટેટમેન્ટ", "Monthly Statement") + '</h3></div></div><div class="card-pad">';
@@ -919,10 +921,10 @@
     var bal = loanBalanceP(w.id), totalOut = WORKERS.reduce(function (a, ww) { return a + loanBalanceP(ww.id); }, 0n);
     var givenP = 0n, repaidP = 0n; (LOANS[w.id] || []).forEach(function (t) { if (t.type === "repay") repaidP += rupToP(t.amt); else givenP += rupToP(t.amt); });
     var html = demoStrip();
-    html += '<div class="page-head row-between"><div><h2>' + L("લોન ખાતા", "Loan Accounts") + '</h2><div class="sub">' + w.name + ' — ' + L("લોન આપો / વસૂલો, ટોપ-અપ, માસિક રિપોર્ટ", "give / recover, top-up, monthly report") + '</div></div>' +
+    html += '<div class="page-head row-between"><div><h2>' + L("લોન ખાતા", "Loan Accounts") + '</h2><div class="sub">' + wNm(w) + ' — ' + L("લોન આપો / વસૂલો, ટોપ-અપ, માસિક રિપોર્ટ", "give / recover, top-up, monthly report") + '</div></div>' +
       '<button class="btn btn-primary" data-loannew="1">' + svg("plus") + ' ' + L("લોન એન્ટ્રી", "Add Loan Entry") + '</button></div>';
     html += '<div class="stat-grid">' +
-      stat("tint-upad", "rupee", L("વર્કરની બાકી લોન", "Worker outstanding"), moneyP(bal), "", w.name) +
+      stat("tint-upad", "rupee", L("વર્કરની બાકી લોન", "Worker outstanding"), moneyP(bal), "", wNm(w)) +
       stat("tint-in", "dl", L("કુલ આપ્યું", "Total given"), moneyPw(givenP), "", L("લોન + ટોપ-અપ", "loan + top-up")) +
       stat("tint-ok", "check", L("કુલ વસૂલ", "Total recovered"), moneyPw(repaidP), "", L("રિપેમેન્ટ", "repayments")) +
       stat("tint-brand", "users", L("બધા વર્કર્સ બાકી", "All workers"), moneyPw(totalOut), "", L("કંપની કુલ", "company total")) +
@@ -942,7 +944,7 @@
     if (!WORKERS.length) return noWorkersView("વર્ષાંત", "Year-End");
     var w = worker(); var ye = yearEnd(w.id); var g = ye.ghati; var actualPct = (g.actualBP / 100).toFixed(2);
     var html = demoStrip();
-    html += '<div class="page-head"><h2>' + L("વર્ષાંત સેટલમેન્ટ (દિવાળી)", "Year-End Settlement (Diwali)") + '</h2><div class="sub">' + w.name + ' — ' + L("લોન + ઘટ + કેરી ફોરવર્ડ એકસાથે.", "loan + ghati + carry-forward, together.") + '</div></div>';
+    html += '<div class="page-head"><h2>' + L("વર્ષાંત સેટલમેન્ટ (દિવાળી)", "Year-End Settlement (Diwali)") + '</h2><div class="sub">' + wNm(w) + ' — ' + L("લોન + ઘટ + કેરી ફોરવર્ડ એકસાથે.", "loan + ghati + carry-forward, together.") + '</div></div>';
     html += '<div class="demo-strip" style="background:linear-gradient(90deg,var(--brand-050),#fff);border-color:#cdd3f0;border-left-color:var(--brand)">' + svg("info") + '<span>' + L("<b>નોંધ:</b> અહીં 3 મહિનાનો ડેટા બતાવ્યો છે. પૂરું વર્ષ દિવાળીથી દિવાળી 12 મહિના ચાલે.", "<b>Note:</b> 3 months of data are shown here. A full year runs 12 months, Diwali to Diwali.") + '</span></div>';
     html += '<div class="grid-2">';
     html += '<div class="card"><div class="card-head"><div class="ico tint-upad">' + svg("rupee") + '</div><div><h3>' + L("1. લોન સેટલમેન્ટ", "1. Loan settlement") + '</h3></div></div><div class="card-pad">' +
@@ -975,7 +977,7 @@
     var html = demoStrip();
     html += '<div class="page-head row-between"><div><h2>' + L("જોબ વર્કર્સ", "Job Workers") + '</h2><div class="sub">' + L("જોબ વર્કરની યાદી અને રેટ.", "Job worker list and rates.") + '</div></div><button class="btn btn-primary" data-addworker="1">' + svg("plus") + ' ' + L("જોબ વર્કર ઉમેરો", "Add Job Worker") + '</button></div>';
     html += '<div class="card"><div class="tbl-toolbar"><span class="tbl-search-wrap">' + svg("search") + '<input id="workerSearch" class="tbl-search" type="search" autocomplete="off" placeholder="' + L("નામ, ફોન કે કાપડ શોધો…", "Search name, phone or cloth…") + '"></span><span class="tbl-count" id="workerCount">' + WORKERS.length + ' ' + L("વર્કર", "workers") + '</span></div><div class="table-scroll"><table class="data"><thead><tr><th>' + L("જોબ વર્કર", "Job Worker") + '</th><th>' + L("કાપડ", "Cloth") + '</th><th>' + L("ફોન", "Phone") + '</th><th style="text-align:right">' + L("રેટ", "Rate") + '</th><th style="text-align:right">' + monthName() + ' ' + L("મીટર", "Mtr") + '</th><th style="text-align:right">' + L("લોન બાકી", "Loan") + '</th><th></th></tr></thead><tbody>';
-    WORKERS.forEach(function (w) { var ini = w.en.split(" ").map(function (x) { return x[0]; }).slice(0, 2).join(""); var mt = billMonth(w.id, STATE.month).mtr; html += '<tr data-wsearch="' + esc(((w.en || "") + " " + (w.name || "") + " " + (w.phone || "") + " " + (w.cloth || "")).toLowerCase()) + '"><td><div style="display:flex;align-items:center;gap:11px"><span class="avatar" style="background:' + w.color + '">' + ini + '</span><div><b>' + (STATE.lang === "en" ? w.en : w.name) + '</b><div style="font-size:12px;color:var(--muted)">' + (STATE.lang === "en" ? w.name : w.en) + '</div></div></div></td><td>' + w.cloth + '</td><td class="num" style="color:var(--ink-soft)">' + w.phone + '</td><td style="text-align:right" class="num">' + rateStr(rupToP(w.rate)) + '</td><td style="text-align:right" class="num">' + numI(mt) + '</td><td style="text-align:right" class="num">' + moneyPw(loanBalanceP(w.id)) + '</td><td style="text-align:right;white-space:nowrap"><button class="btn btn-soft btn-sm" data-editworker="' + w.id + '">' + svg("edit") + '</button> <button class="btn btn-soft btn-sm" data-delworker="' + w.id + '">' + svg("trash") + '</button> <button class="btn btn-soft btn-sm" data-openworker="' + w.id + '">' + svg("chevR") + ' ' + L("ખોલો", "Open") + '</button></td></tr>'; });
+    WORKERS.forEach(function (w) { var ini = w.en.split(" ").map(function (x) { return x[0]; }).slice(0, 2).join(""); var mt = billMonth(w.id, STATE.month).mtr; html += '<tr data-wsearch="' + esc(((w.en || "") + " " + (w.name || "") + " " + (w.phone || "") + " " + (w.cloth || "")).toLowerCase()) + '"><td><div style="display:flex;align-items:center;gap:11px"><span class="avatar" style="background:' + w.color + '">' + ini + '</span><div><b>' + (STATE.lang === "en" ? w.en : w.name) + '</b></div></div></td><td>' + w.cloth + '</td><td class="num" style="color:var(--ink-soft)">' + w.phone + '</td><td style="text-align:right" class="num">' + rateStr(rupToP(w.rate)) + '</td><td style="text-align:right" class="num">' + numI(mt) + '</td><td style="text-align:right" class="num">' + moneyPw(loanBalanceP(w.id)) + '</td><td style="text-align:right;white-space:nowrap"><button class="btn btn-soft btn-sm" data-editworker="' + w.id + '">' + svg("edit") + '</button> <button class="btn btn-soft btn-sm" data-delworker="' + w.id + '">' + svg("trash") + '</button> <button class="btn btn-soft btn-sm" data-openworker="' + w.id + '">' + svg("chevR") + ' ' + L("ખોલો", "Open") + '</button></td></tr>'; });
     html += '<tr id="wNoMatch" style="display:none"><td colspan="7" style="text-align:center;color:var(--muted);padding:18px">' + L("કોઈ મેળ ખાતો વર્કર નથી.", "No matching worker.") + '</td></tr>';
     html += '</tbody></table></div></div>';
     return html;
@@ -1522,7 +1524,7 @@
       feat(L("ઉપડ — અઠવાડિક એડવાન્સ, બિલમાં આપમેળે કપાય (ચાલુ મહિનો)", "Upad — weekly advances, auto-deducted in the bill (current month)")) +
       feat(L("લોન અલગ ખાતું — માલિક બિલમાંથી નક્કી કરે એટલું વસૂલ", "Loans are a separate account — recovered from the bill as the owner decides")) +
       feat(L("કેરી ફોરવર્ડ — બાકી રકમ આવતા મહિને", "Carry-forward — remainder to next month")) +
-      feat(L("બધી રકમ/વજન BigInt — ચોક્કસ", "All money/weight BigInt — exact")) + '</ul></div></div>';
+      feat(L("બધી રકમ અને વજન બિલકુલ ચોક્કસ — કોઈ રાઉન્ડિંગ ભૂલ નહીં", "All money & weight are exact — no rounding errors")) + '</ul></div></div>';
     return html;
   }
   function fnode(n, t, s) { return '<div class="node"><div class="n">' + n + '</div><b>' + t + '</b><span>' + s + '</span></div>'; }
@@ -1767,8 +1769,8 @@
     var body = '<div class="form-grid"><div class="fg fg-full"><label>' + L("પ્રકાર", "Type") + '</label><div class="field"><select data-l="type"><option value="loan">' + L("લોન આપી (+)", "Loan given (+)") + '</option><option value="topup">' + L("ટોપ-અપ (+)", "Top-up (+)") + '</option><option value="repay">' + L("વસૂલ (−)", "Repayment (−)") + '</option></select></div></div>' +
       '<div class="fg" data-fg="lamt"><label>' + L("રકમ (₹)", "Amount (₹)") + '</label><div class="field"><span class="pre">₹</span><input type="number" data-l="amt" min="1" value="10000"></div><div class="msg">' + L("માન્ય રકમ", "Enter amount") + '</div></div>' +
       '<div class="fg"><label>' + L("તારીખ (દિવસ)", "Date (day)") + '</label><div class="field"><input type="number" data-l="day" min="1" max="31" value="18"></div></div>' +
-      '<div class="fg fg-full"><label>' + L("નોંધ", "Note") + '</label><div class="field"><input data-l="note" value=""></div></div></div><div class="hint">' + w.name + ' · ' + monthName() + '</div>';
-    showModal("rupee", L("લોન એન્ટ્રી", "Loan entry"), w.name, body, saveLoan);
+      '<div class="fg fg-full"><label>' + L("નોંધ", "Note") + '</label><div class="field"><input data-l="note" value=""></div></div></div><div class="hint">' + wNm(w) + ' · ' + monthName() + '</div>';
+    showModal("rupee", L("લોન એન્ટ્રી", "Loan entry"), wNm(w), body, saveLoan);
   }
   function saveLoan() {
     function val(k) { var el = document.querySelector('[data-l="' + k + '"]'); return el ? el.value : ""; }
@@ -1792,8 +1794,8 @@
       '<div class="fg" data-fg="uamt"><label>' + L("રકમ (₹)", "Amount (₹)") + '</label><div class="field"><span class="pre">₹</span><input type="number" data-u="amt" min="1" step="100" value="' + (ex ? ex.amt : 2000) + '"></div><div class="msg">' + L("માન્ય રકમ દાખલ કરો", "Enter a valid amount") + '</div></div>' +
       '<div class="fg" data-fg="uday"><label>' + L("તારીખ (દિવસ)", "Date (day)") + '</label><div class="field"><input type="number" data-u="day" min="1" max="' + lastDay + '" value="' + defDay + '"></div><div class="msg">1–' + lastDay + '</div></div>' +
       '<div class="fg fg-full"><label>' + L("નોંધ", "Note") + '</label><div class="field"><input data-u="note" value="' + (ex ? esc(ex.note) : L("અઠવાડિક ઉપડ", "Weekly advance")) + '"></div></div></div>' +
-      '<div class="hint">' + w.name + ' · ' + monthName() + ' — ' + L("ઉપડ ફક્ત આ મહિનામાં નોંધાય.", "upad is recorded within this month only.") + '</div>';
-    showModal("wallet", editId ? L("ઉપડ ફેરફાર", "Edit upad") : L("ઉપડ એન્ટ્રી", "Upad entry"), w.name + " · " + monthName(), body, saveUpad);
+      '<div class="hint">' + wNm(w) + ' · ' + monthName() + ' — ' + L("ઉપડ ફક્ત આ મહિનામાં નોંધાય.", "upad is recorded within this month only.") + '</div>';
+    showModal("wallet", editId ? L("ઉપડ ફેરફાર", "Edit upad") : L("ઉપડ એન્ટ્રી", "Upad entry"), wNm(w) + " · " + monthName(), body, saveUpad);
   }
   function saveUpad() {
     var w = worker(); var m = monthObj(); var lastDay = new Date(2026, m.mm, 0).getDate();
@@ -2055,7 +2057,7 @@
         '<input type="hidden" id="wfEn" value="' + esc(w ? w.en : "") + '">'
       ) +
       fRow(L("ફોન", "Phone"), fInput("wfPhone", w ? w.phone : "", 'placeholder="+91 "')) +
-      fRow(L("કાપડ", "Cloth"), fInput("wfCloth", w ? w.cloth : "", 'placeholder="કોટન 40s"')) +
+      fRow(L("કાપડ", "Cloth"), fInput("wfCloth", w ? w.cloth : "", 'placeholder="' + L("કોટન 40s", "Cotton 40s") + '"')) +
       fRow(L("રેટ (₹/મીટર)", "Rate (₹/metre)"), fInput("wfRate", w ? w.rate : "", 'type="number" step="0.01" inputmode="decimal" placeholder="3.55"'));
     showModal("users", id ? L("જોબ વર્કર ફેરફાર", "Edit Job Worker") : L("જોબ વર્કર ઉમેરો", "Add Job Worker"), L("નામ, ફોન, કાપડ અને રેટ.", "Name, phone, cloth and rate."), body, function () { saveWorkerForm(id); });
     var one = $("#wfNameOne"); if (one) one.oninput = syncWorkerName;
@@ -2091,8 +2093,8 @@
   function nPartyForm(id) {
     var p = id ? nwById(id) : null;
     var body =
-      fRow(L("નામ (ગુજરાતી)", "Name (Gujarati)"), fInput("npName", p ? p.name : "", 'placeholder="ગુરુ ગોવિંદ નિવાર"')) +
-      fRow(L("નામ (English)", "Name (English)"), fInput("npEn", p ? p.en : "", 'placeholder="Guru Govind Niwar"')) +
+      fRow(L("નામ (ગુજરાતી)", "Name (Gujarati)"), fInput("npName", p ? p.name : "", 'placeholder="' + L("ગુરુ ગોવિંદ નિવાર", "Guru Govind Niwar") + '"')) +
+      fRow(L("નામ (English)", "Name (English)"), fInput("npEn", p ? p.en : "", 'placeholder="' + L("Guru Govind Niwar", "Guru Govind Niwar") + '"')) +
       fRow(L("ફોન", "Phone"), fInput("npPhone", p ? p.phone : "", 'placeholder="+91 "'));
     showModal("roll", id ? L("નિવાર પાર્ટી ફેરફાર", "Edit Niwar Party") : L("નિવાર પાર્ટી ઉમેરો", "Add Niwar Party"), L("નામ અને ફોન.", "Name and phone."), body, function () { saveNParty(id); });
   }
@@ -2170,7 +2172,7 @@
     var loanOpen = loanOpeningBalanceP(w.id, mid), loanClosing = loanOpen - s.deduct;
     var rows = b.rows.map(function (r) { return '<tr><td class="l">' + dmy(r.date) + '</td><td>' + r.roll + '</td><td>' + numI(r.mtr) + '</td><td>' + kgStr(B(r.kapadG)) + '</td><td>' + kgStr(B(r.kokdiG)) + '</td><td>' + kgStr(B(r.colorG)) + '</td><td>' + kgStr(B(r.kokdiG + r.colorG)) + '</td></tr>'; }).join("");
     return '<div class="sheet">' + sheetTop(chipOf(copy), "માસિક જોબવર્ક બિલ<br>Monthly Jobwork Bill") +
-      '<div class="sh-party"><div class="pb"><div class="k">જોબ વર્કર · Job Worker</div><div class="vv">' + w.name + '</div></div><div class="pb"><div class="k">મહિનો · Month</div><div class="vv">' + m.g + '</div></div><div class="pb"><div class="k">રેટ · Rate</div><div class="vv">' + rateStr(b.ratePaise) + '/mtr</div></div></div>' +
+      '<div class="sh-party"><div class="pb"><div class="k">જોબ વર્કર · Job Worker</div><div class="vv">' + wNm(w) + '</div></div><div class="pb"><div class="k">મહિનો · Month</div><div class="vv">' + m.g + '</div></div><div class="pb"><div class="k">રેટ · Rate</div><div class="vv">' + rateStr(b.ratePaise) + '/mtr</div></div></div>' +
       '<h4 class="sh-h">ગેટ શીટ (ખાતાવહી) · Gate Sheets (Ledger)</h4><table class="pt"><thead><tr><th class="l">તારીખ<br>Date</th><th>રોલ<br>Roll</th><th>મીટર<br>Mtr</th><th>કાપડ<br>Cloth</th><th>કોકડી<br>Kokdi</th><th>કલર<br>Color</th><th>ક્લબ<br>Clubbed</th></tr></thead><tbody>' + (rows || '<tr><td colspan="7" class="l">—</td></tr>') + '</tbody><tfoot><tr class="tot"><td class="l">કુલ</td><td>' + b.roll + '</td><td>' + numI(b.mtr) + '</td><td>' + kgStr(b.kapadG) + '</td><td>' + kgStr(b.kokdiG) + '</td><td>' + kgStr(b.colorG) + '</td><td>' + kgStr(b.sentG) + '</td></tr></tfoot></table>' +
       '<div class="two-col" style="margin-top:18px"><div><h4 class="sh-h">માલ બેલેન્સ (વજન) · Material Balance (kg)</h4><div class="mini">' +
       '<div class="ml"><span>ઓપનિંગ (ગયા મહિનેથી) · Opening</span><b>' + kgStr(mat.opening, 2) + ' kg</b></div>' +
@@ -2192,7 +2194,7 @@
     var w = worker(); var m = monthObj(); var txns = (LOANS[w.id] || []).slice().sort(function (a, b) { return a.d < b.d ? -1 : 1; }); var bal = 0n;
     var rows = txns.map(function (t) { var a = rupToP(t.amt); bal += (t.type === "repay" ? -a : a); var typ = t.type === "loan" ? "Loan given" : t.type === "topup" ? "Top-up" : "Repayment"; return '<tr><td class="l">' + t.d.split("-").reverse().join("/") + '</td><td class="l">' + typ + '</td><td class="l">' + esc(t.note) + '</td><td>' + (t.type === "repay" ? "− " : "+ ") + moneyP(a) + '</td><td>' + moneyP(bal) + '</td></tr>'; }).join("");
     return '<div class="sheet">' + sheetTop(chipOf("company"), "લોન ખાતા રિપોર્ટ<br>Loan Account Report") +
-      '<div class="sh-party"><div class="pb"><div class="k">જોબ વર્કર · Job Worker</div><div class="vv">' + w.name + '</div></div><div class="pb"><div class="k">રિપોર્ટ · Report</div><div class="vv">' + m.g + ' (upto)</div></div></div>' +
+      '<div class="sh-party"><div class="pb"><div class="k">જોબ વર્કર · Job Worker</div><div class="vv">' + wNm(w) + '</div></div><div class="pb"><div class="k">રિપોર્ટ · Report</div><div class="vv">' + m.g + ' (upto)</div></div></div>' +
       '<h4 class="sh-h">વ્યવહાર · Transactions</h4><table class="pt"><thead><tr><th class="l">તારીખ · Date</th><th class="l">પ્રકાર · Type</th><th class="l">નોંધ · Note</th><th>રકમ · Amount</th><th>બાકી · Balance</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5" class="l">No transactions</td></tr>') + '</tbody></table>' +
       '<div class="pay-row"><div>કુલ બાકી લોન · Outstanding Loan</div><div class="pv">' + moneyP(loanBalanceP(w.id)) + '</div></div>' +
       '<div class="sig"><div class="s">જોબ વર્કર · Job Worker</div><div class="s">' + CO.name + '</div></div>' + sheetFoot() + '</div>';
@@ -2204,7 +2206,7 @@
     var run = 0n;
     var tr = rows.map(function (t) { var a = rupToP(t.amt); run += a; return '<tr><td class="l">' + dmy(t.d) + '</td><td class="l">' + esc(t.note) + '</td><td>+ ' + moneyP(a) + '</td><td>' + moneyP(run) + '</td></tr>'; }).join("");
     return '<div class="sheet">' + sheetTop(chipOf("company"), "ઉપડ (એડવાન્સ) રિપોર્ટ<br>Upad (Advance) Report") +
-      '<div class="sh-party"><div class="pb"><div class="k">જોબ વર્કર · Job Worker</div><div class="vv">' + w.name + '</div></div><div class="pb"><div class="k">મહિનો · Month</div><div class="vv">' + m.g + '</div></div></div>' +
+      '<div class="sh-party"><div class="pb"><div class="k">જોબ વર્કર · Job Worker</div><div class="vv">' + wNm(w) + '</div></div><div class="pb"><div class="k">મહિનો · Month</div><div class="vv">' + m.g + '</div></div></div>' +
       '<h4 class="sh-h">અઠવાડિક ઉપડ · Weekly Advances</h4><table class="pt"><thead><tr><th class="l">તારીખ · Date</th><th class="l">નોંધ · Note</th><th>રકમ · Amount</th><th>ચાલુ કુલ · Running</th></tr></thead><tbody>' + (tr || '<tr><td colspan="4" class="l">No upad this month</td></tr>') + '</tbody><tfoot><tr class="tot"><td class="l" colspan="2">કુલ ઉપડ · Total Upad</td><td>' + moneyP(upTot) + '</td><td></td></tr></tfoot></table>' +
       '<div class="two-col" style="margin-top:18px"><div><h4 class="sh-h">બિલ પર અસર · Effect on Bill</h4><div class="mini">' +
       '<div class="ml"><span>કમાણી · Earnings</span><b>+ ' + moneyP(s.E) + '</b></div>' +
@@ -2219,7 +2221,7 @@
   function yearEndHTML() {
     var w = worker(); var ye = yearEnd(w.id); var g = ye.ghati; var actualPct = (g.actualBP / 100).toFixed(2);
     return '<div class="sheet">' + sheetTop(chipOf("company"), "વર્ષાંત સેટલમેન્ટ (દિવાળી)<br>Year-End Settlement (Diwali)") +
-      '<div class="sh-party"><div class="pb"><div class="k">જોબ વર્કર · Job Worker</div><div class="vv">' + w.name + '</div></div><div class="pb"><div class="k">વર્ષ · Year</div><div class="vv">upto Diwali 2026</div></div></div>' +
+      '<div class="sh-party"><div class="pb"><div class="k">જોબ વર્કર · Job Worker</div><div class="vv">' + wNm(w) + '</div></div><div class="pb"><div class="k">વર્ષ · Year</div><div class="vv">upto Diwali 2026</div></div></div>' +
       '<h4 class="sh-h">1. લોન · Loan</h4><table class="pt"><tbody><tr><td class="l">વર્ષ દરમિયાન વસૂલ · Recovered</td><td>' + moneyP(recoveredThisYear(w.id)) + '</td></tr><tr><td class="l">બાકી લોન · Loan remaining</td><td><b>' + moneyP(ye.loanRem) + '</b></td></tr></tbody></table>' +
       '<h4 class="sh-h">2. ઘટ · Ghati Reconciliation</h4><table class="pt"><tbody><tr><td class="l">અપાયેલ · Given monthly</td><td>3.00%</td></tr><tr><td class="l">ખરેખર સરેરાશ · Actual average</td><td>' + actualPct + '%</td></tr><tr><td class="l">વાર્ષિક કાપડ · Annual cloth</td><td>' + kgStr(g.annual, 1) + ' kg</td></tr><tr><td class="l">ઘટ તફાવત (× ' + moneyP(g.rateP) + '/kg)</td><td>' + kgStr(g.diffG, 2) + ' kg</td></tr><tr><td class="l">' + (g.settleP >= 0n ? "માલિક આપે · Owner pays" : "માલિક વસૂલ · Owner recovers") + '</td><td><b>' + moneyP(g.settleP < 0n ? -g.settleP : g.settleP) + '</b></td></tr></tbody></table>' +
       '<h4 class="sh-h">3. આખરી · Final</h4><table class="pt"><tbody><tr><td class="l">ઘટ સેટલમેન્ટ · Ghati</td><td>' + (g.settleP >= 0n ? "+ " : "− ") + moneyP(g.settleP < 0n ? -g.settleP : g.settleP) + '</td></tr><tr><td class="l">બાકી લોન · Loan</td><td>− ' + moneyP(ye.loanRem) + '</td></tr><tr><td class="l">માલ બેલેન્સ · Material (kg)</td><td>' + kgStr(ye.matClose, 2) + ' kg</td></tr></tbody></table>' +
@@ -2288,13 +2290,13 @@
   function sheetWaText(sh) {
     var w = workerById(sh.workerId);
     return "*" + CO.name + "*\n" + L("જોબ વર્ક શીટ", "Job Work Sheet") + "\n" +
-      "—\n" + w.name + "\n" + L("તારીખ", "Date") + ": " + dmy(sh.date) + "   " + L("ક્વોલિટી", "Quality") + ": " + (sh.quality || "-") + "\n" +
+      "—\n" + wNm(w) + "\n" + L("તારીખ", "Date") + ": " + dmy(sh.date) + "   " + L("ક્વોલિટી", "Quality") + ": " + (sh.quality || "-") + "\n" +
       L("રોલ", "Roll") + ": " + numI(sheetRolls(sh)) + "   " + L("કુલ મીટર", "Total Metre") + ": " + numI(sheetMt(sh)) + "   KG: " + kgStr(B(sheetKgG(sh))) + "\n" +
       L("પરત", "Parat") + " — " + L("કોકડી", "Kokdi") + ": " + kgStr(B(sheetKokdiG(sh))) + " kg, " + L("કલર", "Color") + ": " + kgStr(B(sheetColorG(sh))) + " kg\n—\n" + "Powered by " + VENDOR;
   }
   function billWaText() {
     var w = worker(), mid = STATE.month, mi = monthIndexOf(mid), b = billMonth(w.id, mid), s = settleM(w.id, mi), mat = matBalance(w.id, mi), m = monthObj();
-    return "*" + CO.name + "*\n" + L("માસિક બિલ", "Monthly Bill") + "\n—\n" + w.name + "\n" + L("મહિનો", "Month") + ": " + m.e + "\n" +
+    return "*" + CO.name + "*\n" + L("માસિક બિલ", "Monthly Bill") + "\n—\n" + wNm(w) + "\n" + L("મહિનો", "Month") + ": " + m.e + "\n" +
       L("કુલ મીટર", "Total Metre") + ": " + numI(b.mtr) + " × " + rateStr(b.ratePaise) + " = " + moneyP(b.grossP) + "\n" +
       L("ઉપડ", "Upad") + ": -" + moneyP(s.upad) + "\n" +
       L("લોન કપાત", "Loan deduction") + ": -" + moneyP(s.deduct) + "\n" +
