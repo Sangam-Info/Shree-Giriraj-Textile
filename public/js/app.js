@@ -1387,11 +1387,11 @@
 
     /* header fields */
     html += '<div class="jws-head"><div class="jws-hfields" style="grid-template-columns:repeat(3,1fr)">' +
-      '<label class="jws-hf"><span>' + L("નામ", "Name") + '</span><input type="text" data-ph="name" value="' + esc(p.name) + '"' + dis + '></label>' +
+      '<label class="jws-hf"><span>' + L("નામ", "Name") + '</span><input type="text" data-ph="name" maxlength="25" value="' + esc(p.name) + '"' + dis + '></label>' +
       '<label class="jws-hf"><span>' + L("તારીખ", "Date") + '</span><input type="date" data-ph="date" value="' + esc(p.date) + '"' + dateAttrs() + dis + '></label>' +
-      '<label class="jws-hf"><span>' + L("ક્વોલિટી", "Quality") + '</span><input type="text" data-ph="quality" value="' + esc(p.quality) + '"' + dis + '></label>' +
+      '<label class="jws-hf"><span>' + L("ક્વોલિટી", "Quality") + '</span><input type="text" data-ph="quality" maxlength="25" value="' + esc(p.quality) + '"' + dis + '></label>' +
       '<label class="jws-hf"><span>' + L("સિટી", "City") + '</span><input type="text" data-ph="city" value="' + esc(p.city) + '"' + dis + '></label>' +
-      '<label class="jws-hf"><span>' + L("ટ્રાન્સપોર્ટ", "Transport") + '</span><input type="text" data-ph="transport" value="' + esc(p.transport) + '"' + dis + '></label>' +
+      '<label class="jws-hf"><span>' + L("ટ્રાન્સપોર્ટ", "Transport") + '</span><input type="text" data-ph="transport" maxlength="25" value="' + esc(p.transport) + '"' + dis + '></label>' +
       '</div></div>';
 
     if (canEditPacking()) html += '<div class="jws-toolbar"><div class="steps-ctrl"><span class="lbl">' + L("સ્ટેપ (કૉલમ)", "Steps (columns)") + '</span><button class="icon-btn" id="pStepMinus"' + (p.nSteps <= 1 ? " disabled" : "") + '>' + svg("minus") + '</button><b id="pStepCount">' + p.nSteps + '</b><button class="icon-btn" id="pStepPlus"' + (p.nSteps >= PK_STEPS ? " disabled" : "") + '>' + svg("plus") + '</button></div></div>';
@@ -1437,7 +1437,7 @@
   function wirePackingEditor() {
     var p = packingById(STATE.packingId); if (!p || STATE.view !== "packingsheet") return;
     function refreshPk() { setTxt("#pSumRoll", numI(pkRolls(p))); setTxt("#pSumMt", numI(pkMt(p))); setTxt("#pSumKg", kgStr(B(pkKgG(p)))); var am = pkAmount(p); setTxt("#pGross", moneyP(am.grossP)); setTxt("#pGrossSub", am.qtyStr + " × " + rateStr(rupToP(p.rate || 0)) + am.rateUnit); setTxt("#pAmt", moneyP(am.amountP)); }
-    document.querySelectorAll("[data-ph]").forEach(function (el) { el.onchange = function () { var k = el.getAttribute("data-ph"); if (k === "date") { var v = clampDate(el.value, p.date); if (v !== el.value) { el.value = v; toast(L("માન્ય તારીખ દાખલ કરો", "Enter a valid date"), "info"); } p.date = v; schedulePersist(); return; } p[k] = el.value; schedulePersist(); }; });
+    document.querySelectorAll("[data-ph]").forEach(function (el) { el.onchange = function () { var k = el.getAttribute("data-ph"); if (k === "date") { var v = clampDate(el.value, p.date); if (v !== el.value) { el.value = v; toast(L("માન્ય તારીખ દાખલ કરો", "Enter a valid date"), "info"); } p.date = v; schedulePersist(); return; } var val = el.value; if (el.hasAttribute("maxlength") && val.length > 25) { val = val.slice(0, 25); el.value = val; }  /* enforce the 25-char cap even on paste/programmatic input */ p[k] = val; schedulePersist(); }; });
     document.querySelectorAll("[data-pbasis]").forEach(function (el) { el.onclick = function () { if (!canEditPacking()) return; p.basis = el.getAttribute("data-pbasis"); render(); }; });
     document.querySelectorAll("[data-pmt]").forEach(function (el) {
       el.oninput = function () {
