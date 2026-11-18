@@ -617,7 +617,7 @@
     var wopts = WORKERS.map(function (w) { return '<option value="' + w.id + '"' + (w.id === sh.workerId ? " selected" : "") + '>' + (STATE.lang === "en" ? w.en : w.name) + '</option>'; }).join("");
     html += '<div class="jws-head"><div class="jws-hfields">' +
       '<label class="jws-hf"><span>' + L("જોબ વર્કર (નામ)", "Job Worker (Name)") + '</span><select data-sh="workerId">' + wopts + '</select></label>' +
-      '<label class="jws-hf"><span>' + L("તારીખ", "Date") + '</span><input type="date" data-sh="date" value="' + esc(sh.date) + '"></label>' +
+      '<label class="jws-hf"><span>' + L("તારીખ", "Date") + '</span><input type="date" data-sh="date" value="' + esc(sh.date) + '"' + dateAttrs() + '></label>' +
       '<label class="jws-hf"><span>' + L("ક્વોલિટી", "Quality") + '</span><input type="text" data-sh="quality" value="' + esc(sh.quality) + '"></label>' +
       '</div></div>';
 
@@ -811,7 +811,7 @@
     /* header: party / date */
     html += '<div class="card"><div class="card-pad"><div class="form-grid">' +
       '<div class="fg"><label>' + L("પાર્ટી", "Party") + '</label><div class="field"><input value="' + esc(pname) + '" disabled></div></div>' +
-      '<div class="fg"><label>' + L("તારીખ", "Date") + '</label><div class="field"><input type="date" data-nh="date" value="' + s.date + '"' + monthDateAttrs(STATE.month) + '></div></div>' +
+      '<div class="fg"><label>' + L("તારીખ", "Date") + '</label><div class="field"><input type="date" data-nh="date" value="' + s.date + '"' + dateAttrs() + '></div></div>' +
       '</div></div></div>';
 
     /* product blocks — jobwork-style 3-digit grid, max 5 lines per size */
@@ -1892,7 +1892,21 @@
     if (STATE.view !== "niwarsheet") return;
     var s = curNSheet(); if (!s) return;
     function pf(v) { v = parseFloat(v); return isNaN(v) ? 0 : Math.max(0, v); }
-    document.querySelectorAll("[data-nh]").forEach(function (el) { el.onchange = function () { var k = el.getAttribute("data-nh"); if (k === "date") { var v = clampDateToMonth(el.value, STATE.month, s.date); if (v !== el.value) { el.value = v; toast(L("તારીખ " + monthName() + " માં જ રાખો", "Date must be within " + monthName()), "info"); } s.date = v; nRecalc(); render(); return; } s[k] = el.value; nRecalc(); render(); }; });
+    document.querySelectorAll("[data-nh]").forEach(function (el) {
+      el.onchange = function () {
+        var k = el.getAttribute("data-nh");
+        if (k === "date") {
+          var v = el.value;
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) { el.value = s.date; return; }   // ignore a cleared/invalid value
+          s.date = v;
+          var nm = v.slice(0, 7);
+          if (nm !== STATE.month) { STATE.month = nm; nRecalc(); render(); }   // month changed → re-render in the new month context
+          else schedulePersist();                                             // same month → no jarring full re-render / scroll jump
+          return;
+        }
+        s[k] = el.value; nRecalc(); render();
+      };
+    });
     document.querySelectorAll("[data-np-size]").forEach(function (el) { el.onchange = function () { var pi = +el.getAttribute("data-np-size"); if (s.products[pi]) { s.products[pi].size = el.value; nRecalc(); render(); } }; });
     /* 3-digit weight cells: strip to digits, cap 3, store whole kg, auto-advance to next line on the 3rd digit */
     var cells = document.querySelectorAll("[data-np-cell]");
