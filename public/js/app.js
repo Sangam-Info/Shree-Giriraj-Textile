@@ -1390,7 +1390,7 @@
       '<label class="jws-hf"><span>' + L("નામ", "Name") + '</span><input type="text" data-ph="name" maxlength="25" value="' + esc(p.name) + '"' + dis + '></label>' +
       '<label class="jws-hf"><span>' + L("તારીખ", "Date") + '</span><input type="date" data-ph="date" value="' + esc(p.date) + '"' + dateAttrs() + dis + '></label>' +
       '<label class="jws-hf"><span>' + L("ક્વોલિટી", "Quality") + '</span><input type="text" data-ph="quality" maxlength="25" value="' + esc(p.quality) + '"' + dis + '></label>' +
-      '<label class="jws-hf"><span>' + L("સિટી", "City") + '</span><input type="text" data-ph="city" value="' + esc(p.city) + '"' + dis + '></label>' +
+      '<label class="jws-hf"><span>' + L("સિટી", "City") + '</span><input type="text" data-ph="city" maxlength="25" value="' + esc(p.city) + '"' + dis + '></label>' +
       '<label class="jws-hf"><span>' + L("ટ્રાન્સપોર્ટ", "Transport") + '</span><input type="text" data-ph="transport" maxlength="25" value="' + esc(p.transport) + '"' + dis + '></label>' +
       '</div></div>';
 
