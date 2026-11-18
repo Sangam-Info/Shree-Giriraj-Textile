@@ -645,7 +645,7 @@
       '</div></div>';
 
     /* parat */
-    html += '<div class="card mt jws-parat"><div class="card-head"><div class="ico tint-out">' + svg("send") + '</div><div><h3>પરત ની યાદી <span class="en">Parat ni Yadi — ' + L("જોબ વર્કરને મોકલ્યું", "sent to job worker") + '</span></h3></div><div class="spacer"></div><button class="btn btn-ghost btn-sm" id="paratAdd"' + (sh.parat.length >= 5 ? " disabled" : "") + '>' + svg("plus") + ' ' + L("લાઇન", "Add line") + '</button></div>';
+    html += '<div class="card mt jws-parat"><div class="card-head"><div class="ico tint-out">' + svg("send") + '</div><div><h3>' + L("પરત ની યાદી", "Parat ni Yadi") + ' <span class="en">' + L("જોબ વર્કરને મોકલ્યું", "sent to job worker") + '</span></h3></div><div class="spacer"></div><button class="btn btn-ghost btn-sm" id="paratAdd"' + (sh.parat.length >= 5 ? " disabled" : "") + '>' + svg("plus") + ' ' + L("લાઇન", "Add line") + '</button></div>';
     html += '<div class="table-scroll"><table class="jws-parat-tbl"><thead><tr><th>#</th><th>' + L("કોકડી (kg)", "Kokdi (kg)") + '</th><th>' + L("કલર (kg)", "Color (kg)") + '</th><th></th></tr></thead><tbody>';
     sh.parat.forEach(function (p, i) {
       html += '<tr><td class="sr-col">' + (i + 1) + '</td><td><input class="cell" inputmode="decimal" data-pk="' + i + '" value="' + (p.kokdi == null ? "" : p.kokdi) + '"></td><td><input class="cell" inputmode="decimal" data-pc="' + i + '" value="' + (p.color == null ? "" : p.color) + '"></td><td class="act">' + (sh.parat.length > 1 ? '<button class="icon-btn sm" data-pdel="' + i + '">' + svg("minus") + '</button>' : '') + '</td></tr>';
