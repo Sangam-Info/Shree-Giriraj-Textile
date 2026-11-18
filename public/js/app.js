@@ -2294,19 +2294,35 @@
       '<div class="pay-row"><div>ચૂકવવાપાત્ર · Payable</div><div class="pv">' + moneyP(st.payable) + '</div></div>' +
       '<div class="sig"><div class="s">નિવાર પાર્ટી · Niwar Party</div><div class="s">' + CO.name + '</div></div>' + sheetFoot() + '</div>';
   }
-  /* niwar single DELIVERY sheet PDF (gate-entry copy) */
+  /* niwar single DELIVERY sheet PDF (gate-entry copy)
+     Same wide Sr-rows × columns grid as the Gate Job Work & Packing List sheets,
+     with the product SIZES as the columns (niwar has no "steps"). */
   function niwarSheetHTML(id, copy) {
     var s = nSheetById(id); if (!s) return '<div class="sheet">' + sheetTop(chipOf(copy), "નિવાર શીટ<br>Niwar Sheet") + '<p class="l">No sheet.</p>' + sheetFoot() + '</div>';
     var p = nwById(s.partyId);
-    var prodTables = (s.products || []).map(function (prod) {
-      var lots = (prod.lots || []).filter(function (x) { return x != null; }).map(function (g, i) { return '<tr><td class="l">' + (i + 1) + '</td><td>' + kgStr(g || 0n) + '</td></tr>'; }).join("");
-      return '<div style="flex:1;min-width:150px"><h4 class="sh-h">' + prod.size + '" · નિવાર</h4><table class="pt"><thead><tr><th class="l">#</th><th>kg</th></tr></thead><tbody>' + (lots || '<tr><td colspan="2" class="l">—</td></tr>') + '</tbody><tfoot><tr class="tot"><td class="l">કુલ</td><td>' + kgStr(nProductG(prod)) + '</td></tr></tfoot></table></div>';
-    }).join("");
-    var sheetNiwar = nSheetNiwarG(s);
-    return '<div class="sheet">' + sheetTop(chipOf(copy), "નિવાર ગેટ એન્ટ્રી<br>Niwar Gate Entry") +
-      '<div class="sh-party"><div class="pb"><div class="k">પાર્ટી · Party</div><div class="vv">' + (STATE.lang === "en" ? p.en : p.name) + '</div></div><div class="pb"><div class="k">તારીખ · Date</div><div class="vv">' + dmy(s.date) + '</div></div></div>' +
-      '<h4 class="sh-h">પ્રોડક્ટ (સાઇઝ × વજન) · Products</h4><div style="display:flex;gap:14px;flex-wrap:wrap">' + (prodTables || '—') + '</div>' +
-      '<div style="margin-top:16px"><h4 class="sh-h">પરાત + કુલ · Parat + Totals</h4><div class="mini"><div class="ml"><span>કુલ નિવાર · Total niwar</span><b>' + kgStr(sheetNiwar) + ' kg</b></div><div class="ml"><span>પરાત (મોકલ્યું) · Parat (sent)</span><b>' + kgStr(s.paratG || 0n) + ' kg</b></div><div class="ml"><span><b>બેલેન્સ (નિવાર−પરાત) · Balance</b></span><b>' + kgStr(sheetNiwar - (s.paratG || 0n)) + ' kg</b></div></div></div>' +
+    var prods = (s.products || []);
+    var sheetNiwar = nSheetNiwarG(s), sheetNet = sheetNiwar - (s.paratG || 0n);
+    // grid: columns = sizes, rows = weight lots (Sr. 1..maxRows)
+    var maxRows = 1; prods.forEach(function (pr) { (pr.lots || []).forEach(function (x, i) { if (x != null) maxRows = Math.max(maxRows, i + 1); }); });
+    var head = prods.map(function (pr) { return '<th>' + esc(pr.size) + '"</th>'; }).join("");
+    var body = '';
+    for (var r = 0; r < maxRows; r++) {
+      body += '<tr><td class="l">' + (r + 1) + '</td>';
+      prods.forEach(function (pr) { var g = (pr.lots || [])[r]; body += '<td>' + (g == null ? "" : kgStr(g)) + '</td>'; });
+      body += '</tr>';
+    }
+    var tfoot = '<tfoot><tr class="tot"><td class="l">kg · Total</td>' + prods.map(function (pr) { return '<td>' + kgStr(nProductG(pr)) + '</td>'; }).join("") + '</tr></tfoot>';
+    var party = '<div class="sh-party"><div class="pb"><div class="k">પાર્ટી · Party</div><div class="vv">' + esc(STATE.lang === "en" ? p.en : p.name) + '</div></div><div class="pb"><div class="k">તારીખ · Date</div><div class="vv">' + dmy(s.date) + '</div></div><div class="pb"><div class="k">સાઇઝ · Sizes</div><div class="vv">' + prods.length + '</div></div></div>';
+    var nland = prods.length > 8;   // many sizes → landscape wide sheet (same rule as the gate sheet)
+    return '<div class="sheet' + (nland ? ' land' : '') + '">' + sheetTop(chipOf(copy), "નિવાર ગેટ એન્ટ્રી<br>Niwar Gate Entry") + party +
+      '<h4 class="sh-h">સાઇઝ × વજન (kg) · Sizes &amp; Weights</h4>' +
+      '<table class="pt jws-pt"><thead><tr><th class="l">Sr.</th>' + (head || '<th>—</th>') + '</tr></thead><tbody>' + (body || '<tr><td class="l">—</td></tr>') + '</tbody>' + (prods.length ? tfoot : '') + '</table>' +
+      '<div class="two-col" style="margin-top:18px;align-items:flex-start">' +
+        '<div style="flex:1"><h4 class="sh-h">પરાત + કુલ · Parat + Totals</h4><table class="pt"><tbody>' +
+          '<tr><td class="l">કુલ નિવાર · Total niwar</td><td>' + kgStr(sheetNiwar) + ' kg</td></tr>' +
+          '<tr><td class="l">પરાત (મોકલ્યું) · Parat (sent)</td><td>' + kgStr(s.paratG || 0n) + ' kg</td></tr>' +
+          '<tr class="tot"><td class="l">બેલેન્સ (નિવાર−પરાત) · Balance</td><td>' + kgStr(sheetNet) + ' kg</td></tr>' +
+        '</tbody></table></div><div style="flex:1"></div></div>' +
       '<div class="pay-row"><div>કુલ નિવાર · Total Niwar</div><div class="pv">' + kgStr(sheetNiwar) + ' kg</div></div>' +
       '<div class="sig"><div class="s">નિવાર પાર્ટી · Niwar Party</div><div class="s">' + CO.name + '</div></div>' + sheetFoot() + '</div>';
   }
@@ -2381,7 +2397,7 @@
   function makeLoanPDF() { var w = worker(); toast(L("રિપોર્ટ તૈયાર…", "Generating…"), "info"); renderPages([loanHTML()], "Girijaj_Loan_" + slug(w.en) + ".pdf").then(pdfDone).catch(pdfFail); }
   function makeUpadPDF() { var w = worker(), m = monthObj(); toast(L("રિપોર્ટ તૈયાર…", "Generating…"), "info"); renderPages([upadHTML()], "Girijaj_Upad_" + slug(w.en) + "_" + m.e.replace(" ", "") + ".pdf").then(pdfDone).catch(pdfFail); }
   function makeNiwarPDF(copy) { var p = niwarParty(), m = monthObj(); toast(L("PDF તૈયાર…", "Generating…"), "info"); renderPages([niwarBillHTML(copy)], "Girijaj_Niwar_" + slug(p.en) + "_" + m.e.replace(" ", "") + "_" + (copy === "worker" ? "Party" : "Company") + ".pdf").then(pdfDone).catch(pdfFail); }
-  function makeNiwarSheetPDF(id) { var s = nSheetById(id); if (!s) return; var p = nwById(s.partyId); toast(L("PDF તૈયાર…", "Generating…"), "info"); renderPages([niwarSheetHTML(id, "company")], "Girijaj_NiwarSheet_" + slug(p.en) + "_" + s.date + ".pdf").then(pdfDone).catch(pdfFail); }
+  function makeNiwarSheetPDF(id) { var s = nSheetById(id); if (!s) return; var p = nwById(s.partyId); var orient = ((s.products || []).length > 8) ? "l" : "p"; toast(L("PDF તૈયાર…", "Generating…"), "info"); renderPages([niwarSheetHTML(id, "company")], "Girijaj_NiwarSheet_" + slug(p.en) + "_" + s.date + ".pdf", orient).then(pdfDone).catch(pdfFail); }
   function makeYearEndPDF() { var w = worker(); toast(L("સેટલમેન્ટ તૈયાર…", "Generating…"), "info"); renderPages([yearEndHTML()], "Girijaj_YearEnd_" + slug(w.en) + ".pdf").then(pdfDone).catch(pdfFail); }
 
   /* ---------------------------------------------------------------- SHELL / HERO / BOOT */
