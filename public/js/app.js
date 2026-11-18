@@ -615,7 +615,7 @@
     var wopts = WORKERS.map(function (w) { return '<option value="' + w.id + '"' + (w.id === sh.workerId ? " selected" : "") + '>' + (STATE.lang === "en" ? w.en : w.name) + '</option>'; }).join("");
     html += '<div class="jws-head"><div class="jws-hfields">' +
       '<label class="jws-hf"><span>' + L("જોબ વર્કર (નામ)", "Job Worker (Name)") + '</span><select data-sh="workerId">' + wopts + '</select></label>' +
-      '<label class="jws-hf"><span>' + L("તારીખ", "Date") + '</span><input type="date" data-sh="date" value="' + esc(sh.date) + '"' + monthDateAttrs(STATE.month) + '></label>' +
+      '<label class="jws-hf"><span>' + L("તારીખ", "Date") + '</span><input type="date" data-sh="date" value="' + esc(sh.date) + '"></label>' +
       '<label class="jws-hf"><span>' + L("ક્વોલિટી", "Quality") + '</span><input type="text" data-sh="quality" value="' + esc(sh.quality) + '"></label>' +
       '</div></div>';
 
@@ -1694,7 +1694,21 @@
   /* --- sheet editor live wiring (no full re-render) --- */
   function wireSheetEditor() {
     var sh = sheetById(STATE.sheetId); if (!sh || STATE.view !== "gatesheet") return;
-    document.querySelectorAll("[data-sh]").forEach(function (el) { el.onchange = function () { var k = el.getAttribute("data-sh"); if (k === "date") { var v = clampDateToMonth(el.value, STATE.month, sh.date); if (v !== el.value) { el.value = v; toast(L("તારીખ " + monthName() + " માં જ રાખો", "Date must be within " + monthName()), "info"); } sh.date = v; schedulePersist(); return; } sh[k] = el.value; if (k === "workerId") render(); else schedulePersist(); }; });
+    document.querySelectorAll("[data-sh]").forEach(function (el) {
+      el.onchange = function () {
+        var k = el.getAttribute("data-sh");
+        if (k === "date") {
+          var v = el.value;
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) { el.value = sh.date; return; }   // ignore a cleared/invalid value
+          sh.date = v;
+          var nm = v.slice(0, 7);
+          if (nm !== STATE.month) { STATE.month = nm; render(); }               // follow the picked date's month so the sheet's data loads for it
+          else schedulePersist();
+          return;
+        }
+        sh[k] = el.value; if (k === "workerId") render(); else schedulePersist();
+      };
+    });
     document.querySelectorAll("[data-mt]").forEach(function (el) {
       el.oninput = function () {
         var d = el.value.replace(/\D/g, "").slice(0, 2);     /* digits only, max 2 */
