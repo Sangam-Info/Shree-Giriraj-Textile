@@ -170,20 +170,15 @@
         return auth.signOut().then(function () { setBusy(false); showErr(tr("This account is disabled. Contact the owner.", "આ ખાતું બંધ છે. માલિકનો સંપર્ક કરો.")); });
       }
 
+      // The account's own role (from Firestore) is authoritative — the login
+      // dropdown is only a hint and grants no access of its own. So we never
+      // reject a valid sign-in over a role mismatch; we log the user in with
+      // their real role and quietly sync the dropdown to it. (wantRole is kept
+      // for signature compatibility but no longer blocks login.)
       var actual = data.role;
-      // Role must match the selected one on an explicit sign-in.
-      if (wantRole && actual !== wantRole) {
-        return auth.signOut().then(function () {
-          setBusy(false);
-          setDropdown(actual);
-          showErr(tr(
-            "These are " + roleLabel(actual) + " credentials, not " + roleLabel(wantRole) + ". The role has been set to " + roleLabel(actual) + " — sign in again.",
-            "આ " + roleLabel(actual) + " ઓળખપત્રો છે, " + roleLabel(wantRole) + " નહીં. ભૂમિકા " + roleLabel(actual) + " પર સેટ કરી — ફરી સાઇન ઇન કરો."
-          ));
-        });
-      }
 
       // success
+      void wantRole;
       clearFails(who);
       window.GJAuth.user = { uid: user.uid, email: user.email, role: actual, name: (data.name || ""), perms: (data.perms || null) };
       rememberLast(user.email, actual);
