@@ -591,8 +591,8 @@ table.data.np-wtbl input.num { width: 100% !important; max-width: 140px; box-siz
 .bill-total .val { font-size: clamp(24px, 4vw, 30px); font-weight: 800; font-variant-numeric: tabular-nums; }
 
 .ctrl { margin-bottom: 14px; }
-.ctrl label { display:flex; align-items:center; justify-content: space-between; font-size: 13px; font-weight: 600; color: var(--ink-soft); margin-bottom: 6px; }
-.ctrl label .v { font-weight: 800; color: var(--brand); font-variant-numeric: tabular-nums; }
+.ctrl label { display:flex; align-items:center; justify-content: space-between; flex-wrap: wrap; gap: 4px 10px; font-size: 13px; font-weight: 600; color: var(--ink-soft); margin-bottom: 6px; }
+.ctrl label .v { font-weight: 800; color: var(--brand); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .field {
   display:flex; align-items:center; gap: 8px;
   border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2);
@@ -614,7 +614,7 @@ input[type=range] { width: 100%; accent-color: var(--brand); height: 28px; }
 .weigh { display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
 .weigh .wbox { background: var(--surface-2); border:1px solid var(--line); border-radius: var(--r-md); padding: 14px; text-align:center; }
 .weigh .wbox .k { font-size: 12px; color: var(--muted); font-weight:600; }
-.weigh .wbox .v { font-size: 20px; font-weight: 800; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.weigh .wbox .v { font-size: clamp(15px, 2.3vw, 20px); font-weight: 800; margin-top: 4px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; line-height: 1.15; }
 .weigh .wbox.ghati { background: var(--gold-050); border-color:#ecd49a; }
 .weigh .wbox.ghati .v { color: var(--gold-600); }
 .weigh .wbox.total { background: var(--ok-050); border-color:#b9e6d1; }

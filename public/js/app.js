@@ -832,7 +832,7 @@
     /* parat (sent) + totals — yarn is clubbed into parat; closing = total niwar − parat */
     var sheetNiwar = nSheetNiwarG(s), sheetNet = sheetNiwar - (s.paratG || 0n);
     html += '<div class="card mt"><div class="card-head"><div class="ico tint-out">' + svg("send") + '</div><div><h3 style="font-size:15px">' + L("પરાત (મોકલ્યું) + કુલ", "Parat (sent) + totals") + '</h3></div></div><div class="card-pad">';
-    html += '<div class="ctrl"><label>' + L("પરાત / મોકલ્યું (kg) — મેન્યુઅલ (યાર્ન સહિત બધું)", "Parat / sent (kg) — manual (everything incl. yarn)") + ' <span class="v" id="npar">' + kgStr(s.paratG || 0n) + ' kg</span></label><div class="field"><input type="number" data-np-parat="1" value="' + (Number(s.paratG || 0n) / 1000) + '" min="0" step="1"><span class="suf">kg</span></div><div class="hint">' + L("કુલ નિવાર − પરાત = આ શીટનું બેલેન્સ (વજન કેરી ફોરવર્ડ).", "Total niwar − parat = this sheet's balance (weight carried forward).") + '</div></div>';
+    html += '<div class="ctrl"><label>' + L("પરાત / મોકલ્યું (kg) — મેન્યુઅલ (યાર્ન સહિત બધું)", "Parat / sent (kg) — manual (everything incl. yarn)") + ' <span class="v" id="npar">' + kgStr(s.paratG || 0n) + ' kg</span></label><div class="field"><input type="number" class="num" style="text-align:right" data-np-parat="1" value="' + (Number(s.paratG || 0n) / 1000) + '" min="0" max="100000000" step="1"><span class="suf">kg</span></div><div class="hint">' + L("કુલ નિવાર − પરાત = આ શીટનું બેલેન્સ (વજન કેરી ફોરવર્ડ).", "Total niwar − parat = this sheet's balance (weight carried forward).") + '</div></div>';
     html += '<div class="weigh" style="margin-top:8px"><div class="wbox"><div class="k">' + L("કુલ નિવાર", "Total niwar") + '</div><div class="v num" id="nsn">' + kgStr(sheetNiwar) + '</div></div><div class="wbox ghati"><div class="k">' + L("પરાત (મોકલ્યું)", "Parat (sent)") + '</div><div class="v num" id="nsp">' + kgStr(s.paratG || 0n) + '</div></div><div class="wbox total"><div class="k">' + L("બેલેન્સ (નિવાર−પરાત)", "Balance (niwar−parat)") + '</div><div class="v num" id="nsnet">' + kgStr(sheetNet) + '</div></div></div>';
     html += '<div class="page-actions" style="margin-top:14px"><button class="btn btn-primary" data-go="niwar">' + svg("check") + ' ' + L("થઈ ગયું", "Done") + '</button></div>';
     html += '</div></div>';
@@ -1921,7 +1921,7 @@
     });
     document.querySelectorAll("[data-np-delprod]").forEach(function (el) { el.onclick = function () { delNProduct(+el.getAttribute("data-np-delprod")); }; });
     document.querySelectorAll("[data-np-addprod]").forEach(function (el) { el.onclick = function () { addNProduct(); }; });
-    var par = document.querySelector("[data-np-parat]"); if (par) { par.oninput = function () { s.paratG = kgToG(pf(par.value)); nRecalc(); setTxt("#npar", kgStr(s.paratG) + " kg"); nRefreshSheetTotals(); schedulePersist(); }; par.onchange = function () { s.paratG = kgToG(pf(par.value)); render(); }; }
+    var par = document.querySelector("[data-np-parat]"); if (par) { var NMAXKG = 100000000; var rdPar = function () { var n = pf(par.value); if (n > NMAXKG) { n = NMAXKG; par.value = String(NMAXKG); } return n; }; par.oninput = function () { s.paratG = kgToG(rdPar()); nRecalc(); setTxt("#npar", kgStr(s.paratG) + " kg"); nRefreshSheetTotals(); schedulePersist(); }; par.onchange = function () { s.paratG = kgToG(rdPar()); render(); }; }
     document.querySelectorAll("[data-nsheetpdf]").forEach(function (el) { el.onclick = function () { makeNiwarSheetPDF(el.getAttribute("data-nsheetpdf")); }; });
   }
   function wireNiwar() {
