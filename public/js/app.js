@@ -1966,15 +1966,86 @@
   function fRow(label, field) { return '<label style="display:block;margin-bottom:13px"><span style="display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:5px">' + label + '</span>' + field + '</label>'; }
   function fInput(id, val, extra) { return '<input id="' + id + '" ' + (extra || '') + ' value="' + String(val == null ? '' : val).replace(/"/g, '&quot;') + '" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-size:14px;font-family:inherit;background:var(--surface);color:var(--ink)">'; }
 
+  /* ---- Gujarati ⇆ English name transliteration (one name field, both saved) ----
+     Type the name once in either script; the other language is generated live.
+     Gujarati→English is a deterministic romanisation; English→Gujarati is a
+     best-effort phonetic map (good for names, editable by typing in Gujarati). */
+  function isGujarati(s) { return /[઀-૿]/.test(String(s || "")); }
+  function titleCase(s) { return String(s || "").toLowerCase().replace(/(^|[\s'().-])([a-z])/g, function (m, p, c) { return p + c.toUpperCase(); }); }
+  function translitToEn(s) {
+    s = String(s || "");
+    var C = { 'ક': 'k', 'ખ': 'kh', 'ગ': 'g', 'ઘ': 'gh', 'ઙ': 'ng', 'ચ': 'ch', 'છ': 'chh', 'જ': 'j', 'ઝ': 'jh', 'ઞ': 'ny', 'ટ': 't', 'ઠ': 'th', 'ડ': 'd', 'ઢ': 'dh', 'ણ': 'n', 'ત': 't', 'થ': 'th', 'દ': 'd', 'ધ': 'dh', 'ન': 'n', 'પ': 'p', 'ફ': 'ph', 'બ': 'b', 'ભ': 'bh', 'મ': 'm', 'ય': 'y', 'ર': 'r', 'લ': 'l', 'ળ': 'l', 'વ': 'v', 'શ': 'sh', 'ષ': 'sh', 'સ': 's', 'હ': 'h' };
+    var V = { 'અ': 'a', 'આ': 'aa', 'ઇ': 'i', 'ઈ': 'ee', 'ઉ': 'u', 'ઊ': 'oo', 'ઋ': 'ru', 'એ': 'e', 'ઐ': 'ai', 'ઓ': 'o', 'ઔ': 'au', 'ઍ': 'e', 'ઑ': 'o' };
+    var M = { 'ા': 'aa', 'િ': 'i', 'ી': 'ee', 'ુ': 'u', 'ૂ': 'oo', 'ૃ': 'ru', 'ે': 'e', 'ૈ': 'ai', 'ો': 'o', 'ૌ': 'au', 'ૅ': 'e', 'ૉ': 'o' };
+    var out = "", i = 0;
+    while (i < s.length) {
+      var ch = s[i], nx = s[i + 1];
+      if (C[ch] != null) {
+        out += C[ch];
+        if (nx === '્') { i += 2; continue; }                 // virama → conjunct, no vowel
+        if (M[nx] != null) { out += M[nx]; i += 2; continue; } // explicit matra
+        if (nx === undefined || /[\s.,\-\/()]/.test(nx)) { i++; continue; }  // word-final: drop inherent 'a'
+        out += 'a'; i++; continue;                            // inherent 'a'
+      }
+      if (V[ch] != null) { out += V[ch]; i++; continue; }
+      if (ch === 'ં' || ch === 'ઁ') { out += 'n'; i++; continue; }
+      if (ch === 'ઃ') { out += 'h'; i++; continue; }
+      if (ch === '્') { i++; continue; }
+      out += ch; i++;                                          // spaces / digits / punctuation pass through
+    }
+    return out;
+  }
+  function translitToGu(s) {
+    s = String(s || "").toLowerCase();
+    var consKeys = ['chh', 'ksh', 'sh', 'ch', 'kh', 'gh', 'jh', 'th', 'dh', 'ph', 'bh', 'ng', 'ny', 'k', 'g', 'c', 'j', 't', 'd', 'n', 'p', 'b', 'm', 'y', 'r', 'l', 'v', 'w', 's', 'h', 'f', 'z', 'x', 'q'];
+    var cons = { 'chh': 'છ', 'ksh': 'ક્ષ', 'sh': 'શ', 'ch': 'ચ', 'kh': 'ખ', 'gh': 'ઘ', 'jh': 'ઝ', 'th': 'થ', 'dh': 'ધ', 'ph': 'ફ', 'bh': 'ભ', 'ng': 'ંગ', 'ny': 'ન્ય', 'k': 'ક', 'g': 'ગ', 'c': 'ક', 'j': 'જ', 't': 'ત', 'd': 'દ', 'n': 'ન', 'p': 'પ', 'b': 'બ', 'm': 'મ', 'y': 'ય', 'r': 'ર', 'l': 'લ', 'v': 'વ', 'w': 'વ', 's': 'સ', 'h': 'હ', 'f': 'ફ', 'z': 'ઝ', 'x': 'ક્સ', 'q': 'ક' };
+    var vowKeys = ['aa', 'ai', 'au', 'ee', 'oo', 'a', 'i', 'u', 'e', 'o'];
+    var vindep = { 'aa': 'આ', 'ai': 'ઐ', 'au': 'ઔ', 'ee': 'ઈ', 'oo': 'ઊ', 'a': 'અ', 'i': 'ઇ', 'u': 'ઉ', 'e': 'એ', 'o': 'ઓ' };
+    var vmatra = { 'aa': 'ા', 'ai': 'ૈ', 'au': 'ૌ', 'ee': 'ી', 'oo': 'ૂ', 'a': '', 'i': 'િ', 'u': 'ુ', 'e': 'ે', 'o': 'ો' };
+    function matchAt(keys, pos) { for (var k = 0; k < keys.length; k++) { if (s.substr(pos, keys[k].length) === keys[k]) return keys[k]; } return null; }
+    var out = "", i = 0, lastCons = false;
+    while (i < s.length) {
+      var vk = matchAt(vowKeys, i);
+      if (vk) { out += lastCons ? vmatra[vk] : vindep[vk]; i += vk.length; lastCons = false; continue; }
+      var ck = matchAt(consKeys, i);
+      if (ck) { if (lastCons) out += '્'; out += cons[ck]; i += ck.length; lastCons = true; continue; }
+      lastCons = false; out += s[i]; i++;                      // spaces / digits / punctuation pass through
+    }
+    return out;
+  }
+  function renderNamePv(gu, en) {
+    var pv = $("#wfNamePv"); if (!pv) return;
+    if (gu || en) { pv.style.display = "flex"; pv.innerHTML = '<span>ગુજરાતી: <b>' + esc(gu) + '</b></span><span>English: <b>' + esc(en) + '</b></span>'; }
+    else { pv.style.display = "none"; pv.innerHTML = ""; }
+  }
+  function syncWorkerName() {
+    var one = $("#wfNameOne"); if (!one) return;
+    var v = one.value.trim(), gu, en;
+    if (!v) { if ($("#wfName")) $("#wfName").value = ""; if ($("#wfEn")) $("#wfEn").value = ""; renderNamePv("", ""); return; }
+    if (isGujarati(v)) { gu = v; en = titleCase(translitToEn(v)); }
+    else { en = v; gu = translitToGu(v); }
+    if ($("#wfName")) $("#wfName").value = gu;
+    if ($("#wfEn")) $("#wfEn").value = en;
+    renderNamePv(gu, en);
+  }
+
   function workerForm(id) {
     var w = id ? workerById(id) : null;
+    var oneVal = w ? (w.name || w.en || "") : "";
     var body =
-      fRow(L("નામ (ગુજરાતી)", "Name (Gujarati)"), fInput("wfName", w ? w.name : "", 'placeholder="વિઠ્ઠલ ટેક્ષટાઇલ વર્ક્સ"')) +
-      fRow(L("નામ (English)", "Name (English)"), fInput("wfEn", w ? w.en : "", 'placeholder="Vitthal Textile Works"')) +
+      fRow(L("નામ", "Name"),
+        fInput("wfNameOne", oneVal, 'placeholder="' + L("રમેશ / Ramesh", "Ramesh / રમેશ") + '" autocomplete="off"') +
+        '<div id="wfNamePv" class="worker-name-pv" style="display:none"></div>' +
+        '<div class="worker-name-hint">' + L("ગુજરાતી કે English — કોઈ પણ ભાષામાં લખો, બીજી ભાષા આપમેળે બનશે.", "Type in Gujarati or English — the other language is filled in automatically.") + '</div>' +
+        '<input type="hidden" id="wfName" value="' + esc(w ? w.name : "") + '">' +
+        '<input type="hidden" id="wfEn" value="' + esc(w ? w.en : "") + '">'
+      ) +
       fRow(L("ફોન", "Phone"), fInput("wfPhone", w ? w.phone : "", 'placeholder="+91 "')) +
       fRow(L("કાપડ", "Cloth"), fInput("wfCloth", w ? w.cloth : "", 'placeholder="કોટન 40s"')) +
       fRow(L("રેટ (₹/મીટર)", "Rate (₹/metre)"), fInput("wfRate", w ? w.rate : "", 'type="number" step="0.01" inputmode="decimal" placeholder="3.55"'));
     showModal("users", id ? L("જોબ વર્કર ફેરફાર", "Edit Job Worker") : L("જોબ વર્કર ઉમેરો", "Add Job Worker"), L("નામ, ફોન, કાપડ અને રેટ.", "Name, phone, cloth and rate."), body, function () { saveWorkerForm(id); });
+    var one = $("#wfNameOne"); if (one) one.oninput = syncWorkerName;
+    renderNamePv((w ? w.name : "") || "", (w ? w.en : "") || "");   // seed preview from existing values on edit
   }
   function saveWorkerForm(id) {
     var name = fVal("#wfName").trim(), en = fVal("#wfEn").trim(), phone = fVal("#wfPhone").trim(), cloth = fVal("#wfCloth").trim(), rate = Math.max(0, parseFloat(fVal("#wfRate")) || 0);

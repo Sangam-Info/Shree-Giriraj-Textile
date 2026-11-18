@@ -1149,3 +1149,9 @@ table.jws-parat-tbl tfoot .grand td { background: var(--out-050); color: var(--o
 @media (max-width: 520px) {
   .edit-banner .eb-save { margin-left: 0; width: 100%; justify-content: center; }
 }
+
+/* ---- Add Job Worker: single name field + live GU/EN preview ---- */
+.worker-name-pv { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 7px; }
+.worker-name-pv span { font-size: 12.5px; color: var(--muted); background: var(--brand-050, #eef3fb); border: 1px solid var(--line); padding: 3px 9px; border-radius: 999px; }
+.worker-name-pv b { color: var(--ink); font-weight: 700; }
+.worker-name-hint { margin-top: 6px; font-size: 11.5px; color: var(--muted); line-height: 1.35; }
