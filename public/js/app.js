@@ -1575,7 +1575,36 @@
     updateBackFab();
     if (window.scrollTo) window.scrollTo(0, 0);
     schedulePersist();
+    syncRoute();                      // keep the URL hash + saved route in step with the current page
     _inRender = false;
+  }
+
+  /* ---------------- Route persistence (survive a browser refresh) ----------------
+     The app is a hash-routed SPA: the current module is mirrored into location.hash
+     (so refresh / direct URL / back-forward all land on the same page) and the
+     selected worker + month are saved locally. Language already persists separately. */
+  function routeId() {
+    var ed = { gatesheet: "gate", niwarsheet: "niwar", packingsheet: "packing" };   // editors map to their list
+    if (ed[STATE.view]) return ed[STATE.view];
+    return NAV.some(function (n) { return n.id === STATE.view; }) ? STATE.view : "dashboard";
+  }
+  var _lastRouteHash = null;
+  function syncRoute() {
+    var id = routeId();
+    if (id !== _lastRouteHash) { _lastRouteHash = id; try { history.replaceState(null, "", "#" + id); } catch (e) {} }
+    try { localStorage.setItem("gj_route", JSON.stringify({ view: id, worker: STATE.worker, month: STATE.month })); } catch (e) {}
+  }
+  function restoreRoute() {
+    var route = null; try { route = JSON.parse(localStorage.getItem("gj_route") || "null"); } catch (e) {}
+    var h = (location.hash || "").replace("#", "");
+    var view = "dashboard";
+    if (h && NAV.some(function (n) { return n.id === h; })) view = h;                         // URL hash wins (direct access / refresh)
+    else if (route && route.view && NAV.some(function (n) { return n.id === route.view; })) view = route.view;
+    if (route) {
+      if (route.worker) STATE.worker = route.worker;                                           // validated later against loaded data
+      if (route.month && MONTHS.some(function (m) { return m.id === route.month; })) STATE.month = route.month;
+    }
+    STATE.view = view;   // render() re-checks viewAllowed() for the role and falls back if needed
   }
   // Global Back button — editor screens step back to their list; any other screen
   // returns to the dashboard; the dashboard itself (home) hides it.
@@ -1959,7 +1988,7 @@
   function syncSwitchers() { var ws = $("#workerSelect"); if (ws) ws.value = STATE.worker; var ms = $("#monthSelect"); if (ms) ms.value = STATE.month; }
   function setLang(lang) { STATE.lang = lang; try { document.documentElement.lang = lang === "en" ? "en" : "gu"; localStorage.setItem("gj_lang", lang); } catch (e) {} $("#langGu").classList.toggle("on", lang === "gu"); $("#langEn").classList.toggle("on", lang === "en"); buildShell(); buildSwitchers(); try { if (window.GJAuth && window.GJAuth.renderProfile) window.GJAuth.renderProfile(); } catch (e) {} render(); }
   function setRole(role) { STATE.role = role; if (!viewAllowed(STATE.view)) STATE.view = "dashboard"; buildShell(); render(); }
-  function login(role) { STATE.role = (role === "supervisor" ? "supervisor" : "admin"); STATE.view = "dashboard"; buildShell(); startApp(); }
+  function login(role) { STATE.role = (role === "supervisor" ? "supervisor" : "admin"); restoreRoute(); buildShell(); startApp(); }
 
   /* ---------------------------------------------------------------- MODAL / TOAST */
   function showModal(ic, title, sub, bodyHtml, onSave) {
@@ -2814,8 +2843,9 @@
   // Production entry point used by auth.js once a user is authenticated and their role resolved.
   window.GJ = window.GJ || {};
   window.GJ.enter = function (role) {
-    STATE.role = (role === "supervisor" ? "supervisor" : "admin"); STATE.view = "dashboard";
+    STATE.role = (role === "supervisor" ? "supervisor" : "admin");
     try { var l = localStorage.getItem("gj_lang"); if (l === "en" || l === "gu") STATE.lang = l; } catch (e) {}
+    restoreRoute();   // stay on the page the user was on before refresh (falls back to dashboard)
     try {
       var g = document.getElementById("langGu"), e2 = document.getElementById("langEn");
       if (g && e2) { g.classList.toggle("on", STATE.lang !== "en"); e2.classList.toggle("on", STATE.lang === "en"); }
