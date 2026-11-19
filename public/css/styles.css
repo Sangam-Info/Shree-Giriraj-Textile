@@ -693,6 +693,7 @@ table.data td.num { overflow-wrap: anywhere; }
 .toast.ok    { background: #176b4b; }
 .toast.info  { background: #234e86; }
 .toast.lock  { background: #7a5a11; }
+.toast.error { background: #b4231f; }
 @keyframes toastin { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
 /* ======================= HELP / MISC ================================ */

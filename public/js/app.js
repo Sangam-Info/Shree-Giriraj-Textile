@@ -2171,7 +2171,7 @@
       render(); flushPersistNow(); toast(L("કાઢ્યું", "Deleted"), "ok");
     });
   }
-  function toast(msg, kind) { var tw = $("#toastWrap"); var t = document.createElement("div"); t.className = "toast " + (kind || ""); t.innerHTML = svg(kind === "info" ? "info" : "check") + "<span>" + msg + "</span>"; tw.appendChild(t); setTimeout(function () { t.style.opacity = "0"; t.style.transition = "opacity .3s"; setTimeout(function () { t.remove(); }, 320); }, 3000); }
+  function toast(msg, kind) { var tw = $("#toastWrap"); var t = document.createElement("div"); t.className = "toast " + (kind || ""); t.innerHTML = svg(kind === "info" || kind === "error" ? "info" : "check") + "<span>" + msg + "</span>"; tw.appendChild(t); setTimeout(function () { t.style.opacity = "0"; t.style.transition = "opacity .3s"; setTimeout(function () { t.remove(); }, 320); }, kind === "error" ? 6000 : 3000); }
 
   /* ---------------------------------------------------------------- PDF */
   function sheetTop(chip, sub) { return '<div class="sh-top"><div class="co"><b>' + CO.nameGuj + '</b><div class="tag">' + CO.name + ' · ' + CO.tag + '</div><div class="meta">' + CO.place + ' &nbsp;|&nbsp; ' + CO.phone + '</div></div><div class="copybox">' + chip + '<div class="sh-sub">' + sub + '</div></div></div>'; }
@@ -2603,8 +2603,13 @@
   function saveEditorNow() {
     mergePendingRemoteBeforeSave();
     _pendingEdit = false;
-    flushPersistNow();                               // push my sheet to everyone now
-    toast(L("સેવ થયું — બધાને દેખાશે", "Saved — now visible to everyone"), "ok");
+    // Claim success only AFTER the server acknowledges the write. If the write is
+    // rejected (Firestore rules not published) say so plainly instead of a false "Saved".
+    Promise.resolve(flushPersistNow()).then(function (res) {
+      if (res && res.ok) { toast(L("સેવ થયું — બધાને દેખાશે", "Saved — now visible to everyone"), "ok"); }
+      else if (res && res.denied) { toast(L("સેવ નથી થયું — ડેટાબેઝ નિયમો (Firestore rules) પબ્લિશ કરવા જરૂરી છે. રિફ્રેશ પછી ડેટા ખોવાઈ જશે.", "NOT saved — the database security rules must be published. Data will be lost on refresh."), "error"); }
+      else { toast(L("સેવ હજી બાકી — આપમેળે ફરી પ્રયાસ થઈ રહ્યો છે…", "Not saved yet — retrying automatically…"), "info"); }
+    });
   }
 
   /* ---- lock lifecycle ---- */
@@ -2695,14 +2700,14 @@
   function savePending() { return _saving || !!_persistT; }
   // Flush any debounced edit to the server immediately (e.g. when leaving an editor
   // or the tab is closing) instead of waiting out the 900 ms debounce.
-  function flushPersistNow() { if (_persistT) { clearTimeout(_persistT); _persistT = null; } if (_persistOn && window.GJDB && window.GJDB.ready) doPersist(1); }
+  function flushPersistNow() { if (_persistT) { clearTimeout(_persistT); _persistT = null; } if (_persistOn && window.GJDB && window.GJDB.ready) return doPersist(1); return Promise.resolve({ ok: true, n: 0 }); }
   function doPersist(attempt) {
     if (_retryT) { clearTimeout(_retryT); _retryT = null; }
     _saving = true;
     setSync("saving");
     try {
-      window.GJDB.saveStores(buildSnapshot(), STATE.role)
-        .then(function (n) { _saving = false; _lastSaveErr = ""; showSaveBlocked(false); setSync(n ? "saved" : "idle"); })
+      return window.GJDB.saveStores(buildSnapshot(), STATE.role)
+        .then(function (n) { _saving = false; _lastSaveErr = ""; showSaveBlocked(false); setSync(n ? "saved" : "idle"); return { ok: true, n: n }; })
         .catch(function (e) {
           _saving = false;
           var msg = (e && (e.code || e.message)) || "unknown error";
@@ -2715,16 +2720,17 @@
             console.warn("[Giriraj] Save blocked by Firestore security rules (permission-denied). Publish firestore.rules in the Firebase console (firebase deploy --only firestore:rules).");
             showSaveBlocked(true);
             _retryT = setTimeout(function () { _retryT = null; doPersist(1); }, 15000);  // re-check in case the rules get published
-            return;
+            return { ok: false, denied: true, msg: msg };
           }
-          if (attempt < 3) { setSync("saving"); setTimeout(function () { doPersist(attempt + 1); }, 1500 * attempt); return; }
+          if (attempt < 3) { setSync("saving"); setTimeout(function () { doPersist(attempt + 1); }, 1500 * attempt); return { ok: false, retrying: true, msg: msg }; }
           setSync("error", msg);
           toast(L("સર્વરમાં સેવ નિષ્ફળ — ઇન્ટરનેટ તપાસો. આપમેળે ફરી પ્રયાસ થશે.",
                   "Not saved to the server — check your internet. It will keep retrying."), "info");
           // keep trying the server (no local fallback) so a transient failure self-heals
           _retryT = setTimeout(function () { _retryT = null; doPersist(1); }, 10000);
+          return { ok: false, msg: msg };
         });
-    } catch (e) { _lastSaveErr = (e && e.message) || ""; setSync("error", _lastSaveErr); }
+    } catch (e) { _lastSaveErr = (e && e.message) || ""; setSync("error", _lastSaveErr); return Promise.resolve({ ok: false, msg: _lastSaveErr }); }
   }
 
   // (Removed the localStorage write-ahead backup. Firestore is the single source of
