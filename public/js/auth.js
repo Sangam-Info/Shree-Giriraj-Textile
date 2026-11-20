@@ -430,7 +430,7 @@
       title: "Jobwork Management System", tagline: 'Manage <span>·</span> Track <span>·</span> Grow',
       welcome: 'Welcome <span>Back</span>', sub: "Sign in to continue to your account",
       roleAdmin: "Admin — Full access", roleSup: "Supervisor — Gate & Packaging",
-      email: "Email Address", password: "Password", remember: "Remember Me", forgot: "Forgot Password?",
+      email: "Email Address", password: "Password", remember: "Remember Me", forgot: "Forgot Password",
       login: "Log In", secure: "Secure Access", recover: "Forgot email & password? Use recovery code", foot: 'Shri Giriraj Textile <span>·</span> Jobwork Management System'
     },
     gu: {
