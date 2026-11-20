@@ -1089,6 +1089,7 @@ table.jws-parat-tbl tfoot .grand td { background: var(--out-050); color: var(--o
 /* ======================= PROFILE PAGE ============================= */
 .prof-wrap { width: 100%; display: flex; flex-direction: column; gap: 16px; }
 .prof-grid { display: grid; grid-template-columns: 1.7fr 1fr; gap: 16px; align-items: start; }
+.prof-grid-solo { grid-template-columns: 1fr; }
 .prof-id { display: flex; align-items: center; gap: 18px; }
 .prof-av {
   flex: 0 0 auto; width: 72px; height: 72px; border-radius: 50%;
@@ -1113,15 +1114,42 @@ table.jws-parat-tbl tfoot .grand td { background: var(--out-050); color: var(--o
 .prof-k svg { width: 17px; height: 17px; color: var(--brand); flex: 0 0 auto; }
 .prof-v { font-size: 14.5px; font-weight: 700; color: var(--ink); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .prof-on { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 700; background: #e7f6ec; color: #1a7f45; }
-.prof-out { display: flex; flex-direction: column; align-items: stretch; gap: 14px; }
+/* --- Account Recovery card (premium, balanced) --- */
+.prof-rec { display: flex; flex-direction: column; }
+.prof-rec-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.prof-rec-ic {
+  flex: 0 0 auto; width: 42px; height: 42px; border-radius: 12px;
+  display: grid; place-items: center;
+  background: var(--brand-50, #eaf2fb); color: var(--brand);
+}
+.prof-rec-ic svg { width: 21px; height: 21px; }
+.prof-rec-ttl { min-width: 0; }
+.prof-rec-sub { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 2px; }
+.prof-rec-desc { font-size: 13.5px; color: var(--ink-soft, #5b6b7f); line-height: 1.6; margin: 0 0 16px; }
+.prof-rec-btn { margin-top: auto; }
+.prof-rec-note {
+  display: flex; align-items: flex-start; gap: 9px; margin-top: 12px;
+  font-size: 12px; color: var(--muted); line-height: 1.55;
+  background: var(--surface-2, #f6f8fb); border-radius: 10px; padding: 11px 13px;
+}
+.prof-rec-note svg { width: 15px; height: 15px; flex: 0 0 auto; margin-top: 1px; color: var(--brand); }
+/* safety: any bk-note icon stays small (prevents the oversized-icon bug) */
+.bk-note svg { width: 15px; height: 15px; flex: 0 0 auto; vertical-align: -2px; }
+
+/* --- Logout: full-width bar spanning both columns --- */
+.prof-out {
+  grid-column: 1 / -1;
+  display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 16px;
+}
 .prof-outtxt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .prof-outtxt b { font-size: 15px; font-weight: 800; color: var(--ink); }
 .prof-outtxt span { font-size: 13px; color: var(--muted); }
 .prof-logout {
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
-  padding: 12px 18px; border-radius: 11px; cursor: pointer;
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 26px; border-radius: 11px; cursor: pointer;
   font-family: inherit; font-size: 14px; font-weight: 800;
   color: #c62828; background: #fdecec; border: 1px solid #f5c6c6;
+  transition: background .14s ease;
 }
 .prof-logout:hover { background: #fbdede; }
 .prof-logout:active { transform: translateY(1px); }
@@ -1133,6 +1161,8 @@ table.jws-parat-tbl tfoot .grand td { background: var(--out-050); color: var(--o
   .prof-id { flex-direction: column; text-align: center; gap: 12px; }
   .prof-idmeta { text-align: center; }
   .prof-em { white-space: normal; }
+  .prof-out { flex-direction: column; align-items: stretch; }
+  .prof-logout { width: 100%; }
 }
 
 /* ============ MULTI-USER EDIT BANNER (sheet editors) ============== */

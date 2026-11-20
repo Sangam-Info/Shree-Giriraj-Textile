@@ -1576,7 +1576,7 @@
         '<div class="prof-idmeta"><div class="prof-name">' + esc(name) + '</div>' +
         '<div class="prof-em" title="' + esc(email) + '">' + esc(email) + '</div>' +
         '<span class="prof-badge">' + svg("shield") + roleTxt + '</span></div></div>';
-    html += '<div class="prof-grid">';
+    html += '<div class="prof-grid' + (u.role === "admin" ? '' : ' prof-grid-solo') + '">';
     var pend = (u.pendingEmail && String(u.pendingEmail).toLowerCase() !== String(email).toLowerCase()) ? u.pendingEmail : "";
     html += '<div class="card card-pad prof-det"><h3 class="prof-h">' + L("એકાઉન્ટ વિગત", "Account details") + '</h3>' +
         prow("users", L("નામ", "Name"), esc(name)) +
@@ -1590,10 +1590,13 @@
         prow("check", L("સ્થિતિ", "Status"), '<span class="prof-on">' + L("સક્રિય", "Active") + '</span>') +
         '</div>';
     if (u.role === "admin") {
-      html += '<div class="card card-pad prof-det"><h3 class="prof-h">' + L("એકાઉન્ટ રિકવરી", "Account Recovery") + '</h3>' +
-        '<p class="bk-p" style="margin-top:2px">' + L("પાસવર્ડ કે ઈમેલ ભૂલાઈ જાય તો, લોગિન સ્ક્રીન પર આ રિકવરી કોડ નાખતાં જ તમારા રજિસ્ટર્ડ ઈમેલ પર પાસવર્ડ-રીસેટ લિંક મોકલાશે. કોડ એક જ વાર દેખાય — સુરક્ષિત જગ્યાએ સાચવો.", "If the password or email is forgotten, typing this recovery code on the login screen emails a password-reset link to your registered email. The code is shown only once — keep it somewhere safe.") + '</p>' +
-        '<button class="btn btn-primary btn-block" data-setuprecovery>' + svg("shield") + ' ' + L("રિકવરી કોડ બનાવો", "Generate recovery code") + '</button>' +
-        '<div class="bk-note" style="margin-top:10px">' + svg("info") + ' ' + L("રિકવરી માટે તમારા ઈમેલનું ઇનબોક્સ ખોલી શકાય તે જરૂરી છે. ઈમેલ બદલો ત્યારે નવો કોડ બનાવો.", "Recovery needs you to be able to open your email inbox. Generate a new code whenever you change your email.") + '</div>' +
+      html += '<div class="card card-pad prof-rec">' +
+        '<div class="prof-rec-head"><span class="prof-rec-ic">' + svg("shield") + '</span>' +
+          '<div class="prof-rec-ttl"><h3 class="prof-h" style="margin:0">' + L("એકાઉન્ટ રિકવરી", "Account Recovery") + '</h3>' +
+          '<span class="prof-rec-sub">' + L("ફક્ત માલિક માટે સલામતી", "Owner-only safeguard") + '</span></div></div>' +
+        '<p class="prof-rec-desc">' + L("પાસવર્ડ કે ઈમેલ ભૂલાઈ જાય તો, લોગિન સ્ક્રીન પર આ રિકવરી કોડ નાખતાં જ તમારા રજિસ્ટર્ડ ઈમેલ પર પાસવર્ડ-રીસેટ લિંક મોકલાશે.", "If the password or email is forgotten, typing this recovery code on the login screen emails a password-reset link to your registered email.") + '</p>' +
+        '<button class="btn btn-primary btn-block prof-rec-btn" data-setuprecovery>' + svg("shield") + ' ' + L("રિકવરી કોડ બનાવો", "Generate recovery code") + '</button>' +
+        '<div class="prof-rec-note">' + svg("info") + '<span>' + L("કોડ એક જ વાર દેખાય — સુરક્ષિત રાખો. રિકવરી માટે ઈમેલ ઇનબોક્સ ખોલી શકાય તે જરૂરી; ઈમેલ બદલો ત્યારે નવો કોડ બનાવો.", "Shown once — keep it safe. Recovery needs access to your email inbox; generate a new code whenever you change your email.") + '</span></div>' +
         '</div>';
     }
     html += '<div class="card card-pad prof-out">' +
