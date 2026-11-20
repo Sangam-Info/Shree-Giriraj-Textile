@@ -76,7 +76,10 @@
     briefcase:'<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2M2 13h20"/>',
     shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
     lock:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
-    key:'<circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2M16 7l3 3M14 9l3 3"/>'
+    key:'<circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2M16 7l3 3M14 9l3 3"/>',
+    database:'<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/>',
+    upload:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/>',
+    save:'<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>'
   };
   function svg(n, c) { return '<svg class="' + (c || "") + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (I[n] || "") + '</svg>'; }
 
@@ -433,6 +436,7 @@
     { id: "yearend", g: "વર્ષાંત (દિવાળી)", e: "Year-End (Diwali)", ic: "spark", roles: ["admin", "supervisor"] },
     { id: "workers", g: "જોબ વર્કર્સ", e: "Job Workers", ic: "users", roles: ["admin", "supervisor"] },
     { id: "usermgmt", g: "યુઝર મેનેજમેન્ટ", e: "User Management", ic: "shield", roles: ["admin"] },
+    { id: "backup", g: "બેકઅપ અને રિસ્ટોર", e: "Backup & Restore", ic: "database", roles: ["admin"] },
     { id: "help", g: "માહિતી", e: "How it works", ic: "help", roles: ["admin", "supervisor"] }
   ];
   /* ---- per-user module permissions ----------------------------------
@@ -1565,7 +1569,7 @@
   /* ---------------------------------------------------------------- RENDER */
   function render() {
     if (!viewAllowed(STATE.view)) STATE.view = (STATE.role === "supervisor" ? "gate" : "dashboard");
-    var map = { dashboard: viewDashboard, gate: viewGate, gatesheet: viewGateSheet, packing: viewPacking, packingsheet: viewPackingSheet, ledger: viewLedger, niwar: viewNiwar, niwarsheet: viewNiwarSheet, upad: viewUpad, billing: viewBilling, loans: viewLoans, yearend: viewYearEnd, workers: viewWorkers, usermgmt: viewUserMgmt, help: viewHelp, profile: viewProfile };
+    var map = { dashboard: viewDashboard, gate: viewGate, gatesheet: viewGateSheet, packing: viewPacking, packingsheet: viewPackingSheet, ledger: viewLedger, niwar: viewNiwar, niwarsheet: viewNiwarSheet, upad: viewUpad, billing: viewBilling, loans: viewLoans, yearend: viewYearEnd, workers: viewWorkers, usermgmt: viewUserMgmt, backup: viewBackup, help: viewHelp, profile: viewProfile };
     _inRender = true;
     $("#view").innerHTML = (map[STATE.view] || viewDashboard)();
     document.querySelectorAll("[data-nav]").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-nav") === (STATE.view === "gatesheet" ? "gate" : STATE.view)); });
@@ -1661,6 +1665,17 @@
     document.querySelectorAll("[data-openworker]").forEach(function (b) { b.onclick = function () { STATE.worker = b.getAttribute("data-openworker"); syncSwitchers(); go("ledger"); }; });
     document.querySelectorAll("[data-lock]").forEach(function (b) { b.onclick = function () { infoModal(b.getAttribute("data-lock"), L("જોબ વર્કર ઉમેરવા/બદલવાનું લાઇવ બિલ્ડમાં સક્ષમ થશે.", "Adding or editing job workers will be enabled in the live build.")); }; });
     document.querySelectorAll("[data-addworker]").forEach(function (b) { b.onclick = function () { workerForm(null); }; });
+    // ---- Backup & Restore (admin only) ----
+    var bkc = document.querySelector("[data-bk-create]"); if (bkc) bkc.onclick = function () { gjDownloadBackup(); };
+    var bkf = $("#bkFile"), bkp = document.querySelector("[data-bk-pick]");
+    if (bkp && bkf) bkp.onclick = function () { bkf.click(); };
+    if (bkf) bkf.onchange = function () { var f = bkf.files && bkf.files[0]; bkf.value = ""; gjHandleRestoreFile(f); };
+    var bkd = $("#bkDrop");
+    if (bkd) {
+      bkd.ondragover = function (e) { e.preventDefault(); bkd.classList.add("drag"); };
+      bkd.ondragleave = function () { bkd.classList.remove("drag"); };
+      bkd.ondrop = function (e) { e.preventDefault(); bkd.classList.remove("drag"); gjHandleRestoreFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]); };
+    }
     document.querySelectorAll("[data-editworker]").forEach(function (b) { b.onclick = function () { workerForm(b.getAttribute("data-editworker")); }; });
     document.querySelectorAll("[data-delworker]").forEach(function (b) { b.onclick = function () { delWorker(b.getAttribute("data-delworker")); }; });
     var wsearch = $("#workerSearch");
@@ -2029,6 +2044,146 @@
     mb.classList.add("show"); mb.onclick = function (e) { if (e.target === mb) closeModal(); }; $("#mNo").onclick = closeModal; $("#mYes").onclick = function () { closeModal(); onYes(); };
   }
   function closeModal() { $("#modalBack").classList.remove("show"); $("#modalBack").innerHTML = ""; }
+
+  /* ================= BACKUP & RESTORE (admin only) =================
+     A full-system backup is exactly the snapshot the app already loads and
+     saves every day: enc(buildSnapshot()) is the COMPLETE dataset — every
+     store (job workers, niwar parties, gate sheets, packing lists, niwar
+     sheets, billing, loans, advances, niwar advances/loans, parameters),
+     BigInt-exact via the same enc/dec the live engine uses. Nothing is
+     skipped; PDFs are regenerated from this data on demand and the app
+     stores no other binary files. Restore validates the file, keeps a
+     safety copy of the current data (also auto-downloaded), applies it with
+     hydrate(), then persists through the normal batched Firestore write; any
+     failure rolls back to the safety copy so data is never partially lost. */
+  var BK = { restore: { state: "", msg: "" } };
+  function gjHash(str) { var h = 0x811c9dc5 >>> 0; for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return ("0000000" + h.toString(16)).slice(-8); }
+  function gjFmtBytes(n) { n = n || 0; if (n < 1024) return n + " B"; if (n < 1048576) return (n / 1024).toFixed(1) + " KB"; return (n / 1048576).toFixed(2) + " MB"; }
+  function gjCounts(data) {
+    data = data || {};
+    function len(a) { return (a && a.length != null) ? a.length : 0; }
+    function keys(o) { var c = 0; if (o && typeof o === "object") for (var k in o) if (o.hasOwnProperty(k)) c += (o[k] && o[k].length != null) ? o[k].length : 1; return c; }
+    return {
+      workers: len(data.workers), niwarParties: len(data.nworkers),
+      gateSheets: len(data.sheets), packingLists: len(data.packing),
+      niwarSheets: (data.nsheets && data.nsheets.list) ? data.nsheets.list.length : 0,
+      loans: keys(data.loans), advances: keys(data.upad),
+      niwarAdvances: keys(data.nupad), niwarLoans: keys(data.nloans)
+    };
+  }
+  function gjTotal(c) { var t = 0; if (c) for (var k in c) if (c.hasOwnProperty(k)) t += c[k]; return t; }
+  function gjStamp() { var d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "_" + pad(d.getHours()) + pad(d.getMinutes()); }
+  function gjEnvelope(data, note) {
+    var now = new Date();
+    var env = { format: "giriraj-jobwork-backup", schema: 1, app: (window.__BUILD || ""), company: "Shri Giriraj Textile", createdAt: now.toISOString(), createdAtLocal: now.toLocaleString("en-IN"), counts: gjCounts(data), checksum: gjHash(JSON.stringify(data)), data: data };
+    if (note) env.note = note;
+    return env;
+  }
+  function gjBackupObject() { return gjEnvelope(window.GJDB.enc(buildSnapshot())); }
+  function gjTriggerDownload(json, fname) {
+    var blob = new Blob([json], { type: "application/json" }), url = URL.createObjectURL(blob);
+    var a = document.createElement("a"); a.href = url; a.download = fname; document.body.appendChild(a); a.click();
+    setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} a.remove(); }, 800);
+  }
+  function gjLastBackup() { try { return JSON.parse(localStorage.getItem("gj_last_backup") || "null"); } catch (e) { return null; } }
+  function gjDownloadBackup() {
+    if (STATE.role !== "admin") return;
+    var obj = gjBackupObject(), json = JSON.stringify(obj), fname = "Giriraj-Backup_" + gjStamp() + ".json";
+    gjTriggerDownload(json, fname);
+    try { localStorage.setItem("gj_last_backup", JSON.stringify({ at: obj.createdAt, atLocal: obj.createdAtLocal, size: json.length, total: gjTotal(obj.counts), file: fname })); } catch (e) {}
+    toast(L("બેકઅપ ડાઉનલોડ થયું — ફાઇલ સુરક્ષિત જગ્યાએ રાખો.", "Backup downloaded — keep the file somewhere safe."), "ok");
+    if (STATE.view === "backup") render();
+  }
+  function gjValidateBackup(obj) {
+    if (!obj || typeof obj !== "object") return { ok: false, err: L("આ માન્ય બેકઅપ ફાઇલ નથી.", "This is not a valid backup file.") };
+    if (obj.format !== "giriraj-jobwork-backup") return { ok: false, err: L("આ ગિરિરાજ બેકઅપ ફાઇલ નથી.", "This file is not a Giriraj backup.") };
+    if (!obj.data || typeof obj.data !== "object") return { ok: false, err: L("બેકઅપમાં કોઈ ડેટા નથી.", "The backup contains no data.") };
+    var need = ["workers", "nworkers", "sheets", "packing", "nsheets", "bills"];
+    for (var i = 0; i < need.length; i++) if (!(need[i] in obj.data)) return { ok: false, err: L("બેકઅપ અધૂરું છે — ", "Backup is incomplete — missing '") + need[i] + "'." };
+    if (obj.checksum && gjHash(JSON.stringify(obj.data)) !== obj.checksum) return { ok: false, err: L("બેકઅપ ફાઇલ બગડેલી છે (ચેકસમ મેળ ખાતો નથી). રિસ્ટોર રદ.", "Backup file is corrupted (checksum mismatch). Restore cancelled.") };
+    return { ok: true, obj: obj };
+  }
+  function gjSetRestoreStatus(state, msg) {
+    BK.restore = { state: state || "", msg: msg || "" };
+    var el = $("#gjRestoreStatus"); if (!el) return;
+    el.className = "bk-status " + BK.restore.state; el.style.display = BK.restore.msg ? "" : "none";
+    el.innerHTML = BK.restore.msg ? ((BK.restore.state === "done" ? svg("check") : svg("info")) + "<span>" + esc(BK.restore.msg) + "</span>") : "";
+  }
+  function gjRestoreFromObject(obj, statusCb) {
+    return new Promise(function (resolve) {
+      var safety;
+      try { safety = window.GJDB.enc(buildSnapshot()); }
+      catch (e) { resolve({ ok: false, err: L("વર્તમાન ડેટાની સલામતી કૉપિ બની નહીં. રિસ્ટોર રદ.", "Could not snapshot current data. Restore cancelled.") }); return; }
+      statusCb && statusCb(L("વર્તમાન ડેટાની સલામતી કૉપિ બની રહી છે…", "Saving a safety copy of current data…"));
+      try { gjTriggerDownload(JSON.stringify(gjEnvelope(safety, "auto pre-restore safety backup")), "Giriraj-Pre-Restore_" + gjStamp() + ".json"); } catch (e) {}
+      setTimeout(function () {
+        statusCb && statusCb(L("રેકોર્ડ્સ રિસ્ટોર થઈ રહ્યા છે…", "Restoring records…"));
+        try { hydrate(window.GJDB.dec(obj.data)); }
+        catch (e) { try { hydrate(window.GJDB.dec(safety)); } catch (_) {} resolve({ ok: false, err: L("બેકઅપમાંથી રેકોર્ડ્સ વાંચી શકાયા નહીં. જૂનો ડેટા યથાવત્ છે.", "Could not read records from the backup. Your previous data is unchanged.") }); return; }
+        if (STATE.view === "backup") render();
+        statusCb && statusCb(L("ડેટાબેઝમાં સેવ થઈ રહ્યું છે…", "Saving to the database…"));
+        Promise.resolve(flushPersistNow()).then(function (res) {
+          if (!(window.GJDB && window.GJDB.ready)) { resolve({ ok: true, offline: true }); return; }
+          if (res && res.ok) { resolve({ ok: true }); return; }
+          try { hydrate(window.GJDB.dec(safety)); if (STATE.view === "backup") render(); } catch (_) {}
+          if (res && res.denied) resolve({ ok: false, err: L("રિસ્ટોર બ્લોક થયું — ડેટાબેઝ નિયમો પબ્લિશ કરવા જરૂરી. કશું બદલાયું નથી.", "Restore blocked — the database rules must be published. Nothing was changed.") });
+          else resolve({ ok: false, err: L("રિસ્ટોર કરેલો ડેટા ડેટાબેઝમાં સેવ ન થયો. તમારો જૂનો ડેટા યથાવત્ છે.", "Could not save the restored data to the database. Your previous data is unchanged.") });
+        });
+      }, 400);
+    });
+  }
+  function gjHandleRestoreFile(file) {
+    if (STATE.role !== "admin") return;
+    if (!file) { gjSetRestoreStatus("error", L("કોઈ ફાઇલ પસંદ કરી નથી.", "No file selected.")); return; }
+    if (!/\.json$/i.test(file.name || "")) { gjSetRestoreStatus("error", L("કૃપા કરી .json બેકઅપ ફાઇલ પસંદ કરો.", "Please choose a .json backup file.")); return; }
+    gjSetRestoreStatus("working", L("ફાઇલ વંચાઈ રહી છે…", "Reading the backup file…"));
+    var reader = new FileReader();
+    reader.onerror = function () { gjSetRestoreStatus("error", L("ફાઇલ વાંચી શકાઈ નહીં.", "Could not read the file.")); };
+    reader.onload = function () {
+      var obj; try { obj = JSON.parse(reader.result); } catch (e) { gjSetRestoreStatus("error", L("ફાઇલ માન્ય JSON નથી.", "The file is not valid JSON.")); return; }
+      var v = gjValidateBackup(obj); if (!v.ok) { gjSetRestoreStatus("error", v.err); return; }
+      var c = obj.counts || gjCounts(obj.data), when = obj.createdAtLocal || obj.createdAt || "?";
+      gjSetRestoreStatus("", "");
+      infoModalConfirm(L("રિસ્ટોર કરીએ?", "Restore this backup?"),
+        L("આ બેકઅપ (" + when + ") માંથી કુલ " + gjTotal(c) + " રેકોર્ડ રિસ્ટોર થશે અને વર્તમાન તમામ ડેટા બદલાઈ જશે. પહેલાં વર્તમાન ડેટાની સલામતી કૉપિ ડાઉનલોડ થશે.",
+          "This replaces ALL current data with the backup from " + when + " (" + gjTotal(c) + " records). A safety copy of your current data is downloaded first."),
+        function () {
+          gjSetRestoreStatus("working", L("રિસ્ટોર શરૂ…", "Starting restore…"));
+          gjRestoreFromObject(obj, function (m) { gjSetRestoreStatus("working", m); }).then(function (r) {
+            if (r.ok) gjSetRestoreStatus("done", r.offline
+              ? L("આ ડિવાઇસ પર રિસ્ટોર થયું. ડેટાબેઝ ઓનલાઇન સાથે સાઇન ઇન કરતાં સિંક થશે.", "Restored on this device. It will sync when signed in with the database online.")
+              : L("રિસ્ટોર પૂર્ણ — બધો ડેટા સફળતાપૂર્વક રિસ્ટોર થયો.", "Restore complete — all data was restored successfully."));
+            else gjSetRestoreStatus("error", r.err);
+          });
+        });
+    };
+    reader.readAsText(file);
+  }
+  function bkChip(ic, v, k) { return '<div class="bk-chip"><div class="bk-chip-ic">' + ic + '</div><div><div class="bk-chip-v">' + esc(String(v)) + '</div><div class="bk-chip-k">' + k + '</div></div></div>'; }
+  function bkItem(label, n) { return '<div class="bk-li">' + svg("check") + '<span>' + label + '</span><b>' + n + '</b></div>'; }
+  function viewBackup() {
+    if (STATE.role !== "admin") return '<div class="card"><div class="card-pad"><h2>' + L("પ્રવેશ નથી", "Access denied") + '</h2><p class="sub">' + L("બેકઅપ અને રિસ્ટોર ફક્ત માલિક / એડમિન માટે છે.", "Backup & Restore is available to the Owner / Admin only.") + '</p></div></div>';
+    var last = gjLastBackup(), c = gjCounts(window.GJDB.enc(buildSnapshot())), tot = gjTotal(c);
+    var html = '<div class="page-head"><div><h2>' + L("બેકઅપ અને રિસ્ટોર", "Backup & Restore") + '</h2><div class="sub">' + L("આખી સિસ્ટમનો ડેટા સુરક્ષિત કરો અને જરૂર પડ્યે પાછો લાવો", "Protect your entire system data and bring it back when needed") + '</div></div></div>';
+    html += '<div class="bk-sum">' +
+      bkChip(svg("database"), tot, L("કુલ રેકોર્ડ અત્યારે", "records right now")) +
+      bkChip(svg("save"), last ? gjFmtBytes(last.size) : "—", L("છેલ્લું બેકઅપ કદ", "last backup size")) +
+      bkChip(svg("spark"), last ? esc(last.atLocal) : L("ક્યારેય નહીં", "never"), L("છેલ્લું બેકઅપ", "last backup")) + '</div>';
+    html += '<div class="grid-2 mt">';
+    html += '<div class="card"><div class="card-head"><div class="ico tint-brand">' + svg("database") + '</div><div><h3>' + L("બેકઅપ બનાવો અને ડાઉનલોડ કરો", "Create & Download Backup") + '</h3><p class="mini">' + L("એક ફાઇલમાં આખી સિસ્ટમ", "The whole system in one file") + '</p></div></div><div class="card-pad">';
+    html += '<p class="bk-p">' + L("નીચેનો બધો ડેટા એક ટાઇમસ્ટૅમ્પ ફાઇલમાં સેવ થાય છે:", "Everything below is saved into one timestamped file:") + '</p>';
+    html += '<div class="bk-list">' + bkItem(L("જોબ વર્કર્સ અને નિવાર પાર્ટી", "Job workers & niwar parties"), c.workers + c.niwarParties) + bkItem(L("ગેટ જોબ વર્ક શીટ", "Gate job work sheets"), c.gateSheets) + bkItem(L("પેકિંગ લિસ્ટ", "Packing lists"), c.packingLists) + bkItem(L("નિવાર ગેટ એન્ટ્રી", "Niwar gate sheets"), c.niwarSheets) + bkItem(L("બિલિંગ · લોન · ઉપડ · પેરામીટર", "Billing · loans · advances · parameters"), c.loans + c.advances + c.niwarAdvances + c.niwarLoans) + '</div>';
+    html += '<p class="bk-note">' + L("PDF આ જ ડેટામાંથી બને છે, તેથી અલગ ફાઇલ રાખવાની જરૂર નથી. લોગિન પાસવર્ડ સુરક્ષા કારણસર બેકઅપમાં સમાવાતા નથી.", "PDFs are generated from this data, so no separate file is needed. Login passwords are not included, for security.") + '</p>';
+    html += '<button class="btn btn-primary btn-block" data-bk-create>' + svg("dl") + ' ' + L("બેકઅપ બનાવો અને ડાઉનલોડ કરો", "Create & Download Backup") + '</button>';
+    if (last) html += '<div class="bk-last">' + svg("check") + '<span>' + L("છેલ્લું બેકઅપ: ", "Last backup: ") + esc(last.atLocal) + ' · ' + gjFmtBytes(last.size) + ' · ' + last.total + ' ' + L("રેકોર્ડ", "records") + '</span></div>';
+    html += '</div></div>';
+    html += '<div class="card"><div class="card-head"><div class="ico tint-out">' + svg("upload") + '</div><div><h3>' + L("બેકઅપ અપલોડ કરો અને રિસ્ટોર કરો", "Upload & Restore Backup") + '</h3><p class="mini">' + L("અગાઉની બેકઅપ ફાઇલમાંથી પાછું લાવો", "Bring data back from a backup file") + '</p></div></div><div class="card-pad">';
+    html += '<div class="bk-drop" id="bkDrop"><div class="bk-drop-ic">' + svg("upload") + '</div><div class="bk-drop-t">' + L("બેકઅપ .json ફાઇલ અહીં મૂકો, અથવા પસંદ કરો", "Drop a backup .json file here, or choose one") + '</div><button class="btn btn-soft btn-sm" data-bk-pick>' + svg("file") + ' ' + L("ફાઇલ પસંદ કરો", "Choose backup file") + '</button><input type="file" id="bkFile" accept=".json,application/json" style="display:none"></div>';
+    html += '<div id="gjRestoreStatus" class="bk-status ' + (BK.restore.state || "") + '"' + (BK.restore.msg ? '' : ' style="display:none"') + '>' + (BK.restore.msg ? ((BK.restore.state === "done" ? svg("check") : svg("info")) + '<span>' + esc(BK.restore.msg) + '</span>') : '') + '</div>';
+    html += '<div class="bk-safe">' + svg("shield") + '<div><b>' + L("સલામતી", "Safety") + '</b> — ' + L("રિસ્ટોર પહેલાં વર્તમાન ડેટાની કૉપિ આપમેળે ડાઉનલોડ થાય છે. અધૂરી કે બગડેલી ફાઇલ ક્યારેય ઓવરરાઇટ નહીં કરે; ડેટાબેઝમાં સેવ નિષ્ફળ જાય તો જૂનો ડેટા પાછો આવી જાય છે.", "Your current data is auto-downloaded before a restore. A corrupted or incomplete file can never overwrite your data, and if the database save fails your previous data is rolled back.") + '</div></div>';
+    html += '</div></div></div>';
+    return html;
+  }
 
   /* ---------------------------------------------------------------- ROSTER (workers / niwar parties) */
   function fVal(sel) { var e = $(sel); return e ? e.value : ""; }
@@ -2950,6 +3105,7 @@
       buildSnapshot: buildSnapshot, hydrate: hydrate, seedInitial: seedInitial, workerForm: workerForm, saveWorkerForm: saveWorkerForm, delWorker: delWorker, nPartyForm: nPartyForm, saveNParty: saveNParty, delNParty: delNParty,
       getStores: function () { return { WORKERS: WORKERS, SHEETS: SHEETS, BILL: BILL, LOANS: LOANS, UPAD: UPAD, PACKING: PACKING, NWORKERS: NWORKERS, NSHEETS: NSHEETS, NPARAM: NPARAM, NUPAD: NUPAD, NLOANS: NLOANS, GHATI_RATE: GHATI_RATE, NSEQ: NSEQ, STATE: STATE }; },
       setPersistOn: function (v) { _persistOn = !!v; }, schedulePersist: schedulePersist,
+      gjBackupObject: gjBackupObject, gjValidateBackup: gjValidateBackup, gjRestoreFromObject: gjRestoreFromObject, gjCounts: gjCounts, gjTotal: gjTotal,
       viewAllowed: viewAllowed, modulePermitted: modulePermitted, PERM_MODULES: PERM_MODULES, STAFF_DEFAULT: STAFF_DEFAULT };
   }
 })();

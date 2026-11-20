@@ -1175,3 +1175,35 @@ table.jws-parat-tbl tfoot .grand td { background: var(--out-050); color: var(--o
 }
 .save-blocked-bar .sbb-ic { font-size: 18px; flex: 0 0 auto; }
 .save-blocked-bar .sbb-tx { min-width: 0; }
+
+/* ===================== Backup & Restore ===================== */
+.bk-sum { display:grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 18px; }
+.bk-chip { background: var(--card, #fff); border:1px solid var(--line); border-radius: 14px; padding: 14px 16px; display:flex; align-items:center; gap:12px; min-width:0; }
+.bk-chip-ic { width:40px; height:40px; flex:none; border-radius:10px; background: var(--brand-050); color: var(--brand); display:flex; align-items:center; justify-content:center; }
+.bk-chip-ic svg { width:20px; height:20px; }
+.bk-chip-v { font-size: clamp(15px,2vw,20px); font-weight:800; color: var(--ink); line-height:1.15; overflow-wrap:anywhere; }
+.bk-chip-k { font-size:12px; color: var(--muted); margin-top:2px; }
+.card-head .mini { font-size:12px; color: var(--muted); margin-top:2px; font-weight:500; }
+.bk-p { font-size:13.5px; color: var(--ink-soft); margin:2px 0 10px; }
+.bk-list { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+.bk-li { display:flex; align-items:center; gap:10px; font-size:13.5px; color: var(--ink-soft); background: var(--bg); border-radius:10px; padding:9px 12px; }
+.bk-li svg { width:16px; height:16px; color: var(--ok); flex:none; }
+.bk-li span { flex:1; min-width:0; }
+.bk-li b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.bk-note { font-size:12px; color: var(--muted); margin:10px 0 14px; line-height:1.5; }
+.bk-last { display:flex; align-items:center; gap:8px; margin-top:12px; font-size:12.5px; color: var(--ok); background: var(--ok-050); border-radius:10px; padding:9px 12px; }
+.bk-last svg { width:16px; height:16px; flex:none; }
+.bk-drop { border:2px dashed var(--line); border-radius:14px; padding:22px 16px; text-align:center; transition: border-color .15s, background .15s; }
+.bk-drop.drag { border-color: var(--brand); background: var(--brand-050); }
+.bk-drop-ic { width:48px; height:48px; margin:0 auto 10px; border-radius:12px; background: var(--out-050); color: var(--out); display:flex; align-items:center; justify-content:center; }
+.bk-drop-ic svg { width:24px; height:24px; }
+.bk-drop-t { font-size:13.5px; color: var(--ink-soft); margin-bottom:12px; }
+.bk-status { display:flex; align-items:flex-start; gap:9px; margin-top:14px; font-size:13px; border-radius:10px; padding:11px 13px; line-height:1.45; }
+.bk-status svg { width:17px; height:17px; flex:none; margin-top:1px; }
+.bk-status.working { background: var(--brand-050); color: var(--brand); }
+.bk-status.done    { background: var(--ok-050); color: var(--ok); }
+.bk-status.error   { background: #fbe9e8; color: #b4231f; }
+.bk-safe { display:flex; align-items:flex-start; gap:10px; margin-top:14px; font-size:12.5px; color: var(--ink-soft); background: var(--bg); border-radius:12px; padding:12px 14px; line-height:1.5; }
+.bk-safe svg { width:20px; height:20px; flex:none; color: var(--brand); margin-top:1px; }
+.bk-safe b { color: var(--ink); }
+@media (max-width: 720px) { .bk-sum { grid-template-columns: 1fr; } }
