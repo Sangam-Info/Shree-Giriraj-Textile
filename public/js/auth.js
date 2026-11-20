@@ -155,6 +155,17 @@
   // role chosen in the login dropdown (Admin / Supervisor)
   function selectedRole() { var s = $("#loginRole"); return s && s.value === "supervisor" ? "supervisor" : "admin"; }
 
+  /* ---- role-based recovery links ----
+     The recovery CODE resets the Owner account, so it is offered only for the
+     Admin role. Supervisors get the ordinary "Forgot Password?" email reset.
+     Exactly one link shows at a time, following the selected role. */
+  function applyRoleLinks() {
+    var admin = selectedRole() === "admin";
+    var fp = $("#forgotPw"), rl = $("#recoverLink");
+    if (fp) fp.style.display = admin ? "none" : "";
+    if (rl) rl.style.display = (admin && recoveryEnabled()) ? "block" : "none";
+  }
+
   /* ---------- resolve role from Firestore, validate, open the app ----------
      wantRole: the role the user selected (enforced on an explicit sign-in),
      or null on a silent session restore (no selection to check against). */
@@ -464,16 +475,18 @@
     if (form) form.addEventListener("submit", function (e) { e.preventDefault(); doLogin(); });
     var btn = $("#enterBtn"); if (btn) btn.onclick = null;   // the form submit drives login
     var fp = $("#forgotPw"); if (fp) fp.addEventListener("click", doForgot);
-    var rl = $("#recoverLink"); if (rl && recoveryEnabled()) { rl.style.display = "block"; rl.addEventListener("click", openRecovery); }
+    var rl = $("#recoverLink"); if (rl) rl.addEventListener("click", openRecovery);
     $("#authEmail") && $("#authEmail").addEventListener("input", clearErr);
     $("#authPass")  && $("#authPass").addEventListener("input", clearErr);
-    // role dropdown → remember the choice; the email field is never auto-populated
+    // role dropdown → remember the choice; swap the recovery links to match the role
     var sel = $("#loginRole");
     if (sel) sel.addEventListener("change", function () {
       clearErr();
       try { localStorage.setItem("gj_last_role", selectedRole()); } catch (e) {}
+      applyRoleLinks();
       // email is never auto-populated from the role selection
     });
+    applyRoleLinks();   // initial state follows the remembered/selected role
 
     if (LIVE) {
       setBusy(true, tr("Checking…", "તપાસી રહ્યું છે…"));
