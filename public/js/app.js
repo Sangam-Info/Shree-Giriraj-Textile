@@ -1902,6 +1902,7 @@
     wireNiwar();
     wireNiwarSheet();
     wireGridNav();   // bug 17: ↑/↓/←/→ + Enter navigation across all data-entry grids
+    labelTableCells();   // mobile: stack list-table rows into cards
     var lr = $("#loanReport"); if (lr) lr.onclick = makeLoanPDF;
     document.querySelectorAll("[data-delloan]").forEach(function (b) { b.onclick = function () { delLoanTxn(b.getAttribute("data-delloan")); }; });   /* bug 23 */
     var ur = $("#upadReport"); if (ur) ur.onclick = makeUpadPDF;
@@ -1965,6 +1966,20 @@
   function wireGridNav() {
     gjCellNav("data-mt", "_"); gjCellNav("data-pmt", "_"); gjCellNav("data-np-cell", "-");
     gjRowNav("data-kg"); gjRowNav("data-pkg");
+  }
+
+  /* Mobile tables: tag every list-table cell with its column label so the CSS
+     can stack each row into a readable card on phones (no sideways scrolling).
+     Only list tables (table.data, table.ledger) are touched — the metre-grid
+     editors (table.jws/.pt) and the 2-col niwar weight grid are left as grids. */
+  function labelTableCells() {
+    document.querySelectorAll("table.data:not(.np-wtbl), table.ledger").forEach(function (tbl) {
+      var labels = []; tbl.querySelectorAll("thead th").forEach(function (th) { labels.push((th.textContent || "").trim()); });
+      tbl.querySelectorAll("tbody tr, tfoot tr").forEach(function (tr) {
+        var tds = tr.children;
+        for (var i = 0; i < tds.length; i++) { if (tds[i].tagName === "TD") tds[i].setAttribute("data-label", labels[i] || ""); }
+      });
+    });
   }
 
   /* --- sheet editor live wiring (no full re-render) --- */

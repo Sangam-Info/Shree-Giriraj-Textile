@@ -1220,3 +1220,36 @@ table.jws-parat-tbl tfoot .grand td { background: var(--out-050); color: var(--o
 .fin-ok, .fin-err { display:inline-flex; align-items:center; gap:5px; font-weight:700; font-size:12.5px; }
 .fin-ok { color: var(--ok); } .fin-err { color:#b4231f; }
 .fin-ok svg, .fin-err svg { width:15px; height:15px; }
+
+/* ============ Mobile: stack list tables into cards (≤560px) ============
+   Applies only to list tables (table.data, table.ledger). The metre-grid
+   editors (table.jws/.jws-parat-tbl/.pt) and the 2-col niwar weight grid
+   (.np-wtbl) are NOT .data-list, so they keep their normal grid + scroll. */
+@media (max-width: 560px) {
+  table.data:not(.np-wtbl), table.ledger { min-width: 0 !important; display: block; }
+  table.data:not(.np-wtbl) thead, table.ledger thead { display: none; }
+  table.data:not(.np-wtbl) tbody, table.data:not(.np-wtbl) tfoot,
+  table.ledger tbody, table.ledger tfoot { display: block; }
+  table.data:not(.np-wtbl) tr, table.ledger tr {
+    display: block; margin: 0 0 10px; padding: 4px 12px;
+    border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+  }
+  table.data:not(.np-wtbl) tfoot tr, table.ledger tfoot tr {
+    background: var(--bg); font-weight: 700;
+  }
+  table.data:not(.np-wtbl) td, table.ledger td {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    padding: 9px 0; border: none; border-bottom: 1px solid var(--line);
+    text-align: right; white-space: normal; overflow-wrap: anywhere; min-width: 0;
+  }
+  table.data:not(.np-wtbl) tr td:last-child, table.ledger tr td:last-child { border-bottom: none; }
+  table.data:not(.np-wtbl) td::before, table.ledger td::before {
+    content: attr(data-label); flex: 0 0 42%; text-align: left;
+    font-size: 12px; font-weight: 600; color: var(--muted); padding-right: 10px;
+  }
+  /* action cells (no column label): let the buttons use the full row width */
+  table.data:not(.np-wtbl) td[data-label=""], table.ledger td[data-label=""] { justify-content: flex-end; }
+  table.data:not(.np-wtbl) td[data-label=""]::before, table.ledger td[data-label=""]::before { content: ""; flex: 0; padding: 0; }
+  /* the table-scroll wrapper no longer needs to scroll in card mode */
+  .table-scroll { overflow-x: visible; }
+}
