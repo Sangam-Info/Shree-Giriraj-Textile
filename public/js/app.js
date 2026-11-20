@@ -1577,9 +1577,15 @@
         '<div class="prof-em" title="' + esc(email) + '">' + esc(email) + '</div>' +
         '<span class="prof-badge">' + svg("shield") + roleTxt + '</span></div></div>';
     html += '<div class="prof-grid">';
+    var pend = (u.pendingEmail && String(u.pendingEmail).toLowerCase() !== String(email).toLowerCase()) ? u.pendingEmail : "";
     html += '<div class="card card-pad prof-det"><h3 class="prof-h">' + L("એકાઉન્ટ વિગત", "Account details") + '</h3>' +
         prow("users", L("નામ", "Name"), esc(name)) +
         prow("inbox", L("ઈમેલ", "Email"), esc(email)) +
+        (pend ? '<div class="prof-row" style="align-items:flex-start"><span class="prof-k">' + svg("info") + '<span>' + L("પેન્ડિંગ ઈમેલ", "Pending email") + '</span></span>' +
+          '<span class="prof-v" style="text-align:right"><span style="display:block;color:var(--brand);font-weight:700;word-break:break-all">' + esc(pend) + '</span>' +
+          '<span style="display:block;font-size:11.5px;color:var(--muted);font-weight:600;margin-top:3px;line-height:1.5">' + L("ઇનબોક્સમાંથી ચકાસો", "Verify from your inbox") +
+            ' · <a href="#" data-resendverif style="color:var(--brand);font-weight:700">' + L("ફરી મોકલો", "Resend") + '</a>' +
+            ' · <a href="#" data-dismissverif style="color:var(--muted);font-weight:700">' + L("કાઢો", "Dismiss") + '</a></span></span></div>' : '') +
         prow("shield", L("રોલ", "Role"), roleTxt) +
         prow("check", L("સ્થિતિ", "Status"), '<span class="prof-on">' + L("સક્રિય", "Active") + '</span>') +
         '</div>';
@@ -1673,9 +1679,13 @@
     if (!db || !uid) { if (window.GJAuth && window.GJAuth.user) { window.GJAuth.user.name = newName; if (emailChanged) window.GJAuth.user.email = newEmail; } render(); toast(L("પ્રોફાઇલ અપડેટ થઈ", "Profile updated"), "ok"); return; }
     function fail(e) {
       var code = (e && (e.code || e.message)) || "";
-      if (/wrong-password|invalid-credential|invalid-login/i.test(code)) toast(L("પાસવર્ડ ખોટો છે.", "The password is incorrect."), "error");
+      if (/wrong-password|invalid-credential|invalid-login/i.test(code)) toast(L("વર્તમાન પાસવર્ડ ખોટો છે.", "The current password is incorrect."), "error");
       else if (/requires-recent-login/i.test(code)) toast(L("સુરક્ષા માટે ફરી લોગિન કરી, પછી ઈમેલ બદલો.", "For security, log out and back in, then change the email."), "error");
-      else if (/email-already-in-use/i.test(code)) toast(L("આ ઈમેલ પહેલેથી વપરાયેલ છે.", "That email is already in use."), "error");
+      else if (/email-already-in-use/i.test(code)) toast(L("આ ઈમેલ બીજા ખાતામાં વપરાયેલ છે.", "That email is already used by another account."), "error");
+      else if (/invalid-email/i.test(code)) toast(L("માન્ય ઈમેલ દાખલ કરો.", "Enter a valid email address."), "error");
+      else if (/too-many-requests/i.test(code)) toast(L("ઘણા પ્રયાસો. થોડીવાર પછી પ્રયાસ કરો.", "Too many attempts. Please try again later."), "error");
+      else if (/operation-not-allowed/i.test(code)) toast(L("ઈમેલ બદલવા Firebase માં ઈમેલ વેરિફિકેશન ચાલુ હોવું જરૂરી.", "Email change needs email verification enabled in Firebase."), "error");
+      else if (/network/i.test(code)) toast(L("નેટવર્ક ભૂલ. કનેક્શન તપાસો.", "Network error. Check your connection."), "error");
       else if (/permission/i.test(code)) toast(L("સેવ બ્લોક — ડેટાબેઝ નિયમો પબ્લિશ કરો.", "Save blocked — publish the database rules."), "error");
       else toast(L("અપડેટ નિષ્ફળ.", "Update failed."), "error");
     }
@@ -1694,6 +1704,11 @@
         return cu.updateEmail(newEmail).then(function () { return "done"; });
       }).then(function (mode) {
         if (mode === "verify") {
+          // Record the pending change so the Profile shows it and other devices
+          // know. The email only truly switches in Firebase once the owner clicks
+          // the link, which gjCheckEmailSync() then detects and mirrors here.
+          if (window.GJAuth && window.GJAuth.user) window.GJAuth.user.pendingEmail = newEmail;
+          db.collection("users").doc(uid).set({ pendingEmail: newEmail, pendingEmailAt: Date.now() }, { merge: true }).catch(function () {});
           render();
           infoModal(L("ઈમેલ બદલવા — ચકાસણી જરૂરી", "One step left to change your email"),
             '<span style="display:block;font-size:13.5px;color:var(--muted);line-height:1.6">' +
@@ -1713,6 +1728,56 @@
         return db.collection("users").doc(uid).set({ email: newEmail }, { merge: true }).then(function () { window.GJAuth.user.email = newEmail; render(); toast(L("પ્રોફાઇલ અપડેટ થઈ", "Profile updated"), "ok"); });
       });
     }).catch(fail);
+  }
+
+  /* --- detect a COMPLETED email change (secure Firebase flow) ---
+     Firebase switches the sign-in email server-side only AFTER the owner clicks
+     the verification link sent to the new address — this app never changes it
+     directly. gjCheckEmailSync() reloads the auth user and, once the email has
+     actually changed, mirrors it into the Firestore account doc, clears the
+     pending flag, refreshes the Profile + appbar, and confirms — so the new
+     email appears without a manual re-login. Runs on window focus and whenever
+     the Profile renders. */
+  var _emailSyncing = false;
+  function gjCheckEmailSync() {
+    var auth = window.GJAuth && window.GJAuth.auth, db = window.GJAuth && window.GJAuth.db, u = window.GJAuth && window.GJAuth.user;
+    if (_emailSyncing || !auth || !db || !u || !u.uid || !auth.currentUser || !auth.currentUser.reload) return;
+    var cu = auth.currentUser;
+    _emailSyncing = true;
+    cu.reload().then(function () {
+      var live = cu.email || "";
+      if (!live || !u.email || String(live).toLowerCase() === String(u.email).toLowerCase()) { _emailSyncing = false; return; }
+      // the verified change has landed in Firebase Auth → sync Firestore + UI
+      u.email = live;
+      var upd = { email: live };
+      if (u.pendingEmail) { upd.pendingEmail = null; u.pendingEmail = null; }
+      return db.collection("users").doc(u.uid).set(upd, { merge: true }).then(function () {
+        try { if (window.GJAuth.renderProfile) window.GJAuth.renderProfile(); } catch (e) {}
+        if (STATE.view === "profile") render();
+        toast(L("ઈમેલ બદલાઈ ગયો: ", "Email changed to ") + live, "ok");
+        _emailSyncing = false;
+      });
+    }).catch(function () { _emailSyncing = false; });
+  }
+  function gjResendEmailVerify() {
+    var u = (window.GJAuth && window.GJAuth.user) || {};
+    if (!u.pendingEmail) return;
+    // Resending needs a recent login, so reopen Edit Profile prefilled with the
+    // pending address — the owner re-enters the password and Save sends a fresh link.
+    profileEditForm();
+    setTimeout(function () { var f = $("#pfEmail"); if (f) f.value = u.pendingEmail; var p = $("#pfPass"); if (p) p.focus(); }, 30);
+  }
+  function gjDismissPendingEmail() {
+    var db = window.GJAuth && window.GJAuth.db, u = window.GJAuth && window.GJAuth.user;
+    if (!db || !u || !u.uid) return;
+    infoModalConfirm(L("પેન્ડિંગ ઈમેલ રિમાઇન્ડર કાઢીએ?", "Dismiss the pending email reminder?"),
+      L("આ ફક્ત રિમાઇન્ડર કાઢે છે. જો તમે પહેલેથી લિંક પર ક્લિક કરી દીધું હોય, તો ઈમેલ બદલાઈ જ જશે.", "This only hides the reminder. If you already clicked the link, the email still changes."),
+      function () {
+        u.pendingEmail = null;
+        db.collection("users").doc(u.uid).set({ pendingEmail: null }, { merge: true }).catch(function () {});
+        if (STATE.view === "profile") render();
+        toast(L("રિમાઇન્ડર કાઢ્યું", "Reminder dismissed"), "ok");
+      });
   }
 
   /* ---------- Account Recovery setup (admin): generate a recovery code ----------
@@ -1885,6 +1950,10 @@
     var epf = document.querySelector("[data-editprofile]"); if (epf) epf.onclick = function () { profileEditForm(); };
     var rpw = document.querySelector("[data-resetpw]"); if (rpw) rpw.onclick = function () { resetPwForm(); };
     var srp = document.querySelector("[data-setuprecovery]"); if (srp) srp.onclick = function () { gjSetupRecovery(); };
+    var rsv = document.querySelector("[data-resendverif]"); if (rsv) rsv.onclick = function (e) { e.preventDefault(); gjResendEmailVerify(); };
+    var dsv = document.querySelector("[data-dismissverif]"); if (dsv) dsv.onclick = function (e) { e.preventDefault(); gjDismissPendingEmail(); };
+    // On the Profile page, check whether a verification link was just clicked
+    if (STATE.view === "profile") { try { gjCheckEmailSync(); } catch (e) {} }
     document.querySelectorAll("[data-editworker]").forEach(function (b) { b.onclick = function () { workerForm(b.getAttribute("data-editworker")); }; });
     document.querySelectorAll("[data-delworker]").forEach(function (b) { b.onclick = function () { delWorker(b.getAttribute("data-delworker")); }; });
     var wsearch = $("#workerSearch");
@@ -3374,8 +3443,8 @@
     if (!BUILD) return;
     setTimeout(checkBuild, 4000);        // early check catches a stale (cached) first load
     setInterval(checkBuild, 60000);      // then poll every minute
-    document.addEventListener("visibilitychange", function () { if (!document.hidden) checkBuild(); });
-    window.addEventListener("focus", checkBuild);
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) { checkBuild(); try { gjCheckEmailSync(); } catch (e) {} } });
+    window.addEventListener("focus", function () { checkBuild(); try { gjCheckEmailSync(); } catch (e) {} });
   }
 
   /* ---- "new version available" prompt with a Refresh button ----------------
@@ -3517,6 +3586,10 @@
   // login screen reuses the exact same hashing to look up the recovery code
   window.GJ.recHash = gjRecKey;
   window.GJ.recNorm = gjRecNorm;
+  window.GJ.checkEmailSync = gjCheckEmailSync;   // pick up a verified email change
+
+  // A verified email change made outside the app lands via onAuthStateChanged too
+  try { if (window.GJAuth && window.GJAuth.auth && window.GJAuth.auth.onAuthStateChanged) window.GJAuth.auth.onAuthStateChanged(function () { try { gjCheckEmailSync(); } catch (e) {} }); } catch (e) {}
 
   if (typeof window !== "undefined" && window.__TEST) {
     window.__TEST_API = { STATE: STATE, render: render, go: go, openSheet: openSheet, newSheet: newSheet, setLang: setLang, setRole: setRole, saveLoan: saveLoan,

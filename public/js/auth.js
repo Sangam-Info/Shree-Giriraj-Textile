@@ -191,13 +191,17 @@
       // success
       void wantRole;
       clearFails(who);
-      // After a verified email change, Firebase Auth holds the new address but the
-      // Firestore account doc may still show the old one — sync it (Owner only; the
-      // rules let only an admin write account docs). Best-effort, never blocks login.
-      if (actual === "admin" && data.email && user.email && String(data.email).toLowerCase() !== String(user.email).toLowerCase()) {
-        try { db.collection("users").doc(user.uid).set({ email: user.email }, { merge: true }); } catch (e) {}
+      // After a verified email change, Firebase Auth holds the new address while the
+      // Firestore account doc may still show the old one (plus a pending flag) — sync
+      // both on login (Owner only; the rules let only an admin write account docs).
+      // Best-effort, never blocks login.
+      var pend = data.pendingEmail || null;
+      if (actual === "admin" && user.email && String(data.email || "").toLowerCase() !== String(user.email).toLowerCase()) {
+        var sync = { email: user.email };
+        if (pend && String(pend).toLowerCase() === String(user.email).toLowerCase()) { sync.pendingEmail = null; pend = null; }
+        try { db.collection("users").doc(user.uid).set(sync, { merge: true }); } catch (e) {}
       }
-      window.GJAuth.user = { uid: user.uid, email: user.email, role: actual, name: (data.name || ""), perms: (data.perms || null) };
+      window.GJAuth.user = { uid: user.uid, email: user.email, role: actual, name: (data.name || ""), perms: (data.perms || null), pendingEmail: pend };
       rememberLast(user.email, actual);
       setDropdown(actual);
       markSessionLive();
