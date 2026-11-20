@@ -260,10 +260,10 @@
     WORKERS.forEach(function (w) { UPAD[w.id] = []; });
     /* weekly Saturday advances (same pattern as the client's niwar sheet: 15/8, 22/8) */
     UPAD.w0 = [
-      { id: rid(), d: "2026-08-15", amt: 2000, note: "અઠવાડિક ઉપડ / Weekly advance" },
-      { id: rid(), d: "2026-08-22", amt: 2500, note: "અઠવાડિક ઉપડ / Weekly advance" }
+      { id: rid(), d: "2026-08-15", amt: 2000, note: "અઠવાડિક ઉપાડ / Weekly advance" },
+      { id: rid(), d: "2026-08-22", amt: 2500, note: "અઠવાડિક ઉપાડ / Weekly advance" }
     ];
-    UPAD.w1 = [{ id: rid(), d: "2026-08-16", amt: 2000, note: "અઠવાડિક ઉપડ / Weekly advance" }];
+    UPAD.w1 = [{ id: rid(), d: "2026-08-16", amt: 2000, note: "અઠવાડિક ઉપાડ / Weekly advance" }];
   })();
   function upadEntries(wid, mid) { return (UPAD[wid] || []).filter(function (t) { return t.d.slice(0, 7) === mid; }).sort(function (a, b) { return a.d < b.d ? -1 : 1; }); }
   function upadMP(wid, mid) { var s = 0n; upadEntries(wid, mid).forEach(function (t) { s += rupToP(t.amt); }); return s; }
@@ -352,10 +352,10 @@
     NWORKERS.forEach(function (p) { NUPAD[p.id] = []; });
     /* the client's August upad on the niwar sheet: 7000 (15/8) + 10000 (22/8) = 17000 */
     NUPAD.n0 = [
-      { id: rid(), d: "2026-08-15", amt: 7000, note: "અઠવાડિક ઉપડ / Weekly advance" },
-      { id: rid(), d: "2026-08-22", amt: 10000, note: "અઠવાડિક ઉપડ / Weekly advance" }
+      { id: rid(), d: "2026-08-15", amt: 7000, note: "અઠવાડિક ઉપાડ / Weekly advance" },
+      { id: rid(), d: "2026-08-22", amt: 10000, note: "અઠવાડિક ઉપાડ / Weekly advance" }
     ];
-    NUPAD.n1 = [{ id: rid(), d: "2026-08-12", amt: 4000, note: "અઠવાડિક ઉપડ / Weekly advance" }];
+    NUPAD.n1 = [{ id: rid(), d: "2026-08-12", amt: 4000, note: "અઠવાડિક ઉપાડ / Weekly advance" }];
   })();
   function nUpadEntries(pid, mid) { return (NUPAD[pid] || []).filter(function (t) { return t.d.slice(0, 7) === mid; }).sort(function (a, b) { return a.d < b.d ? -1 : 1; }); }
   function nUpadMP(pid, mid) { var s = 0n; nUpadEntries(pid, mid).forEach(function (t) { s += rupToP(t.amt); }); return s; }
@@ -451,7 +451,7 @@
     { id: "packing", g: "પેકેજિંગ", e: "Packaging", ic: "box", roles: ["admin", "supervisor"] },
     { id: "ledger", g: "જોબવર્ક ખાતાવહી", e: "Jobwork Ledger", ic: "ledger", roles: ["admin", "supervisor"] },
     { id: "niwar", g: "નિવાર જોબવર્ક", e: "Niwar Jobwork", ic: "roll", roles: ["admin", "supervisor"] },
-    { id: "upad", g: "ઉપડ (એડવાન્સ)", e: "Upad (Advances)", ic: "wallet", roles: ["admin", "supervisor"] },
+    { id: "upad", g: "ઉપાડ", e: "Upad", ic: "wallet", roles: ["admin", "supervisor"] },
     { id: "billing", g: "બિલિંગ અને PDF", e: "Billing & PDF", ic: "bill", roles: ["admin", "supervisor"] },
     { id: "loans", g: "લોન ખાતા", e: "Loan Accounts", ic: "rupee", roles: ["admin", "supervisor"] },
     { id: "yearend", g: "વર્ષાંત (દિવાળી)", e: "Year-End (Diwali)", ic: "spark", roles: ["admin", "supervisor"] },
@@ -534,7 +534,7 @@
       stat("tint-brand", "sheet", L("આ મહિને શીટ", "Sheets this month"), monthSheets.length, "", L("બધા વર્કર", "all workers")) +
       stat("tint-in", "box", L("આ મહિને મીટર", "Meters this month"), numI(b.mtr), "mtr", wNm(w)) +
       stat("tint-out", "send", L("કોકડી+કલર", "Kokdi+Color"), kgStr(b.sentG), "", L("મોકલ્યું", "sent")) +
-      stat("tint-upad", "wallet", L("આ મહિને ઉપડ", "Upad this month"), moneyPw(upadTot), "", L("બધા વર્કર", "all workers")) +
+      stat("tint-upad", "wallet", L("આ મહિને ઉપાડ", "Upad this month"), moneyPw(upadTot), "", L("બધા વર્કર", "all workers")) +
       stat("tint-out", "rupee", L("કુલ લોન બાકી", "Loan outstanding"), moneyPw(loanTot), "", L("બધા વર્કર", "all workers")) +
       '</div>';
     html += '<div class="grid-2">';
@@ -782,7 +782,7 @@
     /* money settlement — settles this month, no money carry */
     html += '<div class="statement"><div class="settle-h">' + svg("bill") + ' ' + L("ચુકવણી (રૂપિયા)", "Payment (money)") + '</div>';
     html += stLine(L("જોબવર્ક (બધી સાઇઝ)", "Jobwork (all sizes)"), "+ " + moneyP(st.jobworkP), "plus", kgStr(st.recvG) + ' kg');
-    html += stLine(L("ઉપડ (આ મહિને, આપમેળે)", "Upad (this month, auto)"), "− " + moneyP(st.upadP), "minus", L("એન્ટ્રી: ", "entries: ") + upN);
+    html += stLine(L("ઉપાડ (આ મહિને, આપમેળે)", "Upad (this month, auto)"), "− " + moneyP(st.upadP), "minus", L("એન્ટ્રી: ", "entries: ") + upN);
     html += stLine(L("ઘટ", "Ghat"), "− " + moneyP(st.ghatP), "minus", kgStr(st.ghatKg * 1000n, 0) + ' kg (' + st.ghatPct + '%) × ' + rateStr(st.yarnPriceP) + '/kg');
     html += stLine(L("TDS (માલિક દાખલ કરે)", "TDS (owner-entered)"), "− " + moneyP(st.tdsP), "minus", L("સૂચન 1%: ", "1% suggestion: ") + jobHint);
     html += stLine(L("લોન કપાત (માલિક નક્કી કરે)", "Loan deduction (owner-decided)"), "− " + moneyP(st.deductP), "minus", L("બાકી લોન પછી: ", "loan left after: ") + moneyP(loanClosing > 0n ? loanClosing : 0n));
@@ -808,11 +808,11 @@
 
     /* niwar upad + loan (separate for this party) */
     html += '<div class="grid-2 mt">';
-    html += '<div class="card"><div class="card-head"><div class="ico tint-upad">' + svg("wallet") + '</div><div><h3>' + L("નિવાર ઉપડ", "Niwar Upad") + ' <span class="en">' + monthName() + '</span></h3></div><div class="spacer"></div><button class="btn btn-primary btn-sm" data-nupadnew="1">' + svg("plus") + ' ' + L("ઉપડ", "Upad") + '</button></div><div class="table-scroll"><table class="data"><thead><tr><th>' + L("તારીખ", "Date") + '</th><th>' + L("નોંધ", "Note") + '</th><th style="text-align:right">' + L("રકમ", "Amount") + '</th><th style="width:84px"></th></tr></thead><tbody>';
+    html += '<div class="card"><div class="card-head"><div class="ico tint-upad">' + svg("wallet") + '</div><div><h3>' + L("નિવાર ઉપાડ", "Niwar Upad") + ' <span class="en">' + monthName() + '</span></h3></div><div class="spacer"></div><button class="btn btn-primary btn-sm" data-nupadnew="1">' + svg("plus") + ' ' + L("ઉપાડ", "Upad") + '</button></div><div class="table-scroll"><table class="data"><thead><tr><th>' + L("તારીખ", "Date") + '</th><th>' + L("નોંધ", "Note") + '</th><th style="text-align:right">' + L("રકમ", "Amount") + '</th><th style="width:84px"></th></tr></thead><tbody>';
     var nue = nUpadEntries(p.id, mid);
     nue.forEach(function (t) { html += '<tr><td>' + dmy(t.d) + '</td><td style="color:var(--ink-soft)">' + esc(t.note) + '</td><td style="text-align:right" class="num loan-give">+ ' + moneyP(rupToP(t.amt)) + '</td><td style="text-align:right;white-space:nowrap"><button class="icon-btn" data-nupadedit="' + t.id + '">' + svg("edit") + '</button> <button class="icon-btn" data-nupaddel="' + t.id + '">' + svg("trash") + '</button></td></tr>'; });
-    if (!nue.length) html += '<tr><td colspan="4" style="text-align:center;color:var(--muted)">' + L("આ મહિને ઉપડ નથી.", "No upad this month.") + '</td></tr>';
-    html += '</tbody><tfoot><tr class="tot"><td class="l" colspan="2">' + L("કુલ ઉપડ", "Total upad") + '</td><td style="text-align:right" class="num">' + moneyP(st.upadP) + '</td><td></td></tr></tfoot></table></div></div>';
+    if (!nue.length) html += '<tr><td colspan="4" style="text-align:center;color:var(--muted)">' + L("આ મહિને ઉપાડ નથી.", "No upad this month.") + '</td></tr>';
+    html += '</tbody><tfoot><tr class="tot"><td class="l" colspan="2">' + L("કુલ ઉપાડ", "Total upad") + '</td><td style="text-align:right" class="num">' + moneyP(st.upadP) + '</td><td></td></tr></tfoot></table></div></div>';
     var nbal = nLoanBalanceP(p.id);
     html += '<div class="card"><div class="card-head"><div class="ico tint-out">' + svg("rupee") + '</div><div><h3>' + L("નિવાર લોન", "Niwar Loan") + '</h3></div><div class="spacer"></div><button class="btn btn-primary btn-sm" data-nloannew="1">' + svg("plus") + ' ' + L("લોન", "Loan") + '</button></div><div class="card-pad"><div class="bill-line"><span class="lab">' + L("બાકી લોન", "Loan outstanding") + '</span><span class="val num">' + moneyP(nbal) + '</span></div><div class="table-scroll" style="margin-top:8px"><table class="data"><thead><tr><th>' + L("તારીખ", "Date") + '</th><th>' + L("પ્રકાર", "Type") + '</th><th style="text-align:right">' + L("રકમ", "Amount") + '</th><th style="text-align:right">' + L("બાકી", "Balance") + '</th></tr></thead><tbody>';
     var nrun = 0n; (NLOANS[p.id] || []).slice().sort(function (a, b) { return a.d < b.d ? -1 : 1; }).forEach(function (t) { var a = rupToP(t.amt); nrun += (t.type === "repay" ? -a : a); var typ = t.type === "loan" ? L("લોન આપી", "Loan given") : t.type === "topup" ? L("ટોપ-અપ", "Top-up") : L("વસૂલ", "Repayment"); html += '<tr><td>' + dmy(t.d) + '</td><td><span class="badge ' + (t.type === "repay" ? "badge-ok" : "badge-upad") + '">' + typ + '</span></td><td style="text-align:right" class="num ' + (t.type === "repay" ? "loan-repay" : "loan-give") + '">' + (t.type === "repay" ? "− " : "+ ") + moneyP(a) + '</td><td style="text-align:right;font-weight:700" class="num">' + moneyP(nrun) + '</td></tr>'; });
@@ -867,7 +867,7 @@
 
   /* ---------------------------------------------------------------- UPAD (advances) */
   function viewUpad() {
-    if (!WORKERS.length) return noWorkersView("ઉપડ", "Upad (Advances)");
+    if (!WORKERS.length) return noWorkersView("ઉપાડ", "Upad");
     var w = worker(); var mid = STATE.month; var mi = monthIndexOf(mid);
     var rows = upadEntries(w.id, mid);
     var upTot = upadMP(w.id, mid);
@@ -875,21 +875,21 @@
     var s = settleM(w.id, mi);
     var allUpad = WORKERS.reduce(function (a, ww) { return a + upadMP(ww.id, mid); }, 0n);
     var html = demoStrip();
-    html += '<div class="page-head row-between"><div><h2>' + L("ઉપડ (એડવાન્સ)", "Upad (Advances)") + '</h2><div class="sub">' + wNm(w) + ' · ' + monthName() + ' — ' + L("અઠવાડિક ઉપડ — બિલમાં આપમેળે કપાય", "weekly advances — auto-deducted in the bill") + '</div></div>' +
-      '<button class="btn btn-primary" data-upadnew="1">' + svg("plus") + ' ' + L("ઉપડ એન્ટ્રી", "Add Upad Entry") + '</button></div>';
+    html += '<div class="page-head row-between"><div><h2>' + L("ઉપાડ", "Upad") + '</h2><div class="sub">' + wNm(w) + ' · ' + monthName() + ' — ' + L("અઠવાડિક ઉપાડ — બિલમાં આપમેળે કપાય", "weekly advances — auto-deducted in the bill") + '</div></div>' +
+      '<button class="btn btn-primary" data-upadnew="1">' + svg("plus") + ' ' + L("ઉપાડ એન્ટ્રી", "Add Upad Entry") + '</button></div>';
     html += '<div class="stat-grid">' +
-      stat("tint-upad", "wallet", L("આ મહિનાનું ઉપડ", "Upad this month"), moneyP(upTot), "", wNm(w)) +
+      stat("tint-upad", "wallet", L("આ મહિનાનું ઉપાડ", "Upad this month"), moneyP(upTot), "", wNm(w)) +
       stat("tint-in", "box", L("આ મહિનાની કમાણી", "Earnings this month"), moneyPw(earnP), "", L("મીટર×રેટ + ટેમ્પો", "metre×rate + transport")) +
-      stat("tint-ok", "bill", L("ઉપડ પછી ચૂકવવાપાત્ર", "Payable after upad"), moneyP(s.payable), "", L("ઓપનિંગ સહિત", "incl. opening")) +
-      stat("tint-brand", "users", L("બધા વર્કર ઉપડ", "All workers upad"), moneyPw(allUpad), "", L("આ મહિને કુલ", "this month total")) +
+      stat("tint-ok", "bill", L("ઉપાડ પછી ચૂકવવાપાત્ર", "Payable after upad"), moneyP(s.payable), "", L("ઓપનિંગ સહિત", "incl. opening")) +
+      stat("tint-brand", "users", L("બધા વર્કર ઉપાડ", "All workers upad"), moneyPw(allUpad), "", L("આ મહિને કુલ", "this month total")) +
       '</div>';
-    html += '<div class="card"><div class="card-head"><div class="ico tint-upad">' + svg("wallet") + '</div><div><h3>' + L("ઉપડ એન્ટ્રી", "Upad entries") + ' <span class="en">' + monthName() + '</span></h3></div><div class="spacer"></div><button class="btn btn-gold btn-sm" id="upadReport">' + svg("file") + ' ' + L("માસિક ઉપડ રિપોર્ટ PDF", "Monthly Upad Report PDF") + '</button></div>';
+    html += '<div class="card"><div class="card-head"><div class="ico tint-upad">' + svg("wallet") + '</div><div><h3>' + L("ઉપાડ એન્ટ્રી", "Upad entries") + ' <span class="en">' + monthName() + '</span></h3></div><div class="spacer"></div><button class="btn btn-gold btn-sm" id="upadReport">' + svg("file") + ' ' + L("માસિક ઉપાડ રિપોર્ટ PDF", "Monthly Upad Report PDF") + '</button></div>';
     html += '<div class="table-scroll"><table class="data"><thead><tr><th>' + L("તારીખ", "Date") + '</th><th>' + L("નોંધ", "Note") + '</th><th style="text-align:right">' + L("રકમ", "Amount") + '</th><th style="text-align:right">' + L("ચાલુ કુલ", "Running total") + '</th><th style="width:96px"></th></tr></thead><tbody>';
     var run = 0n;
     rows.forEach(function (t) { var a = rupToP(t.amt); run += a; html += '<tr><td>' + dmy(t.d) + '</td><td style="color:var(--ink-soft)">' + esc(t.note) + '</td><td style="text-align:right" class="num loan-give">+ ' + moneyP(a) + '</td><td style="text-align:right;font-weight:700" class="num">' + moneyP(run) + '</td><td style="text-align:right;white-space:nowrap"><button class="icon-btn" data-upadedit="' + t.id + '" title="' + L("ફેરફાર", "Edit") + '">' + svg("edit") + '</button> <button class="icon-btn" data-upaddel="' + t.id + '" title="' + L("કાઢો", "Delete") + '">' + svg("trash") + '</button></td></tr>'; });
-    if (!rows.length) html += '<tr><td colspan="5" style="text-align:center;color:var(--muted)">' + L("આ મહિને કોઈ ઉપડ નથી.", "No upad this month.") + '</td></tr>';
-    html += '</tbody>' + (rows.length ? '<tfoot><tr class="tot"><td class="l" colspan="2">' + L("કુલ ઉપડ (આ મહિને)", "Total upad (this month)") + '</td><td style="text-align:right" class="num">' + moneyP(upTot) + '</td><td colspan="2"></td></tr></tfoot>' : '') + '</table></div></div>';
-    html += '<div class="hint mt">' + L("💡 ઉપડ હંમેશા ચાલુ મહિનાનું જ હોય. મહિનાના અંતે બિલિંગમાં આ કુલ ઉપડ આપમેળે કપાય; બાકી રકમ કેરી ફોરવર્ડ થાય. લોન અલગ છે.", "💡 Upad always belongs to the current month. At month-end it is auto-deducted in Billing; any remainder carries forward. Loans are kept separate.") + '</div>';
+    if (!rows.length) html += '<tr><td colspan="5" style="text-align:center;color:var(--muted)">' + L("આ મહિને કોઈ ઉપાડ નથી.", "No upad this month.") + '</td></tr>';
+    html += '</tbody>' + (rows.length ? '<tfoot><tr class="tot"><td class="l" colspan="2">' + L("કુલ ઉપાડ (આ મહિને)", "Total upad (this month)") + '</td><td style="text-align:right" class="num">' + moneyP(upTot) + '</td><td colspan="2"></td></tr></tfoot>' : '') + '</table></div></div>';
+    html += '<div class="hint mt">' + L("💡 ઉપાડ હંમેશા ચાલુ મહિનાનું જ હોય. મહિનાના અંતે બિલિંગમાં આ કુલ ઉપાડ આપમેળે કપાય; બાકી રકમ કેરી ફોરવર્ડ થાય. લોન અલગ છે.", "💡 Upad always belongs to the current month. At month-end it is auto-deducted in Billing; any remainder carries forward. Loans are kept separate.") + '</div>';
     return html;
   }
 
@@ -917,7 +917,7 @@
     /* MONEY — settles this month (no money carry-forward) */
     html += '<div class="statement" style="margin-top:14px"><div class="settle-h">' + svg("bill") + ' ' + L("આ મહિનાની ચુકવણી (રૂપિયા)", "This month's payment (money)") + '</div>';
     html += stLine(L("આ મહિનાનું નેટ", "This month net"), "+ " + moneyP(s.E), "plus", L("મીટર×રેટ + ટેમ્પો", "metre×rate + transport"));
-    html += stLine(L("ઉપડ (આ મહિને, આપમેળે)", "Upad (this month, auto)"), "− " + moneyP(s.upad), "minus", L("એન્ટ્રી: ", "entries: ") + upadEntries(w.id, mid).length + ' · <a href="#upad" class="lnk">' + L("ઉપડ સેક્શન", "Upad section") + '</a>');
+    html += stLine(L("ઉપાડ (આ મહિને, આપમેળે)", "Upad (this month, auto)"), "− " + moneyP(s.upad), "minus", L("એન્ટ્રી: ", "entries: ") + upadEntries(w.id, mid).length + ' · <a href="#upad" class="lnk">' + L("ઉપાડ સેક્શન", "Upad section") + '</a>');
     html += stLine(L("લોન કપાત (માલિક નક્કી કરે)", "Loan deduction (owner-decided)"), "− " + moneyP(s.deduct), "minus", L("બાકી લોન પછી: ", "loan left after: ") + moneyP(loanClosing > 0n ? loanClosing : 0n));
     html += '<div class="bill-total"><span class="lab"><b>' + L("ચૂકવવાપાત્ર", "Net Payable") + '</b></span><span class="val num">' + moneyP(s.payable) + '</span></div>';
     html += stLine(L("ચૂકવ્યું (આ મહિને)", "Paid now"), "− " + moneyP(s.paid), "minus", "");
@@ -929,7 +929,7 @@
     html += '<div class="ctrl"><label>' + L("ઘટ", "Ghati") + ' <span class="v">' + bl.ghati + '%</span></label><div class="field"><input type="number" value="' + bl.ghati + '" disabled><span class="suf">' + L("ફિક્સ", "fixed") + '</span></div></div>';
     html += '<div class="weigh" style="margin-bottom:14px"><div class="wbox"><div class="k">' + L("કાપડ વજન", "Cloth Wt") + '</div><div class="v num">' + kgStr(b.kapadG) + '</div></div><div class="wbox ghati"><div class="k">' + L("ઘટ 3%", "Ghati 3%") + '</div><div class="v num">+' + kgStr(b.ghatiG, 2) + '</div></div><div class="wbox total"><div class="k">' + L("કુલ વજન", "Total Wt") + '</div><div class="v num">' + kgStr(b.clothG, 2) + '</div></div></div>';
     html += '<div class="nav-sep"></div>';
-    html += '<div class="ctrl"><label>' + L("ઉપડ (આ મહિને, આપમેળે)", "Upad (this month, auto)") + ' <span class="v">' + moneyP(s.upad) + '</span></label><div class="field"><span class="pre">₹</span><input type="number" value="' + Number(s.upad / 100n) + '" disabled><span class="suf">' + L("ઉપડ સેક્શન", "Upad section") + '</span></div><div class="hint">' + L("ઉપડ એન્ટ્રી ", "Managed in the ") + '<a href="#upad" class="lnk">' + L("ઉપડ સેક્શનમાં", "Upad section") + '</a>' + L(" મેનેજ થાય — અહીં આપમેળે કપાય.", " — deducted here automatically.") + '</div></div>';
+    html += '<div class="ctrl"><label>' + L("ઉપાડ (આ મહિને, આપમેળે)", "Upad (this month, auto)") + ' <span class="v">' + moneyP(s.upad) + '</span></label><div class="field"><span class="pre">₹</span><input type="number" value="' + Number(s.upad / 100n) + '" disabled><span class="suf">' + L("ઉપાડ સેક્શન", "Upad section") + '</span></div><div class="hint">' + L("ઉપાડ એન્ટ્રી ", "Managed in the ") + '<a href="#upad" class="lnk">' + L("ઉપાડ સેક્શનમાં", "Upad section") + '</a>' + L(" મેનેજ થાય — અહીં આપમેળે કપાય.", " — deducted here automatically.") + '</div></div>';
     html += '<div class="ctrl"><label>' + L("લોન કપાત (આ મહિને)", "Loan deduction (this month)") + ' <span class="v" id="deductV">' + moneyP(s.deduct) + '</span></label><div class="field"><span class="pre">₹</span><input type="number" id="deduct" value="' + Number(s.deduct / 100n) + '" min="0" step="100"></div><div class="hint">' + L("લોન બાકી (ઓપનિંગ): ", "Loan outstanding (opening): ") + moneyP(loanOpen) + '</div></div>';
     html += '<div class="ctrl"><label>' + L("ચૂકવ્યું (આ મહિને)", "Paid this month") + ' <span class="v" id="paidV">' + moneyP(s.paid) + '</span></label><div class="field"><span class="pre">₹</span><input type="number" id="paid" value="' + Number(s.paid / 100n) + '" min="0" step="100"></div><div class="hint">' + L("બાકી રકમ કેરી ફોરવર્ડ થશે.", "Remainder carries forward.") + '</div></div>';
     html += '<div class="nav-sep"></div><h4 style="font-size:14px;margin-bottom:4px">' + L("PDF અને શેર", "PDF & Share") + '</h4><p class="hint" style="margin-bottom:14px">' + L("PDF ડાઉનલોડ કરો અથવા WhatsApp પર સારાંશ મોકલો.", "Download a PDF or send a summary on WhatsApp.") + '</p>';
@@ -1535,7 +1535,7 @@
     html += '<div class="card card-pad"><h3 style="margin-bottom:14px;font-size:16px">' + L("પ્રક્રિયા", "The process") + '</h3><div class="flow">' +
       fnode(1, L("ગેટ જોબ વર્ક શીટ", "Gate Job Work Sheet"), L("સ્ટેપ, મીટર, KG, કોકડી+કલર", "steps, metre, KG, Kokdi+Color")) +
       fnode(2, L("ખાતાવહી", "Ledger"), L("દરેક શીટ = એક એન્ટ્રી", "each sheet = one entry")) +
-      fnode(3, L("બિલિંગ", "Billing"), L("મીટર×રેટ − ઉપડ − લોન", "metre×rate − upad − loan")) +
+      fnode(3, L("બિલિંગ", "Billing"), L("મીટર×રેટ − ઉપાડ − લોન", "metre×rate − upad − loan")) +
       fnode(4, L("લોન", "Loans"), L("એડવાન્સ — બિલમાંથી વસૂલ", "advances, recovered from bill")) +
       fnode(5, L("વર્ષાંત (દિવાળી)", "Year-End"), L("લોન + ઘટ + કેરી", "loan + ghati + carry")) +
       '</div></div>';
@@ -1547,7 +1547,7 @@
       '<div class="card card-pad"><h3 style="font-size:16px;margin-bottom:12px">' + L("મુખ્ય મુદ્દા", "Key points") + '</h3><ul class="feat-list">' +
       feat(L("ગેટ શીટ = આખી સિસ્ટમનો આધાર (એક સોર્સ)", "The gate sheet is the single source of truth")) +
       feat(L("નિવાર જોબવર્ક — ગેટ-સ્ટાઇલ kg ખાતાવહી: એક શીટમાં અનેક સાઇઝ (સાઇઝ પ્રમાણે રેટ), યાર્ન, પરાત → પોતાનું બિલ", "Niwar Jobwork — gate-style kg ledger: many sizes per sheet (per-size rates), yarn, parat → its own bill")) +
-      feat(L("ઉપડ — અઠવાડિક એડવાન્સ, બિલમાં આપમેળે કપાય (ચાલુ મહિનો)", "Upad — weekly advances, auto-deducted in the bill (current month)")) +
+      feat(L("ઉપાડ — અઠવાડિક એડવાન્સ, બિલમાં આપમેળે કપાય (ચાલુ મહિનો)", "Upad — weekly advances, auto-deducted in the bill (current month)")) +
       feat(L("લોન અલગ ખાતું — માલિક બિલમાંથી નક્કી કરે એટલું વસૂલ", "Loans are a separate account — recovered from the bill as the owner decides")) +
       feat(L("કેરી ફોરવર્ડ — બાકી રકમ આવતા મહિને", "Carry-forward — remainder to next month")) +
       feat(L("બધી રકમ અને વજન બિલકુલ ચોક્કસ — કોઈ રાઉન્ડિંગ ભૂલ નહીં", "All money & weight are exact — no rounding errors")) + '</ul></div></div>';
@@ -1997,9 +1997,9 @@
     var body = '<div class="form-grid">' +
       '<div class="fg" data-fg="uamt"><label>' + L("રકમ (₹)", "Amount (₹)") + '</label><div class="field"><span class="pre">₹</span><input type="number" data-u="amt" min="1" max="1000000" step="100" value="' + (ex ? ex.amt : 2000) + '"></div><div class="msg">' + L("માન્ય રકમ દાખલ કરો", "Enter a valid amount") + '</div></div>' +
       '<div class="fg" data-fg="uday"><label>' + L("તારીખ (દિવસ)", "Date (day)") + '</label><div class="field"><input type="number" data-u="day" min="1" max="' + lastDay + '" value="' + defDay + '"></div><div class="msg">1–' + lastDay + '</div></div>' +
-      '<div class="fg fg-full"><label>' + L("નોંધ", "Note") + '</label><div class="field"><input data-u="note" value="' + (ex ? esc(ex.note) : L("અઠવાડિક ઉપડ", "Weekly advance")) + '"></div></div></div>' +
-      '<div class="hint">' + wNm(w) + ' · ' + monthName() + ' — ' + L("ઉપડ ફક્ત આ મહિનામાં નોંધાય.", "upad is recorded within this month only.") + '</div>';
-    showModal("wallet", editId ? L("ઉપડ ફેરફાર", "Edit upad") : L("ઉપડ એન્ટ્રી", "Upad entry"), wNm(w) + " · " + monthName(), body, saveUpad);
+      '<div class="fg fg-full"><label>' + L("નોંધ", "Note") + '</label><div class="field"><input data-u="note" value="' + (ex ? esc(ex.note) : L("અઠવાડિક ઉપાડ", "Weekly advance")) + '"></div></div></div>' +
+      '<div class="hint">' + wNm(w) + ' · ' + monthName() + ' — ' + L("ઉપાડ ફક્ત આ મહિનામાં નોંધાય.", "upad is recorded within this month only.") + '</div>';
+    showModal("wallet", editId ? L("ઉપાડ ફેરફાર", "Edit upad") : L("ઉપાડ એન્ટ્રી", "Upad entry"), wNm(w) + " · " + monthName(), body, saveUpad);
   }
   function saveUpad() {
     var w = worker(); var m = monthObj(); var lastDay = new Date(2026, m.mm, 0).getDate();
@@ -2011,7 +2011,7 @@
     var fd = document.querySelector('[data-fg="uday"]'); if (fd) fd.classList.toggle("err", !okD);
     if (!okA || !okD) return;
     var d = "2026-" + pad(m.mm) + "-" + pad(day);
-    var note = val("note") || L("અઠવાડિક ઉપડ", "Weekly advance");
+    var note = val("note") || L("અઠવાડિક ઉપાડ", "Weekly advance");
     UPAD[w.id] = UPAD[w.id] || [];
     if (upadEditId) {
       var ex = UPAD[w.id].filter(function (t) { return t.id === upadEditId; })[0];
@@ -2021,14 +2021,14 @@
     }
     /* editing the month's upad re-opens the settlement default so the bill reflects it */
     var bl = BILL[w.id][m.id]; if (bl) bl.paidP = null;
-    upadEditId = null; closeModal(); render(); toast(L("ઉપડ સેવ થયું", "Upad saved"), "ok");
+    upadEditId = null; closeModal(); render(); toast(L("ઉપાડ સેવ થયું", "Upad saved"), "ok");
   }
   function delUpad(id) {
     var w = worker();
-    infoModalConfirm(L("ઉપડ કાઢવું?", "Delete upad?"), L("આ ઉપડ એન્ટ્રી કાઢી નાખશે; બિલ ફરી ગણાશે.", "This removes the upad entry; the bill will recompute."), function () {
+    infoModalConfirm(L("ઉપાડ કાઢવું?", "Delete upad?"), L("આ ઉપાડ એન્ટ્રી કાઢી નાખશે; બિલ ફરી ગણાશે.", "This removes the upad entry; the bill will recompute."), function () {
       UPAD[w.id] = (UPAD[w.id] || []).filter(function (t) { return t.id !== id; });
       var bl = BILL[w.id][STATE.month]; if (bl) bl.paidP = null;
-      render(); toast(L("ઉપડ કાઢ્યું", "Upad deleted"), "ok");
+      render(); toast(L("ઉપાડ કાઢ્યું", "Upad deleted"), "ok");
     });
   }
 
@@ -2117,8 +2117,8 @@
     var body = '<div class="form-grid">' +
       '<div class="fg" data-fg="nuamt"><label>' + L("રકમ (₹)", "Amount (₹)") + '</label><div class="field"><span class="pre">₹</span><input type="number" data-nu="amt" min="1" step="100" value="' + (ex ? ex.amt : 2000) + '"></div><div class="msg">' + L("માન્ય રકમ", "Enter a valid amount") + '</div></div>' +
       '<div class="fg" data-fg="nuday"><label>' + L("તારીખ (દિવસ)", "Date (day)") + '</label><div class="field"><input type="number" data-nu="day" min="1" max="' + lastDay + '" value="' + (ex ? parseInt(ex.d.slice(8), 10) : Math.min(28, new Date().getDate())) + '"></div><div class="msg">1–' + lastDay + '</div></div>' +
-      '<div class="fg fg-full"><label>' + L("નોંધ", "Note") + '</label><div class="field"><input data-nu="note" value="' + (ex ? esc(ex.note) : L("અઠવાડિક ઉપડ", "Weekly advance")) + '"></div></div></div><div class="hint">' + (STATE.lang === "en" ? p.en : p.name) + ' · ' + monthName() + '</div>';
-    showModal("wallet", editId ? L("ઉપડ ફેરફાર", "Edit upad") : L("નિવાર ઉપડ", "Niwar upad"), (STATE.lang === "en" ? p.en : p.name), body, saveNUpad);
+      '<div class="fg fg-full"><label>' + L("નોંધ", "Note") + '</label><div class="field"><input data-nu="note" value="' + (ex ? esc(ex.note) : L("અઠવાડિક ઉપાડ", "Weekly advance")) + '"></div></div></div><div class="hint">' + (STATE.lang === "en" ? p.en : p.name) + ' · ' + monthName() + '</div>';
+    showModal("wallet", editId ? L("ઉપાડ ફેરફાર", "Edit upad") : L("નિવાર ઉપાડ", "Niwar upad"), (STATE.lang === "en" ? p.en : p.name), body, saveNUpad);
   }
   function saveNUpad() {
     var p = niwarParty(), m = monthObj(), lastDay = new Date(2026, m.mm, 0).getDate();
@@ -2129,16 +2129,16 @@
     var fa = document.querySelector('[data-fg="nuamt"]'); if (fa) fa.classList.toggle("err", !okA);
     var fd = document.querySelector('[data-fg="nuday"]'); if (fd) fd.classList.toggle("err", !okD);
     if (!okA || !okD) return;
-    var d = "2026-" + pad(m.mm) + "-" + pad(day), note = val("note") || L("અઠવાડિક ઉપડ", "Weekly advance");
+    var d = "2026-" + pad(m.mm) + "-" + pad(day), note = val("note") || L("અઠવાડિક ઉપાડ", "Weekly advance");
     NUPAD[p.id] = NUPAD[p.id] || [];
     if (nUpadEditId) { var ex = NUPAD[p.id].filter(function (t) { return t.id === nUpadEditId; })[0]; if (ex) { ex.d = d; ex.amt = Math.round(amt); ex.note = note; } }
     else NUPAD[p.id].push({ id: rid(), d: d, amt: Math.round(amt), note: note });
     var pr = nParam(p.id, m.id); if (pr) pr.paidP = null;   /* bug 25: reopen the paid default so Net Payable recomputes */
-    nUpadEditId = null; closeModal(); render(); flushPersistNow(); toast(L("ઉપડ સેવ થયું", "Upad saved"), "ok");
+    nUpadEditId = null; closeModal(); render(); flushPersistNow(); toast(L("ઉપાડ સેવ થયું", "Upad saved"), "ok");
   }
   function delNUpad(id) {
     var p = niwarParty();
-    infoModalConfirm(L("ઉપડ કાઢવું?", "Delete upad?"), L("આ ઉપડ એન્ટ્રી કાઢી નાખશે; બિલ ફરી ગણાશે.", "This removes the upad entry; the bill recomputes."), function () {
+    infoModalConfirm(L("ઉપાડ કાઢવું?", "Delete upad?"), L("આ ઉપાડ એન્ટ્રી કાઢી નાખશે; બિલ ફરી ગણાશે.", "This removes the upad entry; the bill recomputes."), function () {
       NUPAD[p.id] = (NUPAD[p.id] || []).filter(function (t) { return t.id !== id; });
       var pr = nParam(p.id, monthObj().id); if (pr) pr.paidP = null; render(); flushPersistNow(); toast(L("કાઢ્યું", "Deleted"), "ok");   /* bug 25 */
     });
@@ -2404,7 +2404,7 @@
     var cy = istNow().getFullYear();
     var html = '<div class="card mt"><div class="card-head"><div class="ico tint-out">' + svg("spark") + '</div><div><h3>' + L("વાર્ષિક નાણાકીય બેકઅપ", "Yearly Financial Backup") + '</h3><p class="mini">' + L("દર વર્ષે 30 નવેમ્બરે આપમેળે · ફક્ત નાણાકીય ડેટા", "Automatic every 30 November · financial data only") + '</p></div></div><div class="card-pad">';
     html += '<div class="bk-last' + (lastOk ? '' : ' muted') + '">' + svg(lastOk ? "check" : "info") + '<span>' + (lastOk ? (L("છેલ્લું સફળ નાણાકીય બેકઅપ: ", "Last successful financial backup: ") + esc(lastOk.atLocal) + ' · ' + gjFmtBytes(lastOk.size)) : L("હજી કોઈ વાર્ષિક નાણાકીય બેકઅપ નથી.", "No yearly financial backup yet.")) + '</span></div>';
-    html += '<p class="bk-p" style="margin-top:12px">' + L("સમાવિષ્ટ: બિલિંગ, લોન, ઉપડ (એડવાન્સ), નિવાર નાણાકીય, જોબવર્ક અને નિવાર ટ્રાન્ઝેક્શન, પેમેન્ટ/બાકી — અને સંબંધ જાળવવા જોબ વર્કર તથા પાર્ટી.", "Includes: billing, loans, advances (upad), niwar financials, job work & niwar transactions, payments / outstanding — plus workers & parties to keep relationships intact.") + '</p>';
+    html += '<p class="bk-p" style="margin-top:12px">' + L("સમાવિષ્ટ: બિલિંગ, લોન, ઉપાડ (એડવાન્સ), નિવાર નાણાકીય, જોબવર્ક અને નિવાર ટ્રાન્ઝેક્શન, પેમેન્ટ/બાકી — અને સંબંધ જાળવવા જોબ વર્કર તથા પાર્ટી.", "Includes: billing, loans, advances (upad), niwar financials, job work & niwar transactions, payments / outstanding — plus workers & parties to keep relationships intact.") + '</p>';
     html += '<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-primary" data-fin-generate="' + cy + '">' + svg("dl") + ' ' + L("અત્યારે નાણાકીય બેકઅપ બનાવો (" + cy + ")", "Generate financial backup now (" + cy + ")") + '</button>';
     if (lastErr) html += '<button class="btn btn-soft" data-fin-retry="' + lastErr.year + '">' + svg("info") + ' ' + L("ફરી પ્રયાસ", "Retry backup") + '</button>';
     html += '</div>';
@@ -2433,7 +2433,7 @@
     html += '<div class="grid-2 mt">';
     html += '<div class="card"><div class="card-head"><div class="ico tint-brand">' + svg("database") + '</div><div><h3>' + L("બેકઅપ બનાવો અને ડાઉનલોડ કરો", "Create & Download Backup") + '</h3><p class="mini">' + L("એક ફાઇલમાં આખી સિસ્ટમ", "The whole system in one file") + '</p></div></div><div class="card-pad">';
     html += '<p class="bk-p">' + L("નીચેનો બધો ડેટા એક ટાઇમસ્ટૅમ્પ ફાઇલમાં સેવ થાય છે:", "Everything below is saved into one timestamped file:") + '</p>';
-    html += '<div class="bk-list">' + bkItem(L("જોબ વર્કર્સ અને નિવાર પાર્ટી", "Job workers & niwar parties"), c.workers + c.niwarParties) + bkItem(L("ગેટ જોબ વર્ક શીટ", "Gate job work sheets"), c.gateSheets) + bkItem(L("પેકિંગ લિસ્ટ", "Packing lists"), c.packingLists) + bkItem(L("નિવાર ગેટ એન્ટ્રી", "Niwar gate sheets"), c.niwarSheets) + bkItem(L("બિલિંગ · લોન · ઉપડ · પેરામીટર", "Billing · loans · advances · parameters"), c.loans + c.advances + c.niwarAdvances + c.niwarLoans) + '</div>';
+    html += '<div class="bk-list">' + bkItem(L("જોબ વર્કર્સ અને નિવાર પાર્ટી", "Job workers & niwar parties"), c.workers + c.niwarParties) + bkItem(L("ગેટ જોબ વર્ક શીટ", "Gate job work sheets"), c.gateSheets) + bkItem(L("પેકિંગ લિસ્ટ", "Packing lists"), c.packingLists) + bkItem(L("નિવાર ગેટ એન્ટ્રી", "Niwar gate sheets"), c.niwarSheets) + bkItem(L("બિલિંગ · લોન · ઉપાડ · પેરામીટર", "Billing · loans · advances · parameters"), c.loans + c.advances + c.niwarAdvances + c.niwarLoans) + '</div>';
     html += '<p class="bk-note">' + L("PDF આ જ ડેટામાંથી બને છે, તેથી અલગ ફાઇલ રાખવાની જરૂર નથી. લોગિન પાસવર્ડ સુરક્ષા કારણસર બેકઅપમાં સમાવાતા નથી.", "PDFs are generated from this data, so no separate file is needed. Login passwords are not included, for security.") + '</p>';
     html += '<button class="btn btn-primary btn-block" data-bk-create>' + svg("dl") + ' ' + L("બેકઅપ બનાવો અને ડાઉનલોડ કરો", "Create & Download Backup") + '</button>';
     if (last) html += '<div class="bk-last">' + svg("check") + '<span>' + L("છેલ્લું બેકઅપ: ", "Last backup: ") + esc(last.atLocal) + ' · ' + gjFmtBytes(last.size) + ' · ' + last.total + ' ' + L("રેકોર્ડ", "records") + '</span></div>';
@@ -2661,7 +2661,7 @@
       '<div class="ml"><span><b>બાકી → કેરી ફોરવર્ડ · Closing</b></span><b>' + kgStr(mat.closing, 2) + ' kg</b></div></div></div>' +
       '<div><h4 class="sh-h">ચુકવણી (રૂપિયા) · Payment</h4><div class="mini">' +
       '<div class="ml"><span>' + numI(b.mtr) + ' × ' + rateStr(b.ratePaise) + ' + ટેમ્પો</span><b>+ ' + moneyP(s.E) + '</b></div>' +
-      '<div class="ml"><span>ઉપડ · Upad</span><b>− ' + moneyP(s.upad) + '</b></div>' +
+      '<div class="ml"><span>ઉપાડ · Upad</span><b>− ' + moneyP(s.upad) + '</b></div>' +
       '<div class="ml"><span>લોન કપાત · Loan deduction</span><b>− ' + moneyP(s.deduct) + '</b></div>' +
       '<div class="ml"><span>ચૂકવવાપાત્ર · Payable</span><b>' + moneyP(s.payable) + '</b></div>' +
       '<div class="ml"><span>ચૂકવ્યું · Paid</span><b>− ' + moneyP(s.paid) + '</b></div>' +
@@ -2685,16 +2685,16 @@
     var rows = upadEntries(w.id, mid); var upTot = upadMP(w.id, mid); var s = settleM(w.id, mi);
     var run = 0n;
     var tr = rows.map(function (t) { var a = rupToP(t.amt); run += a; return '<tr><td class="l">' + dmy(t.d) + '</td><td class="l">' + esc(t.note) + '</td><td>+ ' + moneyP(a) + '</td><td>' + moneyP(run) + '</td></tr>'; }).join("");
-    return '<div class="sheet">' + sheetTop(chipOf("company"), "ઉપડ (એડવાન્સ) રિપોર્ટ<br>Upad (Advance) Report") +
+    return '<div class="sheet">' + sheetTop(chipOf("company"), "ઉપાડ રિપોર્ટ<br>Upad Report") +
       '<div class="sh-party"><div class="pb"><div class="k">જોબ વર્કર · Job Worker</div><div class="vv">' + wNm(w) + '</div></div><div class="pb"><div class="k">મહિનો · Month</div><div class="vv">' + m.g + '</div></div></div>' +
-      '<h4 class="sh-h">અઠવાડિક ઉપડ · Weekly Advances</h4><table class="pt"><thead><tr><th class="l">તારીખ · Date</th><th class="l">નોંધ · Note</th><th>રકમ · Amount</th><th>ચાલુ કુલ · Running</th></tr></thead><tbody>' + (tr || '<tr><td colspan="4" class="l">No upad this month</td></tr>') + '</tbody><tfoot><tr class="tot"><td class="l" colspan="2">કુલ ઉપડ · Total Upad</td><td>' + moneyP(upTot) + '</td><td></td></tr></tfoot></table>' +
+      '<h4 class="sh-h">અઠવાડિક ઉપાડ · Weekly Advances</h4><table class="pt"><thead><tr><th class="l">તારીખ · Date</th><th class="l">નોંધ · Note</th><th>રકમ · Amount</th><th>ચાલુ કુલ · Running</th></tr></thead><tbody>' + (tr || '<tr><td colspan="4" class="l">No upad this month</td></tr>') + '</tbody><tfoot><tr class="tot"><td class="l" colspan="2">કુલ ઉપાડ · Total Upad</td><td>' + moneyP(upTot) + '</td><td></td></tr></tfoot></table>' +
       '<div class="two-col" style="margin-top:18px"><div><h4 class="sh-h">બિલ પર અસર · Effect on Bill</h4><div class="mini">' +
       '<div class="ml"><span>કમાણી · Earnings</span><b>+ ' + moneyP(s.E) + '</b></div>' +
-      '<div class="ml"><span>ઉપડ · Upad</span><b>− ' + moneyP(s.upad) + '</b></div>' +
+      '<div class="ml"><span>ઉપાડ · Upad</span><b>− ' + moneyP(s.upad) + '</b></div>' +
       '<div class="ml"><span>લોન કપાત · Loan deduction</span><b>− ' + moneyP(s.deduct) + '</b></div>' +
       '<div class="ml"><span>ચૂકવવાપાત્ર · Payable</span><b>' + moneyP(s.payable) + '</b></div></div></div>' +
-      '<div><h4 class="sh-h">નોંધ · Note</h4><p style="font-size:12px;color:#555;line-height:1.6">ઉપડ ચાલુ મહિનાનું જ છે અને મહિનાના બિલમાં આપમેળે કપાય છે. બાકી રકમ કેરી ફોરવર્ડ થાય. લોન અલગ ખાતું છે.<br><br>Upad belongs to this month and is auto-deducted in the monthly bill. Any remainder carries forward. Loans are a separate account.</p></div></div>' +
-      '<div class="pay-row"><div>કુલ ઉપડ (આ મહિને) · Total Upad this month</div><div class="pv">' + moneyP(upTot) + '</div></div>' +
+      '<div><h4 class="sh-h">નોંધ · Note</h4><p style="font-size:12px;color:#555;line-height:1.6">ઉપાડ ચાલુ મહિનાનું જ છે અને મહિનાના બિલમાં આપમેળે કપાય છે. બાકી રકમ કેરી ફોરવર્ડ થાય. લોન અલગ ખાતું છે.<br><br>Upad belongs to this month and is auto-deducted in the monthly bill. Any remainder carries forward. Loans are a separate account.</p></div></div>' +
+      '<div class="pay-row"><div>કુલ ઉપાડ (આ મહિને) · Total Upad this month</div><div class="pv">' + moneyP(upTot) + '</div></div>' +
       '<div class="sig"><div class="s">જોબ વર્કર · Job Worker</div><div class="s">' + CO.name + '</div></div>' + sheetFoot() + '</div>';
   }
 
@@ -2726,7 +2726,7 @@
       '<div class="ml"><span><b>બાકી → કેરી · Closing</b></span><b>' + kgStr(st.matClose) + ' kg</b></div></div></div>' +
       '<div><h4 class="sh-h">બિલ · Bill</h4><div class="mini">' +
       '<div class="ml"><span>જોબવર્ક · Jobwork</span><b>+ ' + moneyP(st.jobworkP) + '</b></div>' +
-      '<div class="ml"><span>ઉપડ · Upad</span><b>− ' + moneyP(st.upadP) + '</b></div>' +
+      '<div class="ml"><span>ઉપાડ · Upad</span><b>− ' + moneyP(st.upadP) + '</b></div>' +
       '<div class="ml"><span>ઘટ (' + kgStr(st.ghatKg * 1000n, 0) + ' kg × ' + rateStr(st.yarnPriceP) + ') · Ghat</span><b>− ' + moneyP(st.ghatP) + '</b></div>' +
       '<div class="ml"><span>TDS</span><b>− ' + moneyP(st.tdsP) + '</b></div>' +
       '<div class="ml"><span>લોન કપાત · Loan</span><b>− ' + moneyP(st.deductP) + '</b></div>' +
@@ -2772,7 +2772,7 @@
     var sizes = st.bySize.map(function (b) { return b.size + '" ' + kgStr(b.g) + " × " + rateStr(b.rateP) + " = " + moneyP(b.amtP); }).join("\n");
     return "*" + CO.name + "*\n" + L("નિવાર બિલ", "Niwar Bill") + "\n—\n" + (STATE.lang === "en" ? p.en : p.name) + "\n" + L("મહિનો", "Month") + ": " + m.e + "\n" +
       (sizes ? sizes + "\n" : "") + L("કુલ જોબવર્ક", "Total jobwork") + ": " + moneyP(st.jobworkP) + "\n" +
-      L("ઉપડ", "Upad") + ": -" + moneyP(st.upadP) + "\n" + L("ઘટ", "Ghat") + ": -" + moneyP(st.ghatP) + "\n" + "TDS: -" + moneyP(st.tdsP) + "\n" +
+      L("ઉપાડ", "Upad") + ": -" + moneyP(st.upadP) + "\n" + L("ઘટ", "Ghat") + ": -" + moneyP(st.ghatP) + "\n" + "TDS: -" + moneyP(st.tdsP) + "\n" +
       L("લોન કપાત", "Loan deduction") + ": -" + moneyP(st.deductP) + "\n" +
       L("ચૂકવવાપાત્ર", "Net Payable") + ": " + moneyP(st.payable) + "\n" + L("માલ બેલેન્સ (કેરી)", "Material balance (carry)") + ": " + kgStr(st.matClose) + " kg\n—\nPowered by " + VENDOR;
   }
@@ -2794,7 +2794,7 @@
     var w = worker(), mid = STATE.month, mi = monthIndexOf(mid), b = billMonth(w.id, mid), s = settleM(w.id, mi), mat = matBalance(w.id, mi), m = monthObj();
     return "*" + CO.name + "*\n" + L("માસિક બિલ", "Monthly Bill") + "\n—\n" + wNm(w) + "\n" + L("મહિનો", "Month") + ": " + m.e + "\n" +
       L("કુલ મીટર", "Total Metre") + ": " + numI(b.mtr) + " × " + rateStr(b.ratePaise) + " = " + moneyP(b.grossP) + "\n" +
-      L("ઉપડ", "Upad") + ": -" + moneyP(s.upad) + "\n" +
+      L("ઉપાડ", "Upad") + ": -" + moneyP(s.upad) + "\n" +
       L("લોન કપાત", "Loan deduction") + ": -" + moneyP(s.deduct) + "\n" +
       L("ચૂકવવાપાત્ર", "Net Payable") + ": " + moneyP(s.payable) + "\n" +
       L("ચૂકવ્યું", "Paid") + ": -" + moneyP(s.paid) + "\n" +

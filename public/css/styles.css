@@ -37,7 +37,7 @@
   /* Section accents */
   --in:    #2f74c0;  --in-050:    #e9f2fb;   /* Warehouse IN  (આવક)  */
   --out:   #bd7c16;  --out-050:   #fbf2df;   /* Sent OUT      (જાવક) */
-  --upad:  #cf4040;  --upad-050:  #fbe9e9;   /* Upad          (ઉપડ) */
+  --upad:  #cf4040;  --upad-050:  #fbe9e9;   /* Upad          (ઉપાડ) */
 
   /* Shape */
   --r-xs: 6px;  --r-sm: 9px;  --r-md: 13px;  --r-lg: 18px;  --r-xl: 26px;
