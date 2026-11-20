@@ -123,10 +123,13 @@
   // Worker form validation (bugs 18 & 19)
   var WRATE_MAX = 10000;                 // ₹/metre sane ceiling
   function cleanPhoneField(el) {
-    var v = (el.value || "").replace(/[^\d+\s-]/g, "");   // drop letters & invalid specials
-    v = v.replace(/(?!^)\+/g, "");                          // keep only a single leading +
-    if (v.length > 16) v = v.slice(0, 16);
-    if (v !== el.value) el.value = v;
+    var raw = el.value || "";
+    var plus = raw.replace(/\s/g, "").charAt(0) === "+";   // optional single leading country-code +
+    var digits = raw.replace(/\D/g, "");                   // digits only (drops letters, spaces, dashes, extra +)
+    var max = plus ? 12 : 10;                               // +<cc≤2><10-digit mobile>, or a plain 10-digit mobile
+    if (digits.length > max) digits = digits.slice(0, max);
+    var out = (plus ? "+" : "") + digits;
+    if (out !== el.value) el.value = out;
   }
   function normIndMobile(phone) { var d = (phone || "").replace(/\D/g, ""); if (d.length === 12 && d.slice(0, 2) === "91") d = d.slice(2); else if (d.length === 11 && d.charAt(0) === "0") d = d.slice(1); return d; }
   function validIndMobile(phone) { return /^[6-9]\d{9}$/.test(normIndMobile(phone)); }
@@ -2528,7 +2531,7 @@
         '<input type="hidden" id="wfName" value="' + esc(w ? w.name : "") + '">' +
         '<input type="hidden" id="wfEn" value="' + esc(w ? w.en : "") + '">'
       ) +
-      fRow(L("ફોન", "Phone"), fInput("wfPhone", w ? w.phone : "", 'inputmode="tel" maxlength="16" placeholder="+91 "') + '<div class="msg">' + L("10 અંકનો ભારતીય મોબાઇલ નંબર", "10-digit Indian mobile number") + '</div>') +
+      fRow(L("ફોન", "Phone"), fInput("wfPhone", w ? w.phone : "", 'inputmode="tel" maxlength="13" placeholder="98XXXXXXXX"') + '<div class="msg">' + L("10 અંકનો ભારતીય મોબાઇલ નંબર (6–9થી શરૂ)", "10-digit Indian mobile (starts 6–9)") + '</div>') +
       fRow(L("કાપડ", "Cloth"), fInput("wfCloth", w ? w.cloth : "", 'placeholder="' + L("કોટન 40s", "Cotton 40s") + '"')) +
       fRow(L("રેટ (₹/મીટર)", "Rate (₹/metre)"), fInput("wfRate", w ? w.rate : "", 'type="number" step="0.01" min="0" max="10000" inputmode="decimal" placeholder="3.55"') + '<div class="msg">' + L("વધુમાં વધુ ₹10,000/મીટર", "Up to ₹10,000 / metre") + '</div>');
     showModal("users", id ? L("જોબ વર્કર ફેરફાર", "Edit Job Worker") : L("જોબ વર્કર ઉમેરો", "Add Job Worker"), L("નામ, ફોન, કાપડ અને રેટ.", "Name, phone, cloth and rate."), body, function () { saveWorkerForm(id); });
