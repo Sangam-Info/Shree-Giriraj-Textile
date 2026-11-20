@@ -130,6 +130,13 @@
   }
   function normIndMobile(phone) { var d = (phone || "").replace(/\D/g, ""); if (d.length === 12 && d.slice(0, 2) === "91") d = d.slice(2); else if (d.length === 11 && d.charAt(0) === "0") d = d.slice(1); return d; }
   function validIndMobile(phone) { return /^[6-9]\d{9}$/.test(normIndMobile(phone)); }
+  // Field-specific money caps (bug 21) — each matched to its real business purpose,
+  // NOT one common limit. ₹/metre & ₹/kg rates are small; charges/advances larger;
+  // loans up to ₹1 crore; percentages ≤ 100.
+  var CAP = { pkRate: 10000, pkCharge: 1000000, pkTax: 1000000, loan: 10000000, upad: 1000000, tempo: 100000, paid: 10000000, ghatiRate: 10000, ghatiPct: 100 };
+  function inrN(n) { try { return Number(n).toLocaleString("en-IN"); } catch (e) { return String(n); } }
+  function capMsg(mx) { toast(L("મહત્તમ ₹" + inrN(mx), "Maximum ₹" + inrN(mx)), "info"); }
+  function clampNum(v, mx, onMax) { var n = Math.max(0, parseFloat(v) || 0); if (n > mx) { n = mx; if (onMax) onMax(mx); } return n; }
 
   /* ---------------------------------------------------------------- DATA */
   var MONTHS = [
@@ -948,10 +955,11 @@
       stat("tint-brand", "users", L("બધા વર્કર્સ બાકી", "All workers"), moneyPw(totalOut), "", L("કંપની કુલ", "company total")) +
       '</div>';
     html += '<div class="card"><div class="card-head"><div class="ico tint-upad">' + svg("rupee") + '</div><div><h3>' + L("લોન વ્યવહાર", "Loan transactions") + '</h3></div><div class="spacer"></div><button class="btn btn-gold btn-sm" id="loanReport">' + svg("file") + ' ' + L("માસિક રિપોર્ટ PDF", "Monthly Report PDF") + '</button></div>';
-    html += '<div class="table-scroll"><table class="data"><thead><tr><th>' + L("તારીખ", "Date") + '</th><th>' + L("પ્રકાર", "Type") + '</th><th>' + L("નોંધ", "Note") + '</th><th style="text-align:right">' + L("રકમ", "Amount") + '</th><th style="text-align:right">' + L("બાકી", "Balance") + '</th></tr></thead><tbody>';
+    var canDelLoan = STATE.role === "admin";
+    html += '<div class="table-scroll"><table class="data"><thead><tr><th>' + L("તારીખ", "Date") + '</th><th>' + L("પ્રકાર", "Type") + '</th><th>' + L("નોંધ", "Note") + '</th><th style="text-align:right">' + L("રકમ", "Amount") + '</th><th style="text-align:right">' + L("બાકી", "Balance") + '</th>' + (canDelLoan ? '<th class="act"></th>' : '') + '</tr></thead><tbody>';
     var run = 0n;
-    txns.forEach(function (t) { var a = rupToP(t.amt); run += (t.type === "repay" ? -a : a); var typ = t.type === "loan" ? L("લોન આપી", "Loan given") : t.type === "topup" ? L("ટોપ-અપ", "Top-up") : L("વસૂલ", "Repayment"); html += '<tr><td>' + t.d.split("-").reverse().join("/") + '</td><td><span class="badge ' + (t.type === "repay" ? "badge-ok" : "badge-upad") + '">' + typ + '</span></td><td style="color:var(--ink-soft)">' + esc(t.note) + '</td><td style="text-align:right" class="num ' + (t.type === "repay" ? "loan-repay" : "loan-give") + '">' + (t.type === "repay" ? "− " : "+ ") + moneyP(a) + '</td><td style="text-align:right;font-weight:700" class="num">' + moneyP(run) + '</td></tr>'; });
-    if (!txns.length) html += '<tr><td colspan="5" style="text-align:center;color:var(--muted)">' + L("કોઈ લોન નથી.", "No loan activity.") + '</td></tr>';
+    txns.forEach(function (t) { var a = rupToP(t.amt); run += (t.type === "repay" ? -a : a); var typ = t.type === "loan" ? L("લોન આપી", "Loan given") : t.type === "topup" ? L("ટોપ-અપ", "Top-up") : L("વસૂલ", "Repayment"); html += '<tr><td>' + t.d.split("-").reverse().join("/") + '</td><td><span class="badge ' + (t.type === "repay" ? "badge-ok" : "badge-upad") + '">' + typ + '</span></td><td style="color:var(--ink-soft)">' + esc(t.note) + '</td><td style="text-align:right" class="num ' + (t.type === "repay" ? "loan-repay" : "loan-give") + '">' + (t.type === "repay" ? "− " : "+ ") + moneyP(a) + '</td><td style="text-align:right;font-weight:700" class="num">' + moneyP(run) + '</td>' + (canDelLoan ? '<td class="act"><button class="icon-btn" data-delloan="' + t.id + '" title="' + L("કાઢો", "Delete") + '">' + svg("trash") + '</button></td>' : '') + '</tr>'; });
+    if (!txns.length) html += '<tr><td colspan="' + (canDelLoan ? 6 : 5) + '" style="text-align:center;color:var(--muted)">' + L("કોઈ લોન નથી.", "No loan activity.") + '</td></tr>';
     html += '</tbody></table></div></div>';
     html += '<div class="hint mt">' + L("💡 લોન બાકી માસિક બિલમાંથી (બિલિંગ સ્ક્રીન) માલિક નક્કી કરે એટલી વસૂલ થાય.", "💡 Loan is recovered from the monthly bill by the amount the owner sets on the Billing screen.") + '</div>';
     return html;
@@ -1438,9 +1446,9 @@
       '<div class="ctrl"><label>' + L("ગણતરી — મીટર કે કિલો", "Calculate by — metre or kg") + '</label><div style="display:flex;gap:6px">' +
         '<button class="btn btn-sm ' + (am.basis === "mtr" ? "btn-primary" : "btn-soft") + '" data-pbasis="mtr"' + dis + '>' + L("મીટર", "Metre") + '</button>' +
         '<button class="btn btn-sm ' + (am.basis === "kg" ? "btn-primary" : "btn-soft") + '" data-pbasis="kg"' + dis + '>' + L("કિલો (KG)", "KG") + '</button></div></div>' +
-      '<div class="ctrl"><label>' + L("રેટ (₹", "Rate (₹") + am.rateUnit + ')' + '</label><div class="field"><span class="pre">₹</span><input type="number" data-pf="rate" value="' + p.rate + '" min="0" step="0.05"' + dis + '><span class="suf">' + am.rateUnit + '</span></div></div>' +
-      '<div class="ctrl"><label>' + L("પેકિંગ ચાર્જ (₹)", "Packing Charge (₹)") + '</label><div class="field"><span class="pre">₹</span><input type="number" data-pf="packing" value="' + p.packing + '" min="0" step="10"' + dis + '></div></div>' +
-      '<div class="ctrl"><label>' + L("ટેક્ષ (₹)", "Tax (₹)") + '</label><div class="field"><span class="pre">₹</span><input type="number" data-pf="tax" value="' + p.tax + '" min="0" step="10"' + dis + '></div></div>' +
+      '<div class="ctrl"><label>' + L("રેટ (₹", "Rate (₹") + am.rateUnit + ')' + '</label><div class="field"><span class="pre">₹</span><input type="number" data-pf="rate" value="' + p.rate + '" min="0" max="10000" step="0.05"' + dis + '><span class="suf">' + am.rateUnit + '</span></div></div>' +
+      '<div class="ctrl"><label>' + L("પેકિંગ ચાર્જ (₹)", "Packing Charge (₹)") + '</label><div class="field"><span class="pre">₹</span><input type="number" data-pf="packing" value="' + p.packing + '" min="0" max="1000000" step="10"' + dis + '></div></div>' +
+      '<div class="ctrl"><label>' + L("ટેક્ષ (₹)", "Tax (₹)") + '</label><div class="field"><span class="pre">₹</span><input type="number" data-pf="tax" value="' + p.tax + '" min="0" max="1000000" step="10"' + dis + '></div></div>' +
       '<div class="bill-line"><span class="lab">' + L("જથ્થો × રેટ", "Qty × Rate") + ' <small id="pGrossSub">' + am.qtyStr + ' × ' + rateStr(rupToP(p.rate || 0)) + am.rateUnit + '</small></span><span class="val num" id="pGross">' + moneyP(am.grossP) + '</span></div>' +
       '<div class="pk-amount"><span class="k">' + L("રકમ · Amount", "Amount") + '</span><span class="v num" id="pAmt">' + moneyP(am.amountP) + '</span></div>' +
       '<div class="hint" id="pAmtHint">' + L("રકમ = કુલ " + (am.basis === "kg" ? "કિલો" : "મીટર") + " × રેટ + પેકિંગ ચાર્જ + ટેક્ષ", "Amount = Total " + (am.basis === "kg" ? "KG" : "Metre") + " × Rate + Packing Charge + Tax") + '</div>' +
@@ -1467,7 +1475,7 @@
       };
     });
     document.querySelectorAll("[data-pkg]").forEach(function (el) { el.oninput = function () { p.kg[+el.getAttribute("data-pkg")] = sanitizeDecimalField(el, 8, 3, KG_MAX, kgMaxMsg); setTxt("#pSumKg", kgStr(B(pkKgG(p)))); refreshPk(); schedulePersist(); }; });   /* bug 20: values > 99,999 compute correctly */
-    document.querySelectorAll("[data-pf]").forEach(function (el) { el.oninput = function () { var k = el.getAttribute("data-pf"); p[k] = Math.max(0, parseFloat(el.value || 0) || 0); refreshPk(); schedulePersist(); }; });
+    document.querySelectorAll("[data-pf]").forEach(function (el) { el.oninput = function () { var k = el.getAttribute("data-pf"); var mx = k === "rate" ? CAP.pkRate : k === "packing" ? CAP.pkCharge : CAP.pkTax; var n = clampNum(el.value, mx, capMsg); if (String(n) !== el.value && n === mx) el.value = String(mx); p[k] = n; refreshPk(); schedulePersist(); }; });   /* bug 21: field-specific caps */
     var sp = $("#pStepPlus"); if (sp) sp.onclick = function () { if (p.nSteps < PK_STEPS) { p.nSteps++; render(); } };
     var sm = $("#pStepMinus"); if (sm) sm.onclick = function () { if (p.nSteps > 1) { p.nSteps--; render(); } };
   }
@@ -1803,10 +1811,11 @@
     wireNiwarSheet();
     wireGridNav();   // bug 17: ↑/↓/←/→ + Enter navigation across all data-entry grids
     var lr = $("#loanReport"); if (lr) lr.onclick = makeLoanPDF;
+    document.querySelectorAll("[data-delloan]").forEach(function (b) { b.onclick = function () { delLoanTxn(b.getAttribute("data-delloan")); }; });   /* bug 23 */
     var ur = $("#upadReport"); if (ur) ur.onclick = makeUpadPDF;
     var yp = $("#yePdf"); if (yp) yp.onclick = makeYearEndPDF;
-    var ag = $("#ag"); if (ag) { ag.oninput = function () { setTxt("#agV", (parseFloat(ag.value || 0) || 0).toFixed(2) + "%"); }; ag.onchange = function () { worker().actualGhati = Math.max(0, parseFloat(ag.value || 0)); render(); }; }
-    var gr = $("#gr"); if (gr) { gr.oninput = function () { setTxt("#grV", moneyP(rupToP(Math.max(0, parseFloat(gr.value || 0))))); }; gr.onchange = function () { GHATI_RATE.v = Math.max(0, parseFloat(gr.value || 0)); render(); }; }
+    var ag = $("#ag"); if (ag) { ag.oninput = function () { setTxt("#agV", (parseFloat(ag.value || 0) || 0).toFixed(2) + "%"); }; ag.onchange = function () { var v = Math.max(0, parseFloat(ag.value || 0) || 0); if (v > CAP.ghatiPct) { v = CAP.ghatiPct; toast(L("મહત્તમ 100%", "Maximum 100%"), "info"); } worker().actualGhati = v; render(); }; }   /* bug 21: % ≤ 100 */
+    var gr = $("#gr"); if (gr) { gr.oninput = function () { setTxt("#grV", moneyP(rupToP(Math.max(0, parseFloat(gr.value || 0))))); }; gr.onchange = function () { GHATI_RATE.v = clampNum(gr.value, CAP.ghatiRate, capMsg); render(); }; }   /* bug 21 */
     var pc = $("#pdfCompany"); if (pc) pc.onclick = function () { makeBillPDF("company"); };
     var pw = $("#pdfWorker"); if (pw) pw.onclick = function () { makeBillPDF("worker"); };
     var pb = $("#pdfBoth"); if (pb) pb.onclick = function () { makeBillPDF("company", true); };
@@ -1933,25 +1942,36 @@
     var w = worker(), mid = STATE.month, bl = BILL[w.id][mid];
     function pf(v) { v = parseFloat(v); return isNaN(v) ? 0 : Math.max(0, v); }
     var rate = $("#rate"); if (rate) { rate.oninput = function () { setTxt("#rateV", rateStr(rupToP(pf(rate.value)))); }; rate.onchange = function () { bl.rate = pf(rate.value); render(); }; }
-    var tempo = $("#tempo"); if (tempo) { tempo.oninput = function () { setTxt("#tempoV", moneyP(rupToP(pf(tempo.value)))); }; tempo.onchange = function () { bl.tempo = pf(tempo.value); render(); }; }
-    var deduct = $("#deduct"); if (deduct) { deduct.oninput = function () { setTxt("#deductV", moneyP(rupToP(pf(deduct.value)))); }; deduct.onchange = function () { bl.loanDeductP = rupToP(pf(deduct.value)); bl.paidP = null; render(); }; }
-    var paid = $("#paid"); if (paid) { paid.oninput = function () { setTxt("#paidV", moneyP(rupToP(pf(paid.value)))); }; paid.onchange = function () { bl.paidP = rupToP(pf(paid.value)); render(); }; }
+    var tempo = $("#tempo"); if (tempo) { tempo.oninput = function () { setTxt("#tempoV", moneyP(rupToP(pf(tempo.value)))); }; tempo.onchange = function () { bl.tempo = clampNum(tempo.value, CAP.tempo, capMsg); render(); }; }   /* bug 21 */
+    var deduct = $("#deduct"); if (deduct) { deduct.oninput = function () { setTxt("#deductV", moneyP(rupToP(pf(deduct.value)))); }; deduct.onchange = function () { bl.loanDeductP = rupToP(clampNum(deduct.value, CAP.paid, capMsg)); bl.paidP = null; render(); }; }   /* bug 21 */
+    var paid = $("#paid"); if (paid) { paid.oninput = function () { setTxt("#paidV", moneyP(rupToP(pf(paid.value)))); }; paid.onchange = function () { bl.paidP = rupToP(clampNum(paid.value, CAP.paid, capMsg)); render(); }; }   /* bug 21 */
   }
 
   /* ---------------------------------------------------------------- LOAN modal */
   function openLoan() {
     var w = worker();
     var body = '<div class="form-grid"><div class="fg fg-full"><label>' + L("પ્રકાર", "Type") + '</label><div class="field"><select data-l="type"><option value="loan">' + L("લોન આપી (+)", "Loan given (+)") + '</option><option value="topup">' + L("ટોપ-અપ (+)", "Top-up (+)") + '</option><option value="repay">' + L("વસૂલ (−)", "Repayment (−)") + '</option></select></div></div>' +
-      '<div class="fg" data-fg="lamt"><label>' + L("રકમ (₹)", "Amount (₹)") + '</label><div class="field"><span class="pre">₹</span><input type="number" data-l="amt" min="1" value="10000"></div><div class="msg">' + L("માન્ય રકમ", "Enter amount") + '</div></div>' +
+      '<div class="fg" data-fg="lamt"><label>' + L("રકમ (₹)", "Amount (₹)") + '</label><div class="field"><span class="pre">₹</span><input type="number" data-l="amt" min="1" max="10000000" value="10000"></div><div class="msg">' + L("માન્ય રકમ", "Enter amount") + '</div></div>' +
       '<div class="fg"><label>' + L("તારીખ (દિવસ)", "Date (day)") + '</label><div class="field"><input type="number" data-l="day" min="1" max="31" value="18"></div></div>' +
       '<div class="fg fg-full"><label>' + L("નોંધ", "Note") + '</label><div class="field"><input data-l="note" value=""></div></div></div><div class="hint">' + wNm(w) + ' · ' + monthName() + '</div>';
     showModal("rupee", L("લોન એન્ટ્રી", "Loan entry"), wNm(w), body, saveLoan);
   }
+  // Delete a single loan transaction (bug 23). Totals (Given / Recovered /
+  // Outstanding) are derived live from LOANS, so render() recalculates them.
+  function delLoanTxn(id) {
+    if (STATE.role !== "admin") return;
+    var w = worker(), list = LOANS[w.id] || [], t = list.filter(function (x) { return x.id === id; })[0];
+    if (!t) return;
+    var typ = t.type === "loan" ? L("લોન આપી", "Loan given") : t.type === "topup" ? L("ટોપ-અપ", "Top-up") : L("વસૂલ", "Repayment");
+    infoModalConfirm(L("લોન એન્ટ્રી કાઢવી?", "Delete loan entry?"),
+      typ + " · ₹" + inrN(t.amt) + " · " + dmy(t.d) + " — " + L("આ વ્યવહાર કાયમ માટે કાઢી નાખશે; કુલ આપ્યું, વસૂલ અને બાકી ફરી ગણાશે.", "this permanently deletes the transaction; Total given, recovered and outstanding are recalculated."),
+      function () { LOANS[w.id] = (LOANS[w.id] || []).filter(function (x) { return x.id !== id; }); render(); flushPersistNow(); toast(L("લોન એન્ટ્રી કાઢી", "Loan entry deleted"), "ok"); });
+  }
   function saveLoan() {
     function val(k) { var el = document.querySelector('[data-l="' + k + '"]'); return el ? el.value : ""; }
     var amt = parseFloat(val("amt")), day = parseInt(val("day"), 10);
-    var ok = !(isNaN(amt) || amt < 1 || isNaN(day) || day < 1 || day > 31);
-    var fg = document.querySelector('[data-fg="lamt"]'); if (fg) fg.classList.toggle("err", !ok); if (!ok) return;
+    var ok = !(isNaN(amt) || amt < 1 || amt > CAP.loan || isNaN(day) || day < 1 || day > 31);
+    var fg = document.querySelector('[data-fg="lamt"]'); if (fg) fg.classList.toggle("err", !ok); if (!ok) { if (!isNaN(amt) && amt > CAP.loan) capMsg(CAP.loan); return; }
     var m = monthObj(); var d = "2026-" + pad(m.mm) + "-" + pad(day);
     (LOANS[STATE.worker] = LOANS[STATE.worker] || []).push({ id: rid(), d: d, type: val("type"), amt: Math.round(amt), note: val("note") || (val("type") === "repay" ? L("વસૂલ", "Repayment") : L("લોન", "Loan")) });
     closeModal(); render(); toast(L("લોન એન્ટ્રી ઉમેરાઈ", "Loan entry added"), "ok");
@@ -1966,7 +1986,7 @@
     var defDay = ex ? parseInt(ex.d.slice(8), 10) : Math.min(28, new Date().getDate());
     var lastDay = new Date(2026, m.mm, 0).getDate();
     var body = '<div class="form-grid">' +
-      '<div class="fg" data-fg="uamt"><label>' + L("રકમ (₹)", "Amount (₹)") + '</label><div class="field"><span class="pre">₹</span><input type="number" data-u="amt" min="1" step="100" value="' + (ex ? ex.amt : 2000) + '"></div><div class="msg">' + L("માન્ય રકમ દાખલ કરો", "Enter a valid amount") + '</div></div>' +
+      '<div class="fg" data-fg="uamt"><label>' + L("રકમ (₹)", "Amount (₹)") + '</label><div class="field"><span class="pre">₹</span><input type="number" data-u="amt" min="1" max="1000000" step="100" value="' + (ex ? ex.amt : 2000) + '"></div><div class="msg">' + L("માન્ય રકમ દાખલ કરો", "Enter a valid amount") + '</div></div>' +
       '<div class="fg" data-fg="uday"><label>' + L("તારીખ (દિવસ)", "Date (day)") + '</label><div class="field"><input type="number" data-u="day" min="1" max="' + lastDay + '" value="' + defDay + '"></div><div class="msg">1–' + lastDay + '</div></div>' +
       '<div class="fg fg-full"><label>' + L("નોંધ", "Note") + '</label><div class="field"><input data-u="note" value="' + (ex ? esc(ex.note) : L("અઠવાડિક ઉપડ", "Weekly advance")) + '"></div></div></div>' +
       '<div class="hint">' + wNm(w) + ' · ' + monthName() + ' — ' + L("ઉપડ ફક્ત આ મહિનામાં નોંધાય.", "upad is recorded within this month only.") + '</div>';
@@ -1976,7 +1996,8 @@
     var w = worker(); var m = monthObj(); var lastDay = new Date(2026, m.mm, 0).getDate();
     function val(k) { var el = document.querySelector('[data-u="' + k + '"]'); return el ? el.value : ""; }
     var amt = parseFloat(val("amt")), day = parseInt(val("day"), 10);
-    var okA = !(isNaN(amt) || amt < 1), okD = !(isNaN(day) || day < 1 || day > lastDay);
+    var okA = !(isNaN(amt) || amt < 1 || amt > CAP.upad), okD = !(isNaN(day) || day < 1 || day > lastDay);
+    if (!isNaN(amt) && amt > CAP.upad) capMsg(CAP.upad);
     var fa = document.querySelector('[data-fg="uamt"]'); if (fa) fa.classList.toggle("err", !okA);
     var fd = document.querySelector('[data-fg="uday"]'); if (fd) fd.classList.toggle("err", !okD);
     if (!okA || !okD) return;
@@ -2094,7 +2115,8 @@
     var p = niwarParty(), m = monthObj(), lastDay = new Date(2026, m.mm, 0).getDate();
     function val(k) { var el = document.querySelector('[data-nu="' + k + '"]'); return el ? el.value : ""; }
     var amt = parseFloat(val("amt")), day = parseInt(val("day"), 10);
-    var okA = !(isNaN(amt) || amt < 1), okD = !(isNaN(day) || day < 1 || day > lastDay);
+    var okA = !(isNaN(amt) || amt < 1 || amt > CAP.upad), okD = !(isNaN(day) || day < 1 || day > lastDay);
+    if (!isNaN(amt) && amt > CAP.upad) capMsg(CAP.upad);
     var fa = document.querySelector('[data-fg="nuamt"]'); if (fa) fa.classList.toggle("err", !okA);
     var fd = document.querySelector('[data-fg="nuday"]'); if (fd) fd.classList.toggle("err", !okD);
     if (!okA || !okD) return;

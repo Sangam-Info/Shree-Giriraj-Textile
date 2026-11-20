@@ -1010,7 +1010,7 @@ table.data th .ti { width: 14px; height: 14px; vertical-align: -2px; }
 .icon-btn[disabled] { opacity: .4; cursor: not-allowed; }
 
 /* layout: grid + side */
-.jws-layout { display: grid; grid-template-columns: 1fr 240px; gap: 18px; align-items: start; }
+.jws-layout { display: grid; grid-template-columns: minmax(0, 1fr) clamp(290px, 26vw, 360px); gap: 18px; align-items: start; }
 .jws-gridcard { overflow: hidden; padding-bottom: 12px; }
 .jws-scroll { overflow: auto; max-height: 62vh; }
 
@@ -1084,7 +1084,7 @@ table.jws-parat-tbl tfoot .grand td { background: var(--out-050); color: var(--o
 /* Packing List amount box */
 .pk-amount { display:flex; flex-direction:column; gap:3px; margin-top:8px; padding:14px 16px; border-radius:var(--r-md); background:linear-gradient(100deg,var(--brand-700),var(--brand)); color:#fff; }
 .pk-amount .k { font-size:12.5px; opacity:.85; font-weight:600; }
-.pk-amount .v { font-size:clamp(20px,4vw,26px); font-weight:800; font-variant-numeric:tabular-nums; line-height:1.1; word-break:break-all; }
+.pk-amount .v { font-size:clamp(20px,4vw,26px); font-weight:800; font-variant-numeric:tabular-nums; line-height:1.15; overflow-wrap:anywhere; }
 
 /* ======================= PROFILE PAGE ============================= */
 .prof-wrap { width: 100%; display: flex; flex-direction: column; gap: 16px; }
