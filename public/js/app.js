@@ -1693,7 +1693,23 @@
         if (cu.verifyBeforeUpdateEmail) return cu.verifyBeforeUpdateEmail(newEmail).then(function () { return "verify"; });
         return cu.updateEmail(newEmail).then(function () { return "done"; });
       }).then(function (mode) {
-        if (mode === "verify") { render(); toast(L("ચકાસણી લિંક નવા ઈમેલ પર મોકલી — પુષ્ટિ પછી લોગિન ઈમેલ બદલાશે.", "A verification link was sent to the new email — the sign-in email changes after you confirm it."), "ok"); return; }
+        if (mode === "verify") {
+          render();
+          infoModal(L("ઈમેલ બદલવા — ચકાસણી જરૂરી", "One step left to change your email"),
+            '<span style="display:block;font-size:13.5px;color:var(--muted);line-height:1.6">' +
+              L("સુરક્ષા માટે ઈમેલ તરત બદલાતો નથી. ચકાસણી લિંક આ નવા ઈમેલ પર મોકલી છે:", "For security, the email does not change instantly. A verification link was sent to your new email:") +
+            '</span>' +
+            '<span style="display:block;font-weight:800;color:var(--brand);background:var(--brand-050);border-radius:10px;padding:10px 12px;margin:9px 0 11px;word-break:break-all;text-align:center">' + esc(newEmail) + '</span>' +
+            '<span style="display:block;font-size:13.5px;color:var(--ink);line-height:1.8">' +
+              L("1. આ નવા ઈમેલનું ઇનબોક્સ ખોલો (સ્પામ પણ તપાસો).", "1. Open the inbox of this new email (check spam too).") + '<br>' +
+              L("2. Firebase તરફથી આવેલી ચકાસણી લિંક પર ક્લિક કરો.", "2. Click the verification link from Firebase.") + '<br>' +
+              L("3. પછી નવા ઈમેલ અને તમારા પાસવર્ડથી ફરી લોગિન કરો.", "3. Then sign in again with the new email and your password.") +
+            '</span>' +
+            '<span style="display:block;font-size:12.5px;color:var(--muted);margin-top:11px;line-height:1.6">' +
+              L("ત્યાં સુધી તમારો લોગિન ઈમેલ ", "Until then your sign-in email stays ") + '<b>' + esc(u.email || "") + '</b> ' + L("જ રહેશે.", "") +
+            '</span>');
+          return;
+        }
         return db.collection("users").doc(uid).set({ email: newEmail }, { merge: true }).then(function () { window.GJAuth.user.email = newEmail; render(); toast(L("પ્રોફાઇલ અપડેટ થઈ", "Profile updated"), "ok"); });
       });
     }).catch(fail);
