@@ -1163,6 +1163,7 @@
     if (sel) UM.sel = sel.uid;
 
     html += '<h2 class="um-h2">' + L("યુઝર અને એક્સેસ", "Users & access") + '</h2>';
+    html += '<div class="um-note">' + svg("info") + '<span>' + L("એકાઉન્ટ અહીંથી જ મેનેજ કરો — “યુઝર કાઢો” દબાવતાં જ એપ એક્સેસ તરત બંધ થાય છે. Firebase કન્સોલમાંથી લોગિન કાઢવાથી અહીંનું રેકોર્ડ આપમેળે કાઢતું નથી, તેથી યુઝર અહીંથી કાઢો.", "Manage accounts here — “Delete user” removes their app access instantly. Deleting a login in the Firebase console does not remove the record here, so always remove users from this screen.") + '</span></div>';
 
     html += '<div class="um-split">';
     html += '<div class="card um-users"><div class="card-head"><b>' + L("યુઝર", "Users") + '</b></div><div class="um-user-list">' + UM.users.map(umUserListRow).join("") + '</div></div>';

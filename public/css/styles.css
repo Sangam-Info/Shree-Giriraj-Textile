@@ -468,6 +468,8 @@ html.gj-booting #gjBootSplash {
 
 /* User Management — master / detail */
 .um-h2 { font-size: 20px; font-weight: 800; color: var(--ink); margin: 6px 0 4px; }
+.um-note { display: flex; align-items: flex-start; gap: 9px; margin: 8px 0 14px; padding: 11px 14px; background: var(--surface-2, #f6f8fb); border: 1px solid var(--line); border-radius: 12px; font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+.um-note svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 1px; color: var(--brand); }
 .um-lead { font-size: 13.5px; color: var(--muted); margin-bottom: 16px; line-height: 1.5; }
 .um-lead b { color: var(--ink-soft); }
 .um-lead-edit { display: inline-flex; align-items: center; gap: 5px; margin-left: 6px; padding: 3px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
