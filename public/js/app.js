@@ -1568,7 +1568,8 @@
     var email = u.email || "—";
     var roleTxt = u.role === "admin" ? L("એડમિન (માલિક)", "Admin (Owner)") : L("સુપરવાઇઝર", "Supervisor");
     var html = '<div class="page-head row-between"><div><h2>' + L("પ્રોફાઇલ", "Profile") + '</h2><div class="sub">' + L("તમારું એકાઉન્ટ", "Your account") + '</div></div>' +
-      (u.role === "admin" ? '<div class="page-actions"><button class="btn btn-primary" data-editprofile>' + svg("edit") + ' ' + L("પ્રોફાઇલ ફેરફાર", "Edit profile") + '</button></div>' : '') + '</div>';
+      '<div class="page-actions"><button class="btn btn-soft" data-resetpw>' + svg("key") + ' ' + L("પાસવર્ડ રીસેટ", "Reset password") + '</button>' +
+      (u.role === "admin" ? '<button class="btn btn-primary" data-editprofile>' + svg("edit") + ' ' + L("પ્રોફાઇલ ફેરફાર", "Edit profile") + '</button>' : '') + '</div></div>';
     html += '<div class="prof-wrap">';
     html += '<div class="card card-pad prof-id">' +
         '<div class="prof-av">' + esc(ini) + '</div>' +
@@ -1582,6 +1583,13 @@
         prow("shield", L("રોલ", "Role"), roleTxt) +
         prow("check", L("સ્થિતિ", "Status"), '<span class="prof-on">' + L("સક્રિય", "Active") + '</span>') +
         '</div>';
+    if (u.role === "admin") {
+      html += '<div class="card card-pad prof-det"><h3 class="prof-h">' + L("એકાઉન્ટ રિકવરી", "Account Recovery") + '</h3>' +
+        '<p class="bk-p" style="margin-top:2px">' + L("પાસવર્ડ અને ઈમેલ ભૂલાઈ જાય તો આ કોડથી લોગિન સ્ક્રીન પરથી જ ખાતું રીસેટ કરી શકાય. કોડ એક જ વાર દેખાય — સુરક્ષિત જગ્યાએ સાચવો.", "If the password and email are forgotten, this code resets the account from the login screen. The code is shown once — keep it somewhere safe.") + '</p>' +
+        '<button class="btn btn-primary btn-block" data-setuprecovery>' + svg("shield") + ' ' + L("રિકવરી કોડ બનાવો", "Generate recovery code") + '</button>' +
+        (recoveryEndpointReady() ? '' : '<div class="bk-note" style="margin-top:10px">' + svg("info") + ' ' + L("કોડ હમણાં સેવ થશે; લોગિન સ્ક્રીન પર રીસેટ ચાલુ કરવા રિકવરી ફંક્શન ડિપ્લોય કરવું જરૂરી (સૂચના સાથે આપેલ).", "The code saves now; the login-screen reset works once the recovery function is deployed (steps included).") + '</div>') +
+        '</div>';
+    }
     html += '<div class="card card-pad prof-out">' +
         '<div class="prof-outtxt"><b>' + L("લોગ આઉટ", "Log out") + '</b><span>' + L("આ ઉપકરણમાંથી સુરક્ષિત સાઇન આઉટ.", "Securely sign out of this device.") + '</span></div>' +
         '<button type="button" class="prof-logout" data-logout>' +
@@ -1592,6 +1600,50 @@
     return html;
   }
   function prow(ic, k, v) { return '<div class="prof-row"><span class="prof-k">' + svg(ic) + '<span>' + k + '</span></span><span class="prof-v">' + v + '</span></div>'; }
+
+  /* --- Self-service password reset (own account) ---
+     Mirrors the SRK Diamond / Firebase flow: the signed-in admin can set a new
+     password directly (reauthenticated with the current password, never stored),
+     or request a reset link to their registered email. Admin-initiated resets for
+     other users already live in User Management ("Send password reset"). */
+  function resetPwForm() {
+    var u = (window.GJAuth && window.GJAuth.user) || {};
+    var body =
+      '<div class="fg fg-full"><label>' + L("નવો પાસવર્ડ", "New password") + '</label><div class="field"><input id="rpNew" type="password" autocomplete="new-password" placeholder="' + L("ઓછામાં ઓછા 6 અક્ષર", "At least 6 characters") + '"></div></div>' +
+      '<div class="fg fg-full"><label>' + L("નવો પાસવર્ડ ફરી", "Confirm new password") + '</label><div class="field"><input id="rpNew2" type="password" autocomplete="new-password"></div></div>' +
+      '<div class="fg fg-full"><label>' + L("વર્તમાન પાસવર્ડ", "Current password") + '</label><div class="field"><input id="rpCur" type="password" autocomplete="current-password" placeholder="' + L("સુરક્ષા માટે", "for security") + '"></div></div>' +
+      '<div style="font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5">' + L("અથવા રજિસ્ટર્ડ ઈમેલ પર રીસેટ લિંક મંગાવો", "Or get a reset link on your registered email") + ' — <a href="#" id="rpLink" style="color:var(--brand);font-weight:700">' + L("લિંક મોકલો", "Send link") + '</a></div>';
+    showModal("key", L("પાસવર્ડ રીસેટ", "Reset Password"), u.email || "", body, saveResetPw);
+    var lk = $("#rpLink"); if (lk) lk.onclick = function (e) { e.preventDefault(); sendMyResetLink(); };
+  }
+  function sendMyResetLink() {
+    var u = (window.GJAuth && window.GJAuth.user) || {}, auth = window.GJAuth && window.GJAuth.auth;
+    if (!auth || !auth.sendPasswordResetEmail || !u.email) { toast(L("રીસેટ લિંક આ બિલ્ડમાં ઉપલબ્ધ નથી.", "Reset link isn't available in this build."), "info"); return; }
+    auth.sendPasswordResetEmail(u.email).then(function () { closeModal(); toast(L("રીસેટ લિંક મોકલી: ", "Reset link sent to ") + u.email, "ok"); })
+      .catch(function () { toast(L("લિંક મોકલી શકાઈ નહીં.", "Could not send the reset link."), "error"); });
+  }
+  function saveResetPw() {
+    var u = (window.GJAuth && window.GJAuth.user) || {}, auth = window.GJAuth && window.GJAuth.auth;
+    var np = fVal("#rpNew"), np2 = fVal("#rpNew2"), cur = fVal("#rpCur");
+    if (np.length < 6) { toast(L("પાસવર્ડ ઓછામાં ઓછા 6 અક્ષર", "Password must be at least 6 characters"), "info"); return; }
+    if (np !== np2) { toast(L("પાસવર્ડ મેળ ખાતા નથી", "Passwords do not match"), "info"); return; }
+    if (!cur) { toast(L("સુરક્ષા માટે વર્તમાન પાસવર્ડ દાખલ કરો", "Enter your current password for security"), "info"); return; }
+    var cu = auth && auth.currentUser;
+    if (!cu || !cu.updatePassword) { closeModal(); toast(L("આ બિલ્ડમાં પાસવર્ડ બદલી શકાતું નથી.", "Password can't be changed in this build."), "info"); return; }
+    closeModal();
+    var EP = window.firebase && firebase.auth && firebase.auth.EmailAuthProvider;
+    var reauth = (EP && cu.reauthenticateWithCredential) ? cu.reauthenticateWithCredential(EP.credential(u.email, cur)) : Promise.resolve();
+    toast(L("પાસવર્ડ અપડેટ થઈ રહ્યું છે…", "Updating password…"), "info");
+    reauth.then(function () { return cu.updatePassword(np); }).then(function () {
+      toast(L("પાસવર્ડ બદલાઈ ગયો — આવતી વખતે નવા પાસવર્ડથી લોગિન કરો.", "Password changed — use the new password next time you sign in."), "ok");
+    }).catch(function (e) {
+      var code = (e && (e.code || e.message)) || "";
+      if (/wrong-password|invalid-credential|invalid-login/i.test(code)) toast(L("વર્તમાન પાસવર્ડ ખોટો છે.", "The current password is incorrect."), "error");
+      else if (/requires-recent-login/i.test(code)) toast(L("સુરક્ષા માટે ફરી લોગિન કરી, પછી પાસવર્ડ બદલો.", "For security, log out and back in, then change the password."), "error");
+      else if (/weak-password/i.test(code)) toast(L("પાસવર્ડ નબળો છે.", "The password is too weak."), "error");
+      else toast(L("પાસવર્ડ બદલી શકાયો નહીં.", "Could not change the password."), "error");
+    });
+  }
 
   /* --- Edit Profile (bug 16): update Name and sign-in Email ---
      Name is saved to the user's Firestore account doc. Email is the Firebase
@@ -1645,6 +1697,39 @@
         return db.collection("users").doc(uid).set({ email: newEmail }, { merge: true }).then(function () { window.GJAuth.user.email = newEmail; render(); toast(L("પ્રોફાઇલ અપડેટ થઈ", "Profile updated"), "ok"); });
       });
     }).catch(fail);
+  }
+
+  /* ---------- Account Recovery setup (admin): generate a recovery code ----------
+     Stores only a salted SHA-256 hash of the code (plus this admin's uid) in
+     meta/recovery. The plain code is shown once for the owner to save; the
+     deployed Cloud Function later verifies it to reset the account. */
+  function recoveryEndpointReady() { return !!(window.__RECOVERY_URL && /^https:\/\//.test(window.__RECOVERY_URL)); }
+  function gjRandHex(n) { var a = new Uint8Array(n); crypto.getRandomValues(a); return [].map.call(a, function (b) { return ("0" + b.toString(16)).slice(-2); }).join(""); }
+  function gjSha256Hex(str) { return crypto.subtle.digest("SHA-256", new TextEncoder().encode(str)).then(function (buf) { return [].map.call(new Uint8Array(buf), function (b) { return ("0" + b.toString(16)).slice(-2); }).join(""); }); }
+  function gjGenRecoveryCode() { var A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", a = new Uint8Array(16), s = ""; crypto.getRandomValues(a); for (var i = 0; i < 16; i++) { s += A[a[i] % A.length]; if (i % 4 === 3 && i < 15) s += "-"; } return s; }
+  function gjSetupRecovery() {
+    var u = (window.GJAuth && window.GJAuth.user) || {};
+    if (u.role !== "admin") return;
+    var db = window.GJAuth && window.GJAuth.db;
+    if (!db || !u.uid) { toast(L("ડેટાબેઝ ઉપલબ્ધ નથી.", "Database not available."), "info"); return; }
+    infoModalConfirm(L("રિકવરી કોડ બનાવીએ?", "Generate a recovery code?"),
+      L("નવો રિકવરી કોડ બનશે અને જૂનો (હોય તો) રદ થશે. કોડ એક જ વાર દેખાશે — સુરક્ષિત જગ્યાએ સાચવો.", "A new recovery code is generated (any old one stops working). It is shown only once — save it somewhere safe."),
+      function () {
+        var code = gjGenRecoveryCode(), salt = gjRandHex(16);
+        gjSha256Hex(salt + ":" + code.replace(/[^A-Z0-9]/g, "")).then(function (hash) {
+          return db.collection("meta").doc("recovery").set({ uid: u.uid, salt: salt, hash: hash, attempts: 0, lockUntil: 0, setAt: Date.now(), setBy: u.email || "" }, { merge: true });
+        }).then(function () {
+          gjShowRecoveryCode(code);
+        }).catch(function (e) {
+          var msg = (e && (e.code || e.message)) || "";
+          toast(/permission/i.test(msg) ? L("સેવ બ્લોક — ડેટાબેઝ નિયમો પબ્લિશ કરો.", "Blocked — publish the database rules.") : L("રિકવરી કોડ સેવ ન થયો.", "Could not save the recovery code."), "error");
+        });
+      });
+  }
+  function gjShowRecoveryCode(code) {
+    var msg = '<span style="display:block;font-size:22px;font-weight:800;letter-spacing:2px;color:var(--brand);background:var(--brand-050);border-radius:12px;padding:15px;margin:6px 0 12px;font-family:monospace;word-break:break-all">' + esc(code) + '</span>' +
+      '<span style="display:block;font-size:12.5px;color:var(--muted);line-height:1.5">' + L("આ કોડ ફક્ત અત્યારે જ દેખાશે — પ્રિન્ટ કરો કે સુરક્ષિત જગ્યાએ લખી રાખો. પાસવર્ડ/ઈમેલ ભૂલાઈ જાય તો લોગિન સ્ક્રીન પર આ કોડથી નવું સેટ કરી શકાશે.", "This code is shown only now — print it or write it somewhere safe. If the password/email is ever forgotten, this code resets the account from the login screen.") + '</span>';
+    infoModal(L("તમારો રિકવરી કોડ", "Your recovery code"), msg);
   }
 
   /* ---------------------------------------------------------------- RENDER */
@@ -1764,6 +1849,8 @@
     if (fr) fr.onclick = function () { gjGenerateFinancialBackup(+fr.getAttribute("data-fin-retry"), false).then(function (r) { toast(r.ok ? L("નાણાકીય બેકઅપ ડાઉનલોડ થયું.", "Financial backup downloaded.") : L("નાણાકીય બેકઅપ નિષ્ફળ.", "Financial backup failed."), r.ok ? "ok" : "error"); if (STATE.view === "backup") render(); }); };
     document.querySelectorAll("[data-fin-dl]").forEach(function (b) { b.onclick = function () { gjRedownloadFin(+b.getAttribute("data-fin-dl")); }; });
     var epf = document.querySelector("[data-editprofile]"); if (epf) epf.onclick = function () { profileEditForm(); };
+    var rpw = document.querySelector("[data-resetpw]"); if (rpw) rpw.onclick = function () { resetPwForm(); };
+    var srp = document.querySelector("[data-setuprecovery]"); if (srp) srp.onclick = function () { gjSetupRecovery(); };
     document.querySelectorAll("[data-editworker]").forEach(function (b) { b.onclick = function () { workerForm(b.getAttribute("data-editworker")); }; });
     document.querySelectorAll("[data-delworker]").forEach(function (b) { b.onclick = function () { delWorker(b.getAttribute("data-delworker")); }; });
     var wsearch = $("#workerSearch");

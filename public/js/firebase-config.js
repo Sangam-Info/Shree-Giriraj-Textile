@@ -20,3 +20,9 @@ window.__FIREBASE_CONFIG = {
   appId:             "1:307408604244:web:7b9abb5f52432ad3d871c1",
   measurementId:     "G-S0KFZR33CB"
 };
+
+/* Admin Account Recovery endpoint (Cloud Function). Leave blank until you
+   deploy functions/ — then paste the deployed URL here, e.g.
+   https://us-central1-shree-giriraj-textile.cloudfunctions.net/adminRecovery
+   When blank, the "recovery code" option simply stays hidden. */
+window.__RECOVERY_URL = "";

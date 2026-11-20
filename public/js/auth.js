@@ -244,6 +244,75 @@
     }
   }
 
+  /* ---------- admin account recovery (Cloud Function) ----------
+     Shown only when a recovery endpoint is configured. Lets a locked-out
+     Owner set a new email + password by proving a saved recovery code. The
+     code is verified server-side; nothing sensitive is exposed here. */
+  function recoveryEnabled() { return !!(window.__RECOVERY_URL && /^https:\/\//.test(window.__RECOVERY_URL)); }
+  function recMsg(m, ok) { var el = $("#recMsg"); if (el) { el.textContent = m; el.style.color = ok ? "#1f9d6b" : "#b4231f"; } }
+  function recErr(code) {
+    var m = {
+      "wrong-code": tr("Incorrect recovery code.", "ખોટો રિકવરી કોડ."),
+      "locked": tr("Too many attempts. Try again in 15 minutes.", "ઘણા પ્રયાસો. 15 મિનિટ પછી પ્રયાસ કરો."),
+      "not-configured": tr("Recovery isn't set up yet. Set it up from Profile while signed in.", "રિકવરી સેટઅપ નથી. સાઇન-ઇન હોય ત્યારે પ્રોફાઇલમાંથી સેટ કરો."),
+      "email-in-use": tr("That email is already used by another account.", "આ ઈમેલ બીજા ખાતામાં વપરાયેલ છે."),
+      "bad-email": tr("Enter a valid email.", "માન્ય ઈમેલ દાખલ કરો."),
+      "weak-password": tr("Password must be at least 6 characters.", "પાસવર્ડ ઓછામાં ઓછા 6 અક્ષર.")
+    };
+    return m[code] || tr("Recovery failed. Please try again.", "રિકવરી નિષ્ફળ. ફરી પ્રયાસ કરો.");
+  }
+  function openRecovery(e) {
+    if (e) e.preventDefault();
+    if (!recoveryEnabled()) return;
+    var ex = $("#gjRecBack"); if (ex) { ex.style.display = "flex"; return; }
+    var inpCss = "width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #d9e0ea;border-radius:10px;font-size:14px;margin-bottom:9px";
+    var wrap = document.createElement("div");
+    wrap.id = "gjRecBack";
+    wrap.style.cssText = "position:fixed;inset:0;background:rgba(16,28,54,.55);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px";
+    wrap.innerHTML =
+      '<div style="background:#fff;border-radius:16px;max-width:400px;width:100%;padding:22px;box-shadow:0 24px 60px rgba(16,28,54,.3);font-family:inherit">' +
+        '<h3 style="margin:0 0 4px;font-size:18px;color:#16233b">' + tr("Account recovery", "ખાતું રિકવરી") + '</h3>' +
+        '<p style="margin:0 0 14px;font-size:13px;color:#64748b;line-height:1.5">' + tr("Enter the recovery code you saved, then set a new email and password for the Owner account.", "તમે સાચવેલો રિકવરી કોડ દાખલ કરો, પછી માલિક ખાતા માટે નવો ઈમેલ અને પાસવર્ડ સેટ કરો.") + '</p>' +
+        '<input id="recCode" type="text" autocomplete="off" placeholder="' + tr("Recovery code", "રિકવરી કોડ") + '" style="' + inpCss + ';letter-spacing:1px;text-transform:uppercase">' +
+        '<input id="recEmail" type="email" autocomplete="off" placeholder="' + tr("New sign-in email", "નવો સાઇન-ઇન ઈમેલ") + '" style="' + inpCss + '">' +
+        '<input id="recPass" type="password" autocomplete="new-password" placeholder="' + tr("New password (min 6)", "નવો પાસવર્ડ (ઓછામાં ઓછા 6)") + '" style="' + inpCss + '">' +
+        '<input id="recPass2" type="password" autocomplete="new-password" placeholder="' + tr("Confirm new password", "નવો પાસવર્ડ ફરી") + '" style="' + inpCss + ';margin-bottom:6px">' +
+        '<div id="recMsg" style="font-size:12.5px;min-height:18px;margin-bottom:8px"></div>' +
+        '<div style="display:flex;gap:10px;justify-content:flex-end">' +
+          '<button id="recCancel" type="button" style="padding:10px 16px;border:1px solid #d9e0ea;background:#fff;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit">' + tr("Cancel", "રદ") + '</button>' +
+          '<button id="recGo" type="button" style="padding:10px 18px;border:none;background:#2b5cff;color:#fff;border-radius:10px;font-weight:800;cursor:pointer;font-family:inherit">' + tr("Reset account", "ખાતું રીસેટ કરો") + '</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(wrap);
+    $("#recCancel").onclick = function () { wrap.style.display = "none"; };
+    wrap.addEventListener("click", function (ev) { if (ev.target === wrap) wrap.style.display = "none"; });
+    $("#recGo").onclick = submitRecovery;
+  }
+  function submitRecovery() {
+    var code = ($("#recCode").value || "").trim();
+    var email = ($("#recEmail").value || "").trim();
+    var p1 = $("#recPass").value || "", p2 = $("#recPass2").value || "";
+    if (!code) { recMsg(tr("Enter your recovery code.", "રિકવરી કોડ દાખલ કરો.")); return; }
+    if (!validEmail(email)) { recMsg(tr("Enter a valid email.", "માન્ય ઈમેલ દાખલ કરો.")); return; }
+    if (p1.length < 6) { recMsg(tr("Password must be at least 6 characters.", "પાસવર્ડ ઓછામાં ઓછા 6 અક્ષર.")); return; }
+    if (p1 !== p2) { recMsg(tr("Passwords do not match.", "પાસવર્ડ મેળ ખાતા નથી.")); return; }
+    var btn = $("#recGo"); if (btn) { btn.disabled = true; btn.textContent = tr("Resetting…", "રીસેટ…"); }
+    recMsg(tr("Verifying…", "ચકાસી રહ્યું છે…"), true);
+    fetch(window.__RECOVERY_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: code, newEmail: email, newPassword: p1 }) })
+      .then(function (r) { return r.json().then(function (j) { return { status: r.status, j: j }; }, function () { return { status: r.status, j: null }; }); })
+      .then(function (res) {
+        if (btn) { btn.disabled = false; btn.textContent = tr("Reset account", "ખાતું રીસેટ કરો"); }
+        if (res.j && res.j.ok) {
+          recMsg(tr("Done! Sign in with your new email and password.", "થઈ ગયું! નવા ઈમેલ અને પાસવર્ડથી સાઇન ઇન કરો."), true);
+          var emEl = $("#authEmail"); if (emEl) emEl.value = email;
+          setTimeout(function () { var w = $("#gjRecBack"); if (w) w.style.display = "none"; }, 2500);
+          return;
+        }
+        recMsg(recErr(res.j && res.j.error));
+      })
+      .catch(function () { if (btn) { btn.disabled = false; btn.textContent = tr("Reset account", "ખાતું રીસેટ કરો"); } recMsg(tr("Could not reach the recovery service. Check your internet.", "રિકવરી સેવા સુધી પહોંચી શકાયું નહીં. ઇન્ટરનેટ તપાસો.")); });
+  }
+
   /* ---------- secure logout ---------- */
   window.GJAuth.logout = function () {
     try { if (window.GJ && window.GJ.releaseLock) window.GJ.releaseLock(); } catch (e) {}   // free any sheet I was editing
@@ -328,14 +397,14 @@
       welcome: 'Welcome <span>Back</span>', sub: "Sign in to continue to your account",
       roleAdmin: "Admin — Full access", roleSup: "Supervisor — Gate & Packaging",
       email: "Email Address", password: "Password", remember: "Remember Me", forgot: "Forgot Password?",
-      login: "Log In", secure: "Secure Access", foot: 'Shri Giriraj Textile <span>·</span> Jobwork Management System'
+      login: "Log In", secure: "Secure Access", recover: "Locked out? Reset with recovery code", foot: 'Shri Giriraj Textile <span>·</span> Jobwork Management System'
     },
     gu: {
       title: "જોબવર્ક મેનેજમેન્ટ સિસ્ટમ", tagline: 'મેનેજ <span>·</span> ટ્રેક <span>·</span> ગ્રો',
       welcome: 'ફરી <span>આવકાર</span>', sub: "તમારા ખાતામાં ચાલુ રાખવા સાઇન ઇન કરો",
       roleAdmin: "એડમિન — સંપૂર્ણ એક્સેસ", roleSup: "સુપરવાઇઝર — ગેટ અને પેકેજિંગ",
       email: "ઈમેલ સરનામું", password: "પાસવર્ડ", remember: "મને યાદ રાખો", forgot: "પાસવર્ડ ભૂલી ગયા?",
-      login: "લોગિન", secure: "સુરક્ષિત એક્સેસ", foot: 'શ્રી ગિરિરાજ ટેક્ષટાઇલ <span>·</span> જોબવર્ક મેનેજમેન્ટ'
+      login: "લોગિન", secure: "સુરક્ષિત એક્સેસ", recover: "લોગિન નથી થતું? રિકવરી કોડથી રીસેટ કરો", foot: 'શ્રી ગિરિરાજ ટેક્ષટાઇલ <span>·</span> જોબવર્ક મેનેજમેન્ટ'
     }
   };
   function applyLoginLang(lang) {
@@ -350,6 +419,7 @@
     if ((el = $("#authPass")))  el.placeholder = t.password;
     if ((el = $(".rm-txt")))    el.textContent = t.remember;
     if ((el = $("#forgotPw")))  el.textContent = t.forgot;
+    if ((el = $("#recoverLink"))) el.textContent = t.recover;
     defaultBtn = t.login; var bs = $("#enterBtn span"); if (bs && !$("#enterBtn").disabled) bs.textContent = t.login;
     if ((el = $(".sa-txt")))  el.textContent = t.secure;
     if ((el = $("#authFoot"))) el.innerHTML = t.foot;
@@ -371,6 +441,7 @@
     if (form) form.addEventListener("submit", function (e) { e.preventDefault(); doLogin(); });
     var btn = $("#enterBtn"); if (btn) btn.onclick = null;   // the form submit drives login
     var fp = $("#forgotPw"); if (fp) fp.addEventListener("click", doForgot);
+    var rl = $("#recoverLink"); if (rl && recoveryEnabled()) { rl.style.display = "block"; rl.addEventListener("click", openRecovery); }
     $("#authEmail") && $("#authEmail").addEventListener("input", clearErr);
     $("#authPass")  && $("#authPass").addEventListener("input", clearErr);
     // role dropdown → remember the choice; the email field is never auto-populated
