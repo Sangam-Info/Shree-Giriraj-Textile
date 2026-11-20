@@ -1180,6 +1180,7 @@
   function umSaveLimit() {
     var n = parseInt(fVal("#umMax"), 10);
     if (isNaN(n) || n < 1) { toast(L("માન્ય સંખ્યા દાખલ કરો", "Enter a valid number"), "info"); return; }
+    if (n > 100) { toast(L("મહત્તમ 100 યુઝર", "Maximum 100 users"), "info"); return; }   /* bug 21: upper bound */
     if (n < umNonAdminCount()) { toast(L("મર્યાદા હાલના યુઝર કરતાં ઓછી ન હોય", "Limit can't be below the current user count"), "info"); return; }
     closeModal();
     umDb().collection("meta").doc("appconfig").set({ maxUsers: n }, { merge: true }).then(function () { UM.maxUsers = n; toast(L("મર્યાદા સેવ થઈ", "Limit saved"), "ok"); render(); })
@@ -1915,8 +1916,8 @@
       };
     });
     document.querySelectorAll("[data-kg]").forEach(function (el) { el.oninput = function () { var s = +el.getAttribute("data-kg"); if (stepTotalMt(sh, s) <= 0) { el.value = ""; sh.kg[s] = null; toast(L("પહેલાં આ સ્ટેપમાં મીટર ભરો", "Enter metres in this step first"), "info"); setTxt("#sumKg", kgStr(B(sheetKgG(sh)))); return; } sh.kg[s] = sanitizeDecimalField(el, 8, 3, KG_MAX, kgMaxMsg); setTxt("#sumKg", kgStr(B(sheetKgG(sh)))); schedulePersist(); }; });   /* bug 3 + bug 20 (values > 99,999 compute correctly) */
-    document.querySelectorAll("[data-pk]").forEach(function (el) { el.oninput = function () { sh.parat[+el.getAttribute("data-pk")].kokdi = sanitizeDecimalField(el, 7, 3); refreshParat(sh); schedulePersist(); }; });   /* bug 4: accept lakh values */
-    document.querySelectorAll("[data-pc]").forEach(function (el) { el.oninput = function () { sh.parat[+el.getAttribute("data-pc")].color = sanitizeDecimalField(el, 7, 3); refreshParat(sh); schedulePersist(); }; });   /* bug 4: accept lakh values */
+    document.querySelectorAll("[data-pk]").forEach(function (el) { el.oninput = function () { sh.parat[+el.getAttribute("data-pk")].kokdi = sanitizeDecimalField(el, 8, 3, KG_MAX, kgMaxMsg); refreshParat(sh); schedulePersist(); }; });   /* bug 21: cap kokdi */
+    document.querySelectorAll("[data-pc]").forEach(function (el) { el.oninput = function () { sh.parat[+el.getAttribute("data-pc")].color = sanitizeDecimalField(el, 8, 3, KG_MAX, kgMaxMsg); refreshParat(sh); schedulePersist(); }; });   /* bug 21: cap color */
     document.querySelectorAll("[data-pdel]").forEach(function (el) { el.onclick = function () { sh.parat.splice(+el.getAttribute("data-pdel"), 1); render(); }; });
     var pa = $("#paratAdd"); if (pa) pa.onclick = function () { if (sh.parat.length >= 5) { toast(L("વધુમાં વધુ 5 લાઇન", "Maximum 5 lines"), "info"); return; } sh.parat.push({ kokdi: null, color: null }); render(); };   /* bug 4: max 5 lines */
     var sp = $("#stepPlus"); if (sp) sp.onclick = function () { if (sh.nSteps < MAX_STEPS) { sh.nSteps++; render(); } };
@@ -2099,12 +2100,13 @@
     var p = niwarParty(), mid = STATE.month, pr = nParam(p.id, mid);
     var sel = $("#niwarPartySel"); if (sel) sel.onchange = function () { STATE.niwarParty = sel.value; render(); };
     function pf(v) { v = parseFloat(v); return isNaN(v) ? 0 : Math.max(0, v); }
-    document.querySelectorAll("[data-nsize]").forEach(function (el) { el.onchange = function () { pr.sizeRates[el.getAttribute("data-nsize")] = pf(el.value); pr.paidP = null; render(); }; });
-    var nYarn = $("#nYarn"); if (nYarn) { nYarn.oninput = function () { setTxt("#nYarnV", rateStr(rupToP(pf(nYarn.value)))); }; nYarn.onchange = function () { pr.yarnPrice = pf(nYarn.value); pr.paidP = null; render(); }; }
-    var nGhat = $("#nGhat"); if (nGhat) { nGhat.oninput = function () { setTxt("#nGhatV", pf(nGhat.value) + "%"); }; nGhat.onchange = function () { pr.ghatPct = pf(nGhat.value); pr.paidP = null; render(); }; }
-    var nTds = $("#nTds"); if (nTds) { nTds.oninput = function () { setTxt("#nTdsV", moneyP(rupToP(pf(nTds.value)))); }; nTds.onchange = function () { pr.tdsP = rupToP(pf(nTds.value)); pr.paidP = null; render(); }; }
-    var nDeduct = $("#nDeduct"); if (nDeduct) { nDeduct.oninput = function () { setTxt("#nDeductV", moneyP(rupToP(pf(nDeduct.value)))); }; nDeduct.onchange = function () { pr.loanDeductP = rupToP(pf(nDeduct.value)); pr.paidP = null; render(); }; }
-    var nPaid = $("#nPaid"); if (nPaid) { nPaid.oninput = function () { setTxt("#nPaidV", moneyP(rupToP(pf(nPaid.value)))); }; nPaid.onchange = function () { pr.paidP = rupToP(pf(nPaid.value)); render(); }; }
+    var ghatPctMsg = function () { toast(L("મહત્તમ 100%", "Maximum 100%"), "info"); };   /* bug 21 */
+    document.querySelectorAll("[data-nsize]").forEach(function (el) { el.onchange = function () { pr.sizeRates[el.getAttribute("data-nsize")] = clampNum(el.value, CAP.pkRate, capMsg); pr.paidP = null; render(); }; });   /* bug 21: size rate cap */
+    var nYarn = $("#nYarn"); if (nYarn) { nYarn.oninput = function () { setTxt("#nYarnV", rateStr(rupToP(pf(nYarn.value)))); }; nYarn.onchange = function () { pr.yarnPrice = clampNum(nYarn.value, CAP.pkRate, capMsg); pr.paidP = null; render(); }; }   /* bug 21 */
+    var nGhat = $("#nGhat"); if (nGhat) { nGhat.oninput = function () { setTxt("#nGhatV", pf(nGhat.value) + "%"); }; nGhat.onchange = function () { pr.ghatPct = clampNum(nGhat.value, CAP.ghatiPct, ghatPctMsg); pr.paidP = null; render(); }; }   /* bug 21: % ≤ 100 */
+    var nTds = $("#nTds"); if (nTds) { nTds.oninput = function () { setTxt("#nTdsV", moneyP(rupToP(pf(nTds.value)))); }; nTds.onchange = function () { pr.tdsP = rupToP(clampNum(nTds.value, CAP.paid, capMsg)); pr.paidP = null; render(); }; }   /* bug 21 */
+    var nDeduct = $("#nDeduct"); if (nDeduct) { nDeduct.oninput = function () { setTxt("#nDeductV", moneyP(rupToP(pf(nDeduct.value)))); }; nDeduct.onchange = function () { pr.loanDeductP = rupToP(clampNum(nDeduct.value, CAP.paid, capMsg)); pr.paidP = null; render(); }; }   /* bug 21 */
+    var nPaid = $("#nPaid"); if (nPaid) { nPaid.oninput = function () { setTxt("#nPaidV", moneyP(rupToP(pf(nPaid.value)))); }; nPaid.onchange = function () { pr.paidP = rupToP(clampNum(nPaid.value, CAP.paid, capMsg)); render(); }; }   /* bug 21 */
     var nWa = $("#nWa"); if (nWa) nWa.onclick = function () { waShare(niwarWaText(), waDigits(niwarParty().phone)); };
     var nc = $("#nPdfCompany"); if (nc) nc.onclick = function () { makeNiwarPDF("company"); };
     var nw = $("#nPdfWorker"); if (nw) nw.onclick = function () { makeNiwarPDF("worker"); };
@@ -2150,7 +2152,7 @@
   function openNLoan() {
     var p = niwarParty();
     var body = '<div class="form-grid"><div class="fg fg-full"><label>' + L("પ્રકાર", "Type") + '</label><div class="field"><select data-nl="type"><option value="loan">' + L("લોન આપી (+)", "Loan given (+)") + '</option><option value="topup">' + L("ટોપ-અપ (+)", "Top-up (+)") + '</option><option value="repay">' + L("વસૂલ (−)", "Repayment (−)") + '</option></select></div></div>' +
-      '<div class="fg" data-fg="nlamt"><label>' + L("રકમ (₹)", "Amount (₹)") + '</label><div class="field"><span class="pre">₹</span><input type="number" data-nl="amt" min="1" value="10000"></div><div class="msg">' + L("માન્ય રકમ", "Enter amount") + '</div></div>' +
+      '<div class="fg" data-fg="nlamt"><label>' + L("રકમ (₹)", "Amount (₹)") + '</label><div class="field"><span class="pre">₹</span><input type="number" data-nl="amt" min="1" max="10000000" value="10000"></div><div class="msg">' + L("માન્ય રકમ", "Enter amount") + '</div></div>' +
       '<div class="fg"><label>' + L("તારીખ (દિવસ)", "Date (day)") + '</label><div class="field"><input type="number" data-nl="day" min="1" max="31" value="18"></div></div>' +
       '<div class="fg fg-full"><label>' + L("નોંધ", "Note") + '</label><div class="field"><input data-nl="note" value=""></div></div></div><div class="hint">' + (STATE.lang === "en" ? p.en : p.name) + ' · ' + monthName() + '</div>';
     showModal("rupee", L("નિવાર લોન એન્ટ્રી", "Niwar loan entry"), (STATE.lang === "en" ? p.en : p.name), body, saveNLoan);
@@ -2159,7 +2161,8 @@
     var p = niwarParty();
     function val(k) { var el = document.querySelector('[data-nl="' + k + '"]'); return el ? el.value : ""; }
     var amt = parseFloat(val("amt")), day = parseInt(val("day"), 10);
-    var ok = !(isNaN(amt) || amt < 1 || isNaN(day) || day < 1 || day > 31);
+    var ok = !(isNaN(amt) || amt < 1 || amt > CAP.loan || isNaN(day) || day < 1 || day > 31);   /* bug 21: cap niwar loan */
+    if (!isNaN(amt) && amt > CAP.loan) capMsg(CAP.loan);
     var fg = document.querySelector('[data-fg="nlamt"]'); if (fg) fg.classList.toggle("err", !ok); if (!ok) return;
     var m = monthObj(), d = "2026-" + pad(m.mm) + "-" + pad(day);
     (NLOANS[p.id] = NLOANS[p.id] || []).push({ id: rid(), d: d, type: val("type"), amt: Math.round(amt), note: val("note") || (val("type") === "repay" ? L("વસૂલ", "Repayment") : L("લોન", "Loan")) });
