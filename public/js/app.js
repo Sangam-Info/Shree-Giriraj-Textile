@@ -1541,7 +1541,8 @@
     var ini = (u.name || u.email || "?").trim().slice(0, 2).toUpperCase();
     var email = u.email || "—";
     var roleTxt = u.role === "admin" ? L("એડમિન (માલિક)", "Admin (Owner)") : L("સુપરવાઇઝર", "Supervisor");
-    var html = '<div class="page-head"><h2>' + L("પ્રોફાઇલ", "Profile") + '</h2><div class="sub">' + L("તમારું એકાઉન્ટ", "Your account") + '</div></div>';
+    var html = '<div class="page-head row-between"><div><h2>' + L("પ્રોફાઇલ", "Profile") + '</h2><div class="sub">' + L("તમારું એકાઉન્ટ", "Your account") + '</div></div>' +
+      (u.role === "admin" ? '<div class="page-actions"><button class="btn btn-primary" data-editprofile>' + svg("edit") + ' ' + L("પ્રોફાઇલ ફેરફાર", "Edit profile") + '</button></div>' : '') + '</div>';
     html += '<div class="prof-wrap">';
     html += '<div class="card card-pad prof-id">' +
         '<div class="prof-av">' + esc(ini) + '</div>' +
@@ -1565,6 +1566,60 @@
     return html;
   }
   function prow(ic, k, v) { return '<div class="prof-row"><span class="prof-k">' + svg(ic) + '<span>' + k + '</span></span><span class="prof-v">' + v + '</span></div>'; }
+
+  /* --- Edit Profile (bug 16): update Name and sign-in Email ---
+     Name is saved to the user's Firestore account doc. Email is the Firebase
+     sign-in identity, so changing it reauthenticates with the current password
+     (never stored/shown) and, where the project requires it, sends a
+     verification link before the login email switches. Admin-only, matching
+     the database rules that let only the Owner write account docs. */
+  function profileEditForm() {
+    var u = (window.GJAuth && window.GJAuth.user) || {};
+    var body =
+      '<div class="fg fg-full"><label>' + L("નામ", "Name") + '</label><div class="field"><input id="pfName" type="text" maxlength="60" value="' + esc(u.name || "") + '" placeholder="' + L("તમારું નામ", "Your name") + '"></div></div>' +
+      '<div class="fg fg-full"><label>' + L("ઈમેલ (સાઇન-ઇન)", "Email (sign-in)") + '</label><div class="field"><input id="pfEmail" type="email" value="' + esc(u.email || "") + '" placeholder="name@example.com"></div></div>' +
+      '<div class="fg fg-full"><label>' + L("વર્તમાન પાસવર્ડ", "Current password") + '</label><div class="field"><input id="pfPass" type="password" autocomplete="current-password" placeholder="' + L("ઈમેલ બદલવા માટે જ જરૂરી", "only needed to change the email") + '"></div><div class="msg">' + L("ઈમેલ એ તમારું લોગિન છે — બદલવા સુરક્ષા માટે પાસવર્ડ જોઈએ.", "Email is your sign-in — changing it needs your current password for security.") + '</div></div>';
+    showModal("users", L("પ્રોફાઇલ ફેરફાર", "Edit Profile"), u.email || "", body, saveProfileForm);
+  }
+  function saveProfileForm() {
+    var u = (window.GJAuth && window.GJAuth.user) || {};
+    var newName = fVal("#pfName").trim(), newEmail = fVal("#pfEmail").trim(), pw = fVal("#pfPass");
+    var nameChanged = newName !== (u.name || ""), emailChanged = !!newEmail && newEmail.toLowerCase() !== String(u.email || "").toLowerCase();
+    if (!newName) { toast(L("નામ ખાલી ન રાખો", "Name can't be empty"), "info"); return; }
+    if (!nameChanged && !emailChanged) { closeModal(); return; }
+    if (emailChanged && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(newEmail)) { toast(L("માન્ય ઈમેલ દાખલ કરો", "Enter a valid email"), "info"); return; }
+    if (emailChanged && !pw) { toast(L("ઈમેલ બદલવા વર્તમાન પાસવર્ડ દાખલ કરો", "Enter your current password to change the email"), "info"); return; }
+    var auth = window.GJAuth && window.GJAuth.auth, db = window.GJAuth && window.GJAuth.db, uid = u.uid;
+    closeModal();
+    // DEMO / offline — update the signed-in profile locally
+    if (!db || !uid) { if (window.GJAuth && window.GJAuth.user) { window.GJAuth.user.name = newName; if (emailChanged) window.GJAuth.user.email = newEmail; } render(); toast(L("પ્રોફાઇલ અપડેટ થઈ", "Profile updated"), "ok"); return; }
+    function fail(e) {
+      var code = (e && (e.code || e.message)) || "";
+      if (/wrong-password|invalid-credential|invalid-login/i.test(code)) toast(L("પાસવર્ડ ખોટો છે.", "The password is incorrect."), "error");
+      else if (/requires-recent-login/i.test(code)) toast(L("સુરક્ષા માટે ફરી લોગિન કરી, પછી ઈમેલ બદલો.", "For security, log out and back in, then change the email."), "error");
+      else if (/email-already-in-use/i.test(code)) toast(L("આ ઈમેલ પહેલેથી વપરાયેલ છે.", "That email is already in use."), "error");
+      else if (/permission/i.test(code)) toast(L("સેવ બ્લોક — ડેટાબેઝ નિયમો પબ્લિશ કરો.", "Save blocked — publish the database rules."), "error");
+      else toast(L("અપડેટ નિષ્ફળ.", "Update failed."), "error");
+    }
+    // 1) save the name first (if changed)
+    var step = Promise.resolve();
+    if (nameChanged) step = step.then(function () { return db.collection("users").doc(uid).set({ name: newName }, { merge: true }).then(function () { window.GJAuth.user.name = newName; }); });
+    step.then(function () {
+      if (!emailChanged) { render(); toast(L("પ્રોફાઇલ અપડેટ થઈ", "Profile updated"), "ok"); return; }
+      var cu = auth && auth.currentUser;
+      if (!cu || !cu.updateEmail) { render(); toast(L("નામ અપડેટ થયું. આ બિલ્ડમાં ઈમેલ બદલી શકાતું નથી.", "Name updated. Email can't be changed in this build."), "info"); return; }
+      var EP = window.firebase && firebase.auth && firebase.auth.EmailAuthProvider;
+      var reauth = (EP && cu.reauthenticateWithCredential) ? cu.reauthenticateWithCredential(EP.credential(u.email, pw)) : Promise.resolve();
+      toast(L("ઈમેલ અપડેટ થઈ રહ્યું છે…", "Updating email…"), "info");
+      return reauth.then(function () {
+        if (cu.verifyBeforeUpdateEmail) return cu.verifyBeforeUpdateEmail(newEmail).then(function () { return "verify"; });
+        return cu.updateEmail(newEmail).then(function () { return "done"; });
+      }).then(function (mode) {
+        if (mode === "verify") { render(); toast(L("ચકાસણી લિંક નવા ઈમેલ પર મોકલી — પુષ્ટિ પછી લોગિન ઈમેલ બદલાશે.", "A verification link was sent to the new email — the sign-in email changes after you confirm it."), "ok"); return; }
+        return db.collection("users").doc(uid).set({ email: newEmail }, { merge: true }).then(function () { window.GJAuth.user.email = newEmail; render(); toast(L("પ્રોફાઇલ અપડેટ થઈ", "Profile updated"), "ok"); });
+      });
+    }).catch(fail);
+  }
 
   /* ---------------------------------------------------------------- RENDER */
   function render() {
@@ -1681,6 +1736,7 @@
     var fr = document.querySelector("[data-fin-retry]");
     if (fr) fr.onclick = function () { gjGenerateFinancialBackup(+fr.getAttribute("data-fin-retry"), false).then(function (r) { toast(r.ok ? L("નાણાકીય બેકઅપ ડાઉનલોડ થયું.", "Financial backup downloaded.") : L("નાણાકીય બેકઅપ નિષ્ફળ.", "Financial backup failed."), r.ok ? "ok" : "error"); if (STATE.view === "backup") render(); }); };
     document.querySelectorAll("[data-fin-dl]").forEach(function (b) { b.onclick = function () { gjRedownloadFin(+b.getAttribute("data-fin-dl")); }; });
+    var epf = document.querySelector("[data-editprofile]"); if (epf) epf.onclick = function () { profileEditForm(); };
     document.querySelectorAll("[data-editworker]").forEach(function (b) { b.onclick = function () { workerForm(b.getAttribute("data-editworker")); }; });
     document.querySelectorAll("[data-delworker]").forEach(function (b) { b.onclick = function () { delWorker(b.getAttribute("data-delworker")); }; });
     var wsearch = $("#workerSearch");
@@ -1731,6 +1787,7 @@
     wireBilling();
     wireNiwar();
     wireNiwarSheet();
+    wireGridNav();   // bug 17: ↑/↓/←/→ + Enter navigation across all data-entry grids
     var lr = $("#loanReport"); if (lr) lr.onclick = makeLoanPDF;
     var ur = $("#upadReport"); if (ur) ur.onclick = makeUpadPDF;
     var yp = $("#yePdf"); if (yp) yp.onclick = makeYearEndPDF;
@@ -1741,6 +1798,51 @@
     var pb = $("#pdfBoth"); if (pb) pb.onclick = function () { makeBillPDF("company", true); };
   }
   function setTxt(id, t) { var el = $(id); if (el) el.textContent = t; }
+
+  /* --- Arrow-key grid navigation for sheet data-entry cells (bug 17) ---
+     ↓ / Enter move to the cell below, ↑ to the cell above, and ← / → move
+     between columns but ONLY when the caret sits at the edge of the text,
+     so they never interfere with editing a value mid-string. Works for
+     every grid: gate metres (data-mt), packing metres (data-pmt), niwar
+     lots (data-np-cell). Single-row KG strips (data-kg/data-pkg) get ← / →. */
+  function gjCellNav(attr, sep) {
+    document.querySelectorAll("[" + attr + "]").forEach(function (el) {
+      el.addEventListener("keydown", function (e) {
+        var k = e.key;
+        if (k !== "ArrowUp" && k !== "ArrowDown" && k !== "ArrowLeft" && k !== "ArrowRight" && k !== "Enter") return;
+        if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+        var p = (el.getAttribute(attr) || "").split(sep), c = +p[0], r = +p[1], len = (el.value || "").length;
+        var atStart = el.selectionStart === 0 && el.selectionEnd === 0;
+        var atEnd = el.selectionStart === len && el.selectionEnd === len;
+        function at(cc, rr) { return document.querySelector('[' + attr + '="' + cc + sep + rr + '"]'); }
+        var t = null;
+        if (k === "ArrowDown" || k === "Enter") t = at(c, r + 1);
+        else if (k === "ArrowUp") t = at(c, r - 1);
+        else if (k === "ArrowLeft") { if (!atStart) return; t = at(c - 1, r); }
+        else if (k === "ArrowRight") { if (!atEnd) return; t = at(c + 1, r); }
+        if (t && !t.disabled) { e.preventDefault(); t.focus(); if (t.select) t.select(); }
+      });
+    });
+  }
+  function gjRowNav(attr) {
+    document.querySelectorAll("[" + attr + "]").forEach(function (el) {
+      el.addEventListener("keydown", function (e) {
+        var k = e.key; if (k !== "ArrowLeft" && k !== "ArrowRight") return;
+        if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+        var c = +el.getAttribute(attr), len = (el.value || "").length;
+        var atStart = el.selectionStart === 0 && el.selectionEnd === 0;
+        var atEnd = el.selectionStart === len && el.selectionEnd === len;
+        var t = null;
+        if (k === "ArrowLeft") { if (!atStart) return; t = document.querySelector('[' + attr + '="' + (c - 1) + '"]'); }
+        else { if (!atEnd) return; t = document.querySelector('[' + attr + '="' + (c + 1) + '"]'); }
+        if (t && !t.disabled) { e.preventDefault(); t.focus(); if (t.select) t.select(); }
+      });
+    });
+  }
+  function wireGridNav() {
+    gjCellNav("data-mt", "_"); gjCellNav("data-pmt", "_"); gjCellNav("data-np-cell", "-");
+    gjRowNav("data-kg"); gjRowNav("data-pkg");
+  }
 
   /* --- sheet editor live wiring (no full re-render) --- */
   function wireSheetEditor() {
