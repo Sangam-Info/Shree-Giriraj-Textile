@@ -601,7 +601,7 @@
     var filterWid = isSup ? "all" : STATE.gateFilter;              // admin can filter; supervisor sees all
     var monthList = SHEETS.filter(function (s) { return s.date.slice(0, 7) === STATE.month; });
     var list = (filterWid === "all" ? monthList : monthList.filter(function (s) { return s.workerId === filterWid; }))
-      .slice().sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+      .slice().sort(function (a, b) { var au = a.updatedAt || 0, bu = b.updatedAt || 0; if (au !== bu) return bu - au; return a.date < b.date ? 1 : -1; });   /* bug 24: most recently updated first */
     var showWorkerCol = (filterWid === "all");
     var filterName = (filterWid === "all") ? L("બધા વર્કર", "all workers") : (function () { var ww = workerById(filterWid); return ww ? (STATE.lang === "en" ? ww.en : ww.name) : L("બધા વર્કર", "all workers"); })();
 
@@ -616,7 +616,7 @@
     if (!list.length) html += '<tr><td colspan="' + (showWorkerCol ? 8 : 7) + '" style="text-align:center;color:var(--muted);padding:22px">' + L("આ મહિને કોઈ શીટ નથી. “નવી શીટ” દબાવો.", "No sheets this month. Press “New Sheet”.") + '</td></tr>';
     list.forEach(function (s) {
       var sw = workerById(s.workerId);
-      html += '<tr><td><b>' + dmy(s.date) + '</b></td>' + (showWorkerCol ? '<td><b>' + esc(sw ? (STATE.lang === "en" ? sw.en : sw.name) : "—") + '</b></td>' : '') + '<td>' + esc(s.quality) + '</td>' +
+      html += '<tr><td><b>' + dmy(s.date) + '</b></td>' + (showWorkerCol ? '<td><b>' + esc(sw ? (STATE.lang === "en" ? sw.en : sw.name) : "—") + '</b></td>' : '') + '<td>' + esc(qLabel(s.quality)) + '</td>' +
         '<td style="text-align:right" class="num">' + sheetRolls(s) + '</td><td style="text-align:right" class="num">' + numI(sheetMt(s)) + '</td>' +
         '<td style="text-align:right" class="num">' + kgStr(B(sheetKgG(s))) + '</td><td style="text-align:right" class="num">' + kgStr(B(sheetKokdiG(s) + sheetColorG(s))) + '</td>' +
         '<td style="text-align:right;white-space:nowrap"><button class="btn btn-soft btn-sm" data-opensheet="' + s.id + '">' + svg("edit") + ' ' + L("ખોલો", "Open") + '</button>' +
@@ -1392,7 +1392,7 @@
       '<th style="text-align:right">' + L("રોલ", "Roll") + '</th><th style="text-align:right">' + L("કુલ મીટર", "Total Mtr") + '</th><th style="text-align:right">' + L("રકમ", "Amount") + '</th><th></th></tr></thead><tbody>';
     if (!PACKING.length) html += '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">' + L("કોઈ પેકિંગ લિસ્ટ નથી.", "No packing lists.") + '</td></tr>';
     PACKING.forEach(function (p) {
-      html += '<tr><td><b>' + dmy(p.date) + '</b></td><td>' + esc(p.name || "—") + '</td><td>' + esc(p.quality || "—") + '</td><td>' + esc(p.transport || "—") + '</td>' +
+      html += '<tr><td><b>' + dmy(p.date) + '</b></td><td>' + esc(p.name || "—") + '</td><td>' + esc(p.quality ? qLabel(p.quality) : "—") + '</td><td>' + esc(p.transport || "—") + '</td>' +
         '<td style="text-align:right" class="num">' + pkRolls(p) + '</td><td style="text-align:right" class="num">' + numI(pkMt(p)) + '</td><td style="text-align:right" class="num" style="font-weight:700">' + moneyP(pkAmount(p).amountP) + '</td>' +
         '<td style="text-align:right"><button class="btn btn-soft btn-sm" data-openpacking="' + p.id + '">' + svg(isSup ? "edit" : "chevR") + ' ' + L("ખોલો", "Open") + '</button></td></tr>';
     });
@@ -1711,6 +1711,7 @@
     var wasEditor = /sheet$/.test(STATE.view);
     var wasEditable = wasEditor && editableEditorNow();
     if (wasEditable) mergePendingRemoteBeforeSave();    // fold in others' saves before I push mine
+    if (wasEditable) touchEditItem();                   // bug 24: stamp update time before leaving the editor
     if (wasEditor) releaseEditorLock();                 // let other users edit this sheet now
     STATE.view = v; _pendingEdit = false;
     render();
@@ -1729,7 +1730,7 @@
     // sheet for this worker already exists this month, reuse it instead of stacking another.
     var existing = SHEETS.filter(function (s) { return s.workerId === STATE.worker && s.date.slice(0, 7) === STATE.month && isEmptySheet(s); });
     if (existing.length) { openSheet(existing[existing.length - 1].id); return; }
-    var sh = blankSheet(STATE.worker, date); SHEETS.push(sh); openSheet(sh.id);
+    var sh = blankSheet(STATE.worker, date); sh.updatedAt = Date.now(); SHEETS.push(sh); openSheet(sh.id);   /* bug 24 */
     toast(L("નવી શીટ બની", "New sheet created"), "ok");
   }
 
@@ -1821,6 +1822,14 @@
     var pb = $("#pdfBoth"); if (pb) pb.onclick = function () { makeBillPDF("company", true); };
   }
   function setTxt(id, t) { var el = $(id); if (el) el.textContent = t; }
+
+  // bug 24: stamp the sheet being edited so the listing can float it to the top
+  function touchEditItem() {
+    var now = Date.now();
+    if (STATE.view === "gatesheet") { var s = sheetById(STATE.sheetId); if (s) s.updatedAt = now; }
+    else if (STATE.view === "packingsheet") { var p = PACKING.filter(function (x) { return x.id === STATE.packingId; })[0]; if (p) p.updatedAt = now; }
+    else if (STATE.view === "niwarsheet") { var n = nSheetById(STATE.niwarSheetId); if (n) n.updatedAt = now; }
+  }
 
   /* --- Arrow-key grid navigation for sheet data-entry cells (bug 17) ---
      ↓ / Enter move to the cell below, ↑ to the cell above, and ← / → move
@@ -2124,14 +2133,14 @@
     NUPAD[p.id] = NUPAD[p.id] || [];
     if (nUpadEditId) { var ex = NUPAD[p.id].filter(function (t) { return t.id === nUpadEditId; })[0]; if (ex) { ex.d = d; ex.amt = Math.round(amt); ex.note = note; } }
     else NUPAD[p.id].push({ id: rid(), d: d, amt: Math.round(amt), note: note });
-    var s = curNiwarSheet(); if (s) s.paidP = null;
-    nUpadEditId = null; closeModal(); render(); toast(L("ઉપડ સેવ થયું", "Upad saved"), "ok");
+    var pr = nParam(p.id, m.id); if (pr) pr.paidP = null;   /* bug 25: reopen the paid default so Net Payable recomputes */
+    nUpadEditId = null; closeModal(); render(); flushPersistNow(); toast(L("ઉપડ સેવ થયું", "Upad saved"), "ok");
   }
   function delNUpad(id) {
     var p = niwarParty();
     infoModalConfirm(L("ઉપડ કાઢવું?", "Delete upad?"), L("આ ઉપડ એન્ટ્રી કાઢી નાખશે; બિલ ફરી ગણાશે.", "This removes the upad entry; the bill recomputes."), function () {
       NUPAD[p.id] = (NUPAD[p.id] || []).filter(function (t) { return t.id !== id; });
-      var s = curNiwarSheet(); if (s) s.paidP = null; render(); toast(L("કાઢ્યું", "Deleted"), "ok");
+      var pr = nParam(p.id, monthObj().id); if (pr) pr.paidP = null; render(); flushPersistNow(); toast(L("કાઢ્યું", "Deleted"), "ok");   /* bug 25 */
     });
   }
   /* niwar loan modal */
@@ -2448,6 +2457,8 @@
      Gujarati→English is a deterministic romanisation; English→Gujarati is a
      best-effort phonetic map (good for names, editable by typing in Gujarati). */
   function isGujarati(s) { return /[઀-૿]/.test(String(s || "")); }
+  // bug 26: show the free-text Quality in the current language (transliterate, like worker names)
+  function qLabel(q) { q = q || ""; if (!q) return q; if (STATE.lang === "en") { var r = isGujarati(q) ? titleCase(translitToEn(q)) : q; return r.replace(/[૦-૯]/g, function (d) { return "૦૧૨૩૪૫૬૭૮૯".indexOf(d); }); } return isGujarati(q) ? q : translitToGu(q); }
   function titleCase(s) { return String(s || "").toLowerCase().replace(/(^|[\s'().-])([a-z])/g, function (m, p, c) { return p + c.toUpperCase(); }); }
   function translitToEn(s) {
     s = String(s || "");
@@ -3019,6 +3030,7 @@
   function saveEditorNow() {
     mergePendingRemoteBeforeSave();
     _pendingEdit = false;
+    touchEditItem();   // bug 24: mark this sheet as the most recently updated
     // Claim success only AFTER the server acknowledges the write. If the write is
     // rejected (Firestore rules not published) say so plainly instead of a false "Saved".
     Promise.resolve(flushPersistNow()).then(function (res) {
