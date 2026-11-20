@@ -109,13 +109,27 @@
   function kgOrNull(v) { var n = numOrNull(v); if (n == null) return null; if (n < 0) n = 0; return n; }
   // Sanitise a decimal field in place and return the clamped value (or null).
   // maxVal (optional) hard-caps the numeric value (e.g. 1,00,000 per kg/mtr — bug 8).
-  function sanitizeDecimalField(el, maxInt, maxDec, maxVal) {
+  function sanitizeDecimalField(el, maxInt, maxDec, maxVal, onMax) {
     var c = cleanDecimal(el.value, maxInt, maxDec);
     var n = kgOrNull(c);
-    if (maxVal != null && n != null && n > maxVal) { n = maxVal; c = String(maxVal); }
+    if (maxVal != null && n != null && n > maxVal) { n = maxVal; c = String(maxVal); if (onMax) { try { onMax(maxVal); } catch (e) {} } }
     if (c !== el.value) el.value = c;
     return n;
   }
+  // KG fields: generous ceiling so real weights (incl. > 99,999) compute correctly;
+  // only a truly out-of-range value is clamped, and then with a visible message. (bug 20)
+  var KG_MAX = 9999999;                 // 99,99,999 kg — effectively unlimited for real use
+  function kgMaxMsg() { toast(L("વધુમાં વધુ 99,99,999 KG", "Maximum 99,99,999 KG"), "info"); }
+  // Worker form validation (bugs 18 & 19)
+  var WRATE_MAX = 10000;                 // ₹/metre sane ceiling
+  function cleanPhoneField(el) {
+    var v = (el.value || "").replace(/[^\d+\s-]/g, "");   // drop letters & invalid specials
+    v = v.replace(/(?!^)\+/g, "");                          // keep only a single leading +
+    if (v.length > 16) v = v.slice(0, 16);
+    if (v !== el.value) el.value = v;
+  }
+  function normIndMobile(phone) { var d = (phone || "").replace(/\D/g, ""); if (d.length === 12 && d.slice(0, 2) === "91") d = d.slice(2); else if (d.length === 11 && d.charAt(0) === "0") d = d.slice(1); return d; }
+  function validIndMobile(phone) { return /^[6-9]\d{9}$/.test(normIndMobile(phone)); }
 
   /* ---------------------------------------------------------------- DATA */
   var MONTHS = [
@@ -1452,7 +1466,7 @@
         if (d.length === 2) { var nx = document.querySelector('[data-pmt="' + s + '_' + (r + 1) + '"]'); if (nx) { nx.focus(); if (nx.select) nx.select(); } }
       };
     });
-    document.querySelectorAll("[data-pkg]").forEach(function (el) { el.oninput = function () { p.kg[+el.getAttribute("data-pkg")] = sanitizeDecimalField(el, 6, 3, 100000); setTxt("#pSumKg", kgStr(B(pkKgG(p)))); refreshPk(); schedulePersist(); }; });   /* bug 8: cap 1,00,000 */
+    document.querySelectorAll("[data-pkg]").forEach(function (el) { el.oninput = function () { p.kg[+el.getAttribute("data-pkg")] = sanitizeDecimalField(el, 8, 3, KG_MAX, kgMaxMsg); setTxt("#pSumKg", kgStr(B(pkKgG(p)))); refreshPk(); schedulePersist(); }; });   /* bug 20: values > 99,999 compute correctly */
     document.querySelectorAll("[data-pf]").forEach(function (el) { el.oninput = function () { var k = el.getAttribute("data-pf"); p[k] = Math.max(0, parseFloat(el.value || 0) || 0); refreshPk(); schedulePersist(); }; });
     var sp = $("#pStepPlus"); if (sp) sp.onclick = function () { if (p.nSteps < PK_STEPS) { p.nSteps++; render(); } };
     var sm = $("#pStepMinus"); if (sm) sm.onclick = function () { if (p.nSteps > 1) { p.nSteps--; render(); } };
@@ -1879,7 +1893,7 @@
         }
       };
     });
-    document.querySelectorAll("[data-kg]").forEach(function (el) { el.oninput = function () { var s = +el.getAttribute("data-kg"); if (stepTotalMt(sh, s) <= 0) { el.value = ""; sh.kg[s] = null; toast(L("પહેલાં આ સ્ટેપમાં મીટર ભરો", "Enter metres in this step first"), "info"); setTxt("#sumKg", kgStr(B(sheetKgG(sh)))); return; } sh.kg[s] = sanitizeDecimalField(el, 6, 3, 100000); setTxt("#sumKg", kgStr(B(sheetKgG(sh)))); schedulePersist(); }; });   /* bug 3 + bug 8 (cap 1,00,000) */
+    document.querySelectorAll("[data-kg]").forEach(function (el) { el.oninput = function () { var s = +el.getAttribute("data-kg"); if (stepTotalMt(sh, s) <= 0) { el.value = ""; sh.kg[s] = null; toast(L("પહેલાં આ સ્ટેપમાં મીટર ભરો", "Enter metres in this step first"), "info"); setTxt("#sumKg", kgStr(B(sheetKgG(sh)))); return; } sh.kg[s] = sanitizeDecimalField(el, 8, 3, KG_MAX, kgMaxMsg); setTxt("#sumKg", kgStr(B(sheetKgG(sh)))); schedulePersist(); }; });   /* bug 3 + bug 20 (values > 99,999 compute correctly) */
     document.querySelectorAll("[data-pk]").forEach(function (el) { el.oninput = function () { sh.parat[+el.getAttribute("data-pk")].kokdi = sanitizeDecimalField(el, 7, 3); refreshParat(sh); schedulePersist(); }; });   /* bug 4: accept lakh values */
     document.querySelectorAll("[data-pc]").forEach(function (el) { el.oninput = function () { sh.parat[+el.getAttribute("data-pc")].color = sanitizeDecimalField(el, 7, 3); refreshParat(sh); schedulePersist(); }; });   /* bug 4: accept lakh values */
     document.querySelectorAll("[data-pdel]").forEach(function (el) { el.onclick = function () { sh.parat.splice(+el.getAttribute("data-pdel"), 1); render(); }; });
@@ -2481,17 +2495,25 @@
         '<input type="hidden" id="wfName" value="' + esc(w ? w.name : "") + '">' +
         '<input type="hidden" id="wfEn" value="' + esc(w ? w.en : "") + '">'
       ) +
-      fRow(L("ફોન", "Phone"), fInput("wfPhone", w ? w.phone : "", 'placeholder="+91 "')) +
+      fRow(L("ફોન", "Phone"), fInput("wfPhone", w ? w.phone : "", 'inputmode="tel" maxlength="16" placeholder="+91 "') + '<div class="msg">' + L("10 અંકનો ભારતીય મોબાઇલ નંબર", "10-digit Indian mobile number") + '</div>') +
       fRow(L("કાપડ", "Cloth"), fInput("wfCloth", w ? w.cloth : "", 'placeholder="' + L("કોટન 40s", "Cotton 40s") + '"')) +
-      fRow(L("રેટ (₹/મીટર)", "Rate (₹/metre)"), fInput("wfRate", w ? w.rate : "", 'type="number" step="0.01" inputmode="decimal" placeholder="3.55"'));
+      fRow(L("રેટ (₹/મીટર)", "Rate (₹/metre)"), fInput("wfRate", w ? w.rate : "", 'type="number" step="0.01" min="0" max="10000" inputmode="decimal" placeholder="3.55"') + '<div class="msg">' + L("વધુમાં વધુ ₹10,000/મીટર", "Up to ₹10,000 / metre") + '</div>');
     showModal("users", id ? L("જોબ વર્કર ફેરફાર", "Edit Job Worker") : L("જોબ વર્કર ઉમેરો", "Add Job Worker"), L("નામ, ફોન, કાપડ અને રેટ.", "Name, phone, cloth and rate."), body, function () { saveWorkerForm(id); });
     var one = $("#wfNameOne"); if (one) one.oninput = syncWorkerName;
+    var ph = $("#wfPhone"); if (ph) ph.oninput = function () { cleanPhoneField(ph); };   // bug 18: strip letters/specials live
+    var rt = $("#wfRate"); if (rt) rt.oninput = function () { var n = parseFloat(rt.value); if (!isNaN(n)) { if (n > WRATE_MAX) rt.value = String(WRATE_MAX); else if (n < 0) rt.value = "0"; } };   // bug 19: clamp rate live
     renderNamePv((w ? w.name : "") || "", (w ? w.en : "") || "");   // seed preview from existing values on edit
   }
   function saveWorkerForm(id) {
-    var name = fVal("#wfName").trim(), en = fVal("#wfEn").trim(), phone = fVal("#wfPhone").trim(), cloth = fVal("#wfCloth").trim(), rate = Math.max(0, parseFloat(fVal("#wfRate")) || 0);
+    var name = fVal("#wfName").trim(), en = fVal("#wfEn").trim(), phone = fVal("#wfPhone").trim(), cloth = fVal("#wfCloth").trim();
     if (!name && !en) { toast(L("નામ દાખલ કરો", "Enter a name"), "info"); return; }
-    if (phone && !/^[+\d][\d\s\-]{6,18}$/.test(phone)) { toast(L("માન્ય ફોન નંબર દાખલ કરો", "Enter a valid phone number"), "info"); return; }
+    if (phone && !validIndMobile(phone)) { toast(L("માન્ય 10-અંકનો ભારતીય મોબાઇલ નંબર દાખલ કરો (6–9થી શરૂ થતો)", "Enter a valid 10-digit Indian mobile number (starting 6–9)"), "info"); return; }   // bug 18
+    var rateRaw = fVal("#wfRate").trim(), rate = parseFloat(rateRaw);   // bug 19
+    if (rateRaw !== "") {
+      if (isNaN(rate) || rate < 0) { toast(L("માન્ય રેટ દાખલ કરો", "Enter a valid rate"), "info"); return; }
+      if (rate > WRATE_MAX) { toast(L("રેટ ₹10,000/મીટરથી વધુ ન હોય", "Rate can't exceed ₹10,000 / metre"), "info"); return; }
+    }
+    rate = (isNaN(rate) || rate < 0) ? 0 : Math.round(Math.min(rate, WRATE_MAX) * 100) / 100;
     if (!en) en = name; if (!name) name = en;
     if (id) { var w = workerById(id); if (w) { w.name = name; w.en = en; w.phone = phone; w.cloth = cloth; w.rate = rate; } }
     else {
