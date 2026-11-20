@@ -1976,8 +1976,14 @@
     document.querySelectorAll("table.data:not(.np-wtbl), table.ledger").forEach(function (tbl) {
       var labels = []; tbl.querySelectorAll("thead th").forEach(function (th) { labels.push((th.textContent || "").trim()); });
       tbl.querySelectorAll("tbody tr, tfoot tr").forEach(function (tr) {
-        var tds = tr.children;
-        for (var i = 0; i < tds.length; i++) { if (tds[i].tagName === "TD") tds[i].setAttribute("data-label", labels[i] || ""); }
+        var col = 0;
+        for (var i = 0; i < tr.children.length; i++) {
+          var td = tr.children[i]; if (td.tagName !== "TD") continue;
+          var span = parseInt(td.getAttribute("colspan"), 10) || 1;
+          if (span > 1) { td.setAttribute("data-label", ""); td.setAttribute("data-fullrow", "1"); }   // spanning cell = full-width title/message
+          else td.setAttribute("data-label", labels[col] || "");
+          col += span;
+        }
       });
     });
   }

@@ -1230,26 +1230,70 @@ table.jws-parat-tbl tfoot .grand td { background: var(--out-050); color: var(--o
   table.data:not(.np-wtbl) thead, table.ledger thead { display: none; }
   table.data:not(.np-wtbl) tbody, table.data:not(.np-wtbl) tfoot,
   table.ledger tbody, table.ledger tfoot { display: block; }
-  table.data:not(.np-wtbl) tr, table.ledger tr {
-    display: block; margin: 0 0 10px; padding: 4px 12px;
-    border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+
+  /* ---- each row becomes a self-contained card ---- */
+  table.data:not(.np-wtbl) tbody tr, table.ledger tbody tr {
+    display: block; margin: 0 0 12px; padding: 0; overflow: hidden;
+    border: 1px solid var(--line); border-radius: 14px; background: var(--surface);
+    box-shadow: 0 1px 2px rgba(16,28,54,.05);
   }
-  table.data:not(.np-wtbl) tfoot tr, table.ledger tfoot tr {
-    background: var(--bg); font-weight: 700;
-  }
-  table.data:not(.np-wtbl) td, table.ledger td {
+  /* ---- detail rows: label (left, muted) · value (right) ---- */
+  table.data:not(.np-wtbl) tbody td, table.ledger tbody td {
     display: flex; justify-content: space-between; align-items: center; gap: 12px;
-    padding: 9px 0; border: none; border-bottom: 1px solid var(--line);
+    padding: 10px 15px; border: none; border-top: 1px solid var(--line);
     text-align: right; white-space: normal; overflow-wrap: anywhere; min-width: 0;
+    font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 600; color: var(--ink);
   }
-  table.data:not(.np-wtbl) tr td:last-child, table.ledger tr td:last-child { border-bottom: none; }
-  table.data:not(.np-wtbl) td::before, table.ledger td::before {
-    content: attr(data-label); flex: 0 0 42%; text-align: left;
-    font-size: 12px; font-weight: 600; color: var(--muted); padding-right: 10px;
+  table.data:not(.np-wtbl) tbody td::before, table.ledger tbody td::before {
+    content: attr(data-label); flex: 0 0 38%; text-align: left;
+    font-size: 12.5px; font-weight: 600; color: var(--muted); padding-right: 10px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  /* action cells (no column label): let the buttons use the full row width */
-  table.data:not(.np-wtbl) td[data-label=""], table.ledger td[data-label=""] { justify-content: flex-end; }
-  table.data:not(.np-wtbl) td[data-label=""]::before, table.ledger td[data-label=""]::before { content: ""; flex: 0; padding: 0; }
-  /* the table-scroll wrapper no longer needs to scroll in card mode */
+  /* ---- first cell = card header (title bar) ---- */
+  table.data:not(.np-wtbl) tbody td:first-child, table.ledger tbody td:first-child {
+    border-top: none; background: var(--bg); padding: 12px 15px;
+    justify-content: flex-start; font-size: 15px; font-weight: 800; color: var(--ink);
+  }
+  table.data:not(.np-wtbl) tbody td:first-child::before,
+  table.ledger tbody td:first-child::before { display: none; }
+  table.data:not(.np-wtbl) tbody td:first-child b, table.ledger tbody td:first-child b { font-weight: 800; }
+  /* ---- spanning cell (totals title / "no match" message) = full width ---- */
+  table.data:not(.np-wtbl) tbody td[data-fullrow], table.ledger tbody td[data-fullrow] {
+    justify-content: center; text-align: center; font-weight: 700;
+  }
+  table.data:not(.np-wtbl) tbody td[data-fullrow]::before,
+  table.ledger tbody td[data-fullrow]::before { display: none; }
+  /* ---- actions cell (no column label) = footer strip ---- */
+  table.data:not(.np-wtbl) tbody td[data-label=""]:not([data-fullrow]),
+  table.ledger tbody td[data-label=""]:not([data-fullrow]) {
+    justify-content: flex-end; gap: 8px; background: var(--bg); padding: 11px 15px;
+  }
+  table.data:not(.np-wtbl) tbody td[data-label=""]::before,
+  table.ledger tbody td[data-label=""]::before { display: none; }
+  /* ---- totals row (tfoot) = highlighted summary card ---- */
+  table.data:not(.np-wtbl) tfoot tr, table.ledger tfoot tr {
+    display: block; margin: 2px 0 12px; overflow: hidden;
+    border: 1px solid var(--brand); border-radius: 14px; background: var(--brand-050, #eef3ff);
+  }
+  table.data:not(.np-wtbl) tfoot td, table.ledger tfoot td {
+    display: flex; justify-content: space-between; gap: 12px; padding: 10px 15px;
+    border: none; border-top: 1px solid rgba(43,92,255,.12); text-align: right;
+    font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums;
+  }
+  table.data:not(.np-wtbl) tfoot tr td:first-child, table.ledger tfoot tr td:first-child { border-top: none; }
+  table.data:not(.np-wtbl) tfoot td::before, table.ledger tfoot td::before {
+    content: attr(data-label); flex: 0 0 38%; text-align: left;
+    font-size: 12.5px; font-weight: 700; color: var(--brand); padding-right: 10px;
+  }
+  table.data:not(.np-wtbl) tfoot td[data-fullrow]::before, table.ledger tfoot td[data-fullrow]::before { display: none; }
+  table.data:not(.np-wtbl) tfoot td[data-fullrow], table.ledger tfoot td[data-fullrow] { justify-content: center; }
+
+  /* the scroll wrapper no longer scrolls in card mode */
   .table-scroll { overflow-x: visible; }
+
+  /* ---- sticky, prominent search so a particular record is easy to find in a long list ---- */
+  .tbl-toolbar { position: sticky; top: calc(var(--topbar-h) + 6px); z-index: 6;
+    background: var(--surface); padding: 9px; border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(16,28,54,.07); border: 1px solid var(--line); flex-wrap: wrap; }
+  .tbl-search { height: 44px; }
 }
