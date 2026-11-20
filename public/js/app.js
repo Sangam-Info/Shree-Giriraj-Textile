@@ -1676,6 +1676,11 @@
       bkd.ondragleave = function () { bkd.classList.remove("drag"); };
       bkd.ondrop = function (e) { e.preventDefault(); bkd.classList.remove("drag"); gjHandleRestoreFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]); };
     }
+    var fg = document.querySelector("[data-fin-generate]");
+    if (fg) fg.onclick = function () { gjGenerateFinancialBackup(+fg.getAttribute("data-fin-generate"), false).then(function (r) { toast(r.ok ? L("નાણાકીય બેકઅપ ડાઉનલોડ થયું.", "Financial backup downloaded.") : L("નાણાકીય બેકઅપ નિષ્ફળ.", "Financial backup failed."), r.ok ? "ok" : "error"); if (STATE.view === "backup") render(); }); };
+    var fr = document.querySelector("[data-fin-retry]");
+    if (fr) fr.onclick = function () { gjGenerateFinancialBackup(+fr.getAttribute("data-fin-retry"), false).then(function (r) { toast(r.ok ? L("નાણાકીય બેકઅપ ડાઉનલોડ થયું.", "Financial backup downloaded.") : L("નાણાકીય બેકઅપ નિષ્ફળ.", "Financial backup failed."), r.ok ? "ok" : "error"); if (STATE.view === "backup") render(); }); };
+    document.querySelectorAll("[data-fin-dl]").forEach(function (b) { b.onclick = function () { gjRedownloadFin(+b.getAttribute("data-fin-dl")); }; });
     document.querySelectorAll("[data-editworker]").forEach(function (b) { b.onclick = function () { workerForm(b.getAttribute("data-editworker")); }; });
     document.querySelectorAll("[data-delworker]").forEach(function (b) { b.onclick = function () { delWorker(b.getAttribute("data-delworker")); }; });
     var wsearch = $("#workerSearch");
@@ -2159,6 +2164,115 @@
     };
     reader.readAsText(file);
   }
+  /* ---------- Yearly Financial Backup (auto · 30 November, IST) ----------
+     A financial-scope ZIP (billing, loans, advances, niwar financials, job
+     work & niwar transactions, plus workers/parties for relationships),
+     named Financial_Backup_YYYY-11-30.zip. It auto-generates the first time
+     the Owner opens the app on or after 30 Nov each year — once per year
+     (no duplicates), keeping a history (date, time, size, status) that stays
+     re-downloadable. True unattended midnight-on-the-server runs need a
+     separate Cloudflare Worker cron; this needs no extra infrastructure. */
+  var FIN_STORES = ["workers", "nworkers", "sheets", "nsheets", "bills", "nparam", "loans", "upad", "nupad", "nloans"];
+  function istNow() { var d = new Date(); return new Date(d.getTime() + (d.getTimezoneOffset() + 330) * 60000); }
+  function gjFinancialData() { var full = window.GJDB.enc(buildSnapshot()), out = {}; FIN_STORES.forEach(function (k) { if (k in full) out[k] = full[k]; }); return out; }
+  // ---- minimal store-only ZIP writer (valid .zip, no dependencies) ----
+  function gjUtf8(s) { return new TextEncoder().encode(s); }
+  function gjCrc32(u8) { var crc = -1; for (var i = 0; i < u8.length; i++) { var c = (crc ^ u8[i]) & 0xff; for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); crc = (crc >>> 8) ^ c; } return (crc ^ -1) >>> 0; }
+  function zipStore(files) {
+    function u16(n) { return [n & 0xff, (n >>> 8) & 0xff]; }
+    function u32(n) { n >>>= 0; return [n & 0xff, (n >>> 8) & 0xff, (n >>> 16) & 0xff, (n >>> 24) & 0xff]; }
+    var enc = files.map(function (f) { var data = gjUtf8(f.str), name = gjUtf8(f.name); return { name: name, data: data, crc: gjCrc32(data) }; });
+    var local = [], central = [], offset = 0;
+    enc.forEach(function (f) {
+      var lh = [0x50, 0x4b, 0x03, 0x04].concat(u16(20), u16(0), u16(0), u16(0), u16(0), u32(f.crc), u32(f.data.length), u32(f.data.length), u16(f.name.length), u16(0));
+      local.push(new Uint8Array(lh), f.name, f.data);
+      var ch = [0x50, 0x4b, 0x01, 0x02].concat(u16(20), u16(20), u16(0), u16(0), u16(0), u16(0), u32(f.crc), u32(f.data.length), u32(f.data.length), u16(f.name.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset));
+      central.push(new Uint8Array(ch), f.name);
+      offset += lh.length + f.name.length + f.data.length;
+    });
+    var cdSize = central.reduce(function (s, a) { return s + a.length; }, 0);
+    var eocd = new Uint8Array([0x50, 0x4b, 0x05, 0x06].concat(u16(0), u16(0), u16(enc.length), u16(enc.length), u32(cdSize), u32(offset), u16(0)));
+    var parts = local.concat(central, [eocd]), total = parts.reduce(function (s, a) { return s + a.length; }, 0);
+    var out = new Uint8Array(total), p = 0; parts.forEach(function (a) { out.set(a, p); p += a.length; });
+    return out;
+  }
+  function gjTriggerZipDownload(bytes, fname) {
+    var blob = new Blob([bytes], { type: "application/zip" }), url = URL.createObjectURL(blob);
+    var a = document.createElement("a"); a.href = url; a.download = fname; document.body.appendChild(a); a.click();
+    setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} a.remove(); }, 800);
+  }
+  function gjFinAll() { try { return JSON.parse(localStorage.getItem("gj_fin_backups") || "{}"); } catch (e) { return {}; } }
+  function gjSaveFinRec(rec) {
+    var all = gjFinAll(); all[rec.year] = rec;
+    try { localStorage.setItem("gj_fin_backups", JSON.stringify(all)); }
+    catch (e) { for (var y in all) if (all[y]) { delete all[y].env; all[y].dataKept = false; } try { localStorage.setItem("gj_fin_backups", JSON.stringify(all)); } catch (_) {} }
+  }
+  function gjFinZipBytes(env) {
+    var y = env.year;
+    var readme = "Shri Giriraj Textile — Yearly Financial Backup\r\nYear: " + y + "\r\nGenerated: " + env.createdAtLocal + "\r\nScope: financial (billing, loans, advances/upad, niwar financials, job work & niwar transactions, plus job workers & parties for relationships).\r\nRestore: Backup & Restore panel. Checksum: " + env.checksum + "\r\n";
+    return zipStore([{ name: "Financial_Backup_" + y + "-11-30.json", str: JSON.stringify(env) }, { name: "README.txt", str: readme }]);
+  }
+  function gjGenerateFinancialBackup(year, isAuto) {
+    if (STATE.role !== "admin") return Promise.resolve({ ok: false, err: "not admin" });
+    year = year || istNow().getFullYear();
+    try {
+      var data = gjFinancialData(), now = new Date();
+      var env = { format: "giriraj-financial-backup", schema: 1, app: (window.__BUILD || ""), company: "Shri Giriraj Textile", scope: "financial", year: year, createdAt: now.toISOString(), createdAtLocal: now.toLocaleString("en-IN"), counts: gjCounts(data), checksum: gjHash(JSON.stringify(data)), data: data };
+      var bytes = gjFinZipBytes(env), fname = "Financial_Backup_" + year + "-11-30.zip";
+      var rec = { year: year, at: env.createdAt, atLocal: env.createdAtLocal, size: bytes.length, status: "success", counts: env.counts, file: fname, auto: !!isAuto, dataKept: true, env: env };
+      gjSaveFinRec(rec);
+      gjTriggerZipDownload(bytes, fname);
+      return Promise.resolve({ ok: true, rec: rec });
+    } catch (e) {
+      var erec = { year: year, at: new Date().toISOString(), atLocal: new Date().toLocaleString("en-IN"), size: 0, status: "error", err: (e && e.message) || "error", file: "Financial_Backup_" + year + "-11-30.zip", auto: !!isAuto };
+      gjSaveFinRec(erec);
+      return Promise.resolve({ ok: false, err: erec.err });
+    }
+  }
+  function gjRedownloadFin(year) {
+    var rec = gjFinAll()[year];
+    if (!rec || rec.status !== "success") return;
+    if (!rec.env) { toast(L("આ ફાઇલ આ ડિવાઇસ પર સંગ્રહિત નથી — ફરી બનાવો.", "This file isn't stored on this device — generate it again."), "info"); return; }
+    gjTriggerZipDownload(gjFinZipBytes(rec.env), rec.file || ("Financial_Backup_" + year + "-11-30.zip"));
+  }
+  function gjMaybeYearlyFinancialBackup() {
+    try {
+      if (STATE.role !== "admin" || !(window.GJDB && window.GJDB.ready)) return;
+      var n = istNow(), y = n.getFullYear();
+      var past = (n.getMonth() > 10) || (n.getMonth() === 10 && n.getDate() >= 30);   // on/after 30 Nov (IST)
+      if (!past) return;
+      var all = gjFinAll();
+      if (all[y] && all[y].status === "success") return;                              // already done this year — no duplicate
+      gjGenerateFinancialBackup(y, true).then(function (r) {
+        if (r.ok) toast(L("વાર્ષિક નાણાકીય બેકઅપ તૈયાર (" + y + ") — ડાઉનલોડ થયું.", "Yearly financial backup ready (" + y + ") — downloaded."), "ok");
+        else toast(L("વાર્ષિક નાણાકીય બેકઅપ નિષ્ફળ — પેનલમાંથી ફરી પ્રયાસ કરો.", "Yearly financial backup failed — retry from the Backup panel."), "error");
+        if (STATE.view === "backup") render();
+      });
+    } catch (e) {}
+  }
+  function gjFinCardHTML() {
+    var all = gjFinAll(), years = Object.keys(all).sort(function (a, b) { return b - a; });
+    var lastOk = null, lastErr = null;
+    years.forEach(function (y) { var r = all[y]; if (r.status === "success" && (!lastOk || r.at > lastOk.at)) lastOk = r; if (r.status === "error") lastErr = r; });
+    var cy = istNow().getFullYear();
+    var html = '<div class="card mt"><div class="card-head"><div class="ico tint-out">' + svg("spark") + '</div><div><h3>' + L("વાર્ષિક નાણાકીય બેકઅપ", "Yearly Financial Backup") + '</h3><p class="mini">' + L("દર વર્ષે 30 નવેમ્બરે આપમેળે · ફક્ત નાણાકીય ડેટા", "Automatic every 30 November · financial data only") + '</p></div></div><div class="card-pad">';
+    html += '<div class="bk-last' + (lastOk ? '' : ' muted') + '">' + svg(lastOk ? "check" : "info") + '<span>' + (lastOk ? (L("છેલ્લું સફળ નાણાકીય બેકઅપ: ", "Last successful financial backup: ") + esc(lastOk.atLocal) + ' · ' + gjFmtBytes(lastOk.size)) : L("હજી કોઈ વાર્ષિક નાણાકીય બેકઅપ નથી.", "No yearly financial backup yet.")) + '</span></div>';
+    html += '<p class="bk-p" style="margin-top:12px">' + L("સમાવિષ્ટ: બિલિંગ, લોન, ઉપડ (એડવાન્સ), નિવાર નાણાકીય, જોબવર્ક અને નિવાર ટ્રાન્ઝેક્શન, પેમેન્ટ/બાકી — અને સંબંધ જાળવવા જોબ વર્કર તથા પાર્ટી.", "Includes: billing, loans, advances (upad), niwar financials, job work & niwar transactions, payments / outstanding — plus workers & parties to keep relationships intact.") + '</p>';
+    html += '<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-primary" data-fin-generate="' + cy + '">' + svg("dl") + ' ' + L("અત્યારે નાણાકીય બેકઅપ બનાવો (" + cy + ")", "Generate financial backup now (" + cy + ")") + '</button>';
+    if (lastErr) html += '<button class="btn btn-soft" data-fin-retry="' + lastErr.year + '">' + svg("info") + ' ' + L("ફરી પ્રયાસ", "Retry backup") + '</button>';
+    html += '</div>';
+    if (years.length) {
+      html += '<div class="bk-hist-wrap"><table class="bk-hist"><thead><tr><th>' + L("વર્ષ", "Year") + '</th><th>' + L("તારીખ અને સમય", "Date & time") + '</th><th>' + L("કદ", "Size") + '</th><th>' + L("સ્થિતિ", "Status") + '</th><th></th></tr></thead><tbody>';
+      years.forEach(function (y) {
+        var r = all[y];
+        html += '<tr><td><b>' + esc(y) + '</b></td><td>' + esc(r.atLocal || "—") + '</td><td>' + (r.size ? gjFmtBytes(r.size) : "—") + '</td><td>' + (r.status === "success" ? '<span class="fin-ok">' + svg("check") + ' ' + L("સફળ", "Success") + '</span>' : '<span class="fin-err">' + svg("info") + ' ' + L("નિષ્ફળ", "Failed") + '</span>') + '</td><td class="r">' + ((r.status === "success" && r.env) ? '<button class="btn btn-ghost btn-sm" data-fin-dl="' + y + '">' + svg("dl") + ' ' + L("ડાઉનલોડ", "Download") + '</button>' : '') + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+    html += '<div class="bk-safe" style="margin-top:14px">' + svg("info") + '<div>' + L("આ એપ બ્રાઉઝરમાં ચાલે છે, તેથી 30 નવેમ્બરે કે પછી માલિક પહેલીવાર એપ ખોલે ત્યારે બેકઅપ આપમેળે બને છે (વર્ષે એક જ વાર — ડુપ્લિકેટ નહીં). કોઈ લોગિન વગર, બરાબર મધ્યરાત્રિએ, સર્વર પર ચલાવવા અલગ Cloudflare Worker cron સેટઅપ જોઈએ.", "This app runs in the browser, so the backup is generated automatically the first time the Owner opens the app on or after 30 November each year (once per year — no duplicates). Running it with nobody logged in, at exactly midnight on the server, needs a separate Cloudflare Worker cron.") + '</div></div>';
+    html += '</div></div>';
+    return html;
+  }
   function bkChip(ic, v, k) { return '<div class="bk-chip"><div class="bk-chip-ic">' + ic + '</div><div><div class="bk-chip-v">' + esc(String(v)) + '</div><div class="bk-chip-k">' + k + '</div></div></div>'; }
   function bkItem(label, n) { return '<div class="bk-li">' + svg("check") + '<span>' + label + '</span><b>' + n + '</b></div>'; }
   function viewBackup() {
@@ -2182,6 +2296,7 @@
     html += '<div id="gjRestoreStatus" class="bk-status ' + (BK.restore.state || "") + '"' + (BK.restore.msg ? '' : ' style="display:none"') + '>' + (BK.restore.msg ? ((BK.restore.state === "done" ? svg("check") : svg("info")) + '<span>' + esc(BK.restore.msg) + '</span>') : '') + '</div>';
     html += '<div class="bk-safe">' + svg("shield") + '<div><b>' + L("સલામતી", "Safety") + '</b> — ' + L("રિસ્ટોર પહેલાં વર્તમાન ડેટાની કૉપિ આપમેળે ડાઉનલોડ થાય છે. અધૂરી કે બગડેલી ફાઇલ ક્યારેય ઓવરરાઇટ નહીં કરે; ડેટાબેઝમાં સેવ નિષ્ફળ જાય તો જૂનો ડેટા પાછો આવી જાય છે.", "Your current data is auto-downloaded before a restore. A corrupted or incomplete file can never overwrite your data, and if the database save fails your previous data is rolled back.") + '</div></div>';
     html += '</div></div></div>';
+    html += gjFinCardHTML();
     return html;
   }
 
@@ -3074,6 +3189,7 @@
           _persistOn = true;
           dropLegacyLocalCopy();   // Firestore is the only source of truth — discard any legacy local copy
           render();
+          try { gjMaybeYearlyFinancialBackup(); } catch (e) {}   // auto yearly financial backup (on/after 30 Nov, once per year)
           // best-effort: push a pending edit to the server when the tab is hidden/closed
           // (Firestore write, no local cache). Keeps a last-second edit from being lost.
           window.addEventListener("visibilitychange", function () { if (document.hidden) flushPersistNow(); });
@@ -3106,6 +3222,7 @@
       getStores: function () { return { WORKERS: WORKERS, SHEETS: SHEETS, BILL: BILL, LOANS: LOANS, UPAD: UPAD, PACKING: PACKING, NWORKERS: NWORKERS, NSHEETS: NSHEETS, NPARAM: NPARAM, NUPAD: NUPAD, NLOANS: NLOANS, GHATI_RATE: GHATI_RATE, NSEQ: NSEQ, STATE: STATE }; },
       setPersistOn: function (v) { _persistOn = !!v; }, schedulePersist: schedulePersist,
       gjBackupObject: gjBackupObject, gjValidateBackup: gjValidateBackup, gjRestoreFromObject: gjRestoreFromObject, gjCounts: gjCounts, gjTotal: gjTotal,
+      gjGenerateFinancialBackup: gjGenerateFinancialBackup, gjFinAll: gjFinAll, gjMaybeYearlyFinancialBackup: gjMaybeYearlyFinancialBackup, zipStore: zipStore, istNow: istNow, gjFinancialData: gjFinancialData,
       viewAllowed: viewAllowed, modulePermitted: modulePermitted, PERM_MODULES: PERM_MODULES, STAFF_DEFAULT: STAFF_DEFAULT };
   }
 })();

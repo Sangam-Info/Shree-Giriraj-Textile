@@ -37,7 +37,7 @@
   /* Section accents */
   --in:    #2f74c0;  --in-050:    #e9f2fb;   /* Warehouse IN  (આવક)  */
   --out:   #bd7c16;  --out-050:   #fbf2df;   /* Sent OUT      (જાવક) */
-  --upad:  #cf4040;  --upad-050:  #fbe9e9;   /* Upad          (ઉપાડ) */
+  --upad:  #cf4040;  --upad-050:  #fbe9e9;   /* Upad          (ઉપડ) */
 
   /* Shape */
   --r-xs: 6px;  --r-sm: 9px;  --r-md: 13px;  --r-lg: 18px;  --r-xl: 26px;
@@ -1207,3 +1207,16 @@ table.jws-parat-tbl tfoot .grand td { background: var(--out-050); color: var(--o
 .bk-safe svg { width:20px; height:20px; flex:none; color: var(--brand); margin-top:1px; }
 .bk-safe b { color: var(--ink); }
 @media (max-width: 720px) { .bk-sum { grid-template-columns: 1fr; } }
+
+/* Yearly Financial Backup */
+.bk-last.muted { background: var(--bg); color: var(--muted); }
+.bk-hist-wrap { margin-top:14px; overflow-x:auto; border:1px solid var(--line); border-radius:12px; }
+.bk-hist { width:100%; border-collapse:collapse; font-size:13px; min-width:460px; }
+.bk-hist th { text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.03em; color: var(--muted); padding:10px 12px; border-bottom:1px solid var(--line); background: var(--bg); }
+.bk-hist td { padding:10px 12px; border-bottom:1px solid var(--line); color: var(--ink-soft); }
+.bk-hist tr:last-child td { border-bottom:none; }
+.bk-hist td.r { text-align:right; }
+.bk-hist td b { color: var(--ink); }
+.fin-ok, .fin-err { display:inline-flex; align-items:center; gap:5px; font-weight:700; font-size:12.5px; }
+.fin-ok { color: var(--ok); } .fin-err { color:#b4231f; }
+.fin-ok svg, .fin-err svg { width:15px; height:15px; }
