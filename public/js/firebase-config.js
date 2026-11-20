@@ -21,8 +21,8 @@ window.__FIREBASE_CONFIG = {
   measurementId:     "G-S0KFZR33CB"
 };
 
-/* Admin Account Recovery endpoint (Cloud Function). Leave blank until you
-   deploy functions/ — then paste the deployed URL here, e.g.
-   https://us-central1-shree-giriraj-textile.cloudfunctions.net/adminRecovery
-   When blank, the "recovery code" option simply stays hidden. */
+/* Account recovery now works fully client-side (no Cloud Function needed):
+   the Owner saves a recovery code in Profile, and on the login screen that code
+   emails a Firebase password-reset link to the registered address. This legacy
+   setting is unused and kept only for backward compatibility. */
 window.__RECOVERY_URL = "";

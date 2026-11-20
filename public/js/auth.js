@@ -244,73 +244,96 @@
     }
   }
 
-  /* ---------- admin account recovery (Cloud Function) ----------
-     Shown only when a recovery endpoint is configured. Lets a locked-out
-     Owner set a new email + password by proving a saved recovery code. The
-     code is verified server-side; nothing sensitive is exposed here. */
-  function recoveryEnabled() { return !!(window.__RECOVERY_URL && /^https:\/\//.test(window.__RECOVERY_URL)); }
-  function recMsg(m, ok) { var el = $("#recMsg"); if (el) { el.textContent = m; el.style.color = ok ? "#1f9d6b" : "#b4231f"; } }
-  function recErr(code) {
-    var m = {
-      "wrong-code": tr("Incorrect recovery code.", "ખોટો રિકવરી કોડ."),
-      "locked": tr("Too many attempts. Try again in 15 minutes.", "ઘણા પ્રયાસો. 15 મિનિટ પછી પ્રયાસ કરો."),
-      "not-configured": tr("Recovery isn't set up yet. Set it up from Profile while signed in.", "રિકવરી સેટઅપ નથી. સાઇન-ઇન હોય ત્યારે પ્રોફાઇલમાંથી સેટ કરો."),
-      "email-in-use": tr("That email is already used by another account.", "આ ઈમેલ બીજા ખાતામાં વપરાયેલ છે."),
-      "bad-email": tr("Enter a valid email.", "માન્ય ઈમેલ દાખલ કરો."),
-      "weak-password": tr("Password must be at least 6 characters.", "પાસવર્ડ ઓછામાં ઓછા 6 અક્ષર.")
-    };
-    return m[code] || tr("Recovery failed. Please try again.", "રિકવરી નિષ્ફળ. ફરી પ્રયાસ કરો.");
+  /* ---------- account recovery (client-side, email-link) ----------
+     For a locked-out Owner who has forgotten BOTH email and password. They type
+     the recovery code they saved in Profile; we hash it the SAME way the setup
+     did — sha256("GJREC1:" + code) — and read recovery/<hash>. That document
+     (written only by an admin) holds the registered email, so we send a Firebase
+     password-reset link to it. Nothing sensitive is shown and no server function
+     is needed. The hash is the document id, so the record can't be located or
+     listed without the exact code, and a small client throttle slows guessing. */
+  function recoveryEnabled() { return LIVE && !!db; }
+  function recNormCode(s) { return String(s == null ? "" : s).toUpperCase().replace(/[^A-Z0-9]/g, ""); }
+  function recHashCode(code) {
+    if (window.GJ && window.GJ.recHash) return window.GJ.recHash(code);
+    // fallback kept byte-for-byte in sync with app.js gjRecKey()
+    return crypto.subtle.digest("SHA-256", new TextEncoder().encode("GJREC1:" + recNormCode(code)))
+      .then(function (buf) { return [].map.call(new Uint8Array(buf), function (b) { return ("0" + b.toString(16)).slice(-2); }).join(""); });
   }
+  function maskEmail(e) {
+    e = String(e || ""); var at = e.indexOf("@"); if (at < 1) return e;
+    var name = e.slice(0, at), dom = e.slice(at);
+    var head = name.slice(0, Math.min(2, name.length));
+    return head + new Array(Math.max(3, name.length - head.length) + 1).join("•") + dom;
+  }
+  function recMsg(m, ok) { var el = $("#recMsg"); if (el) { el.textContent = m; el.style.color = ok ? "#1f9d6b" : "#b4231f"; } }
+
+  // light client-side throttle so a code can't be guessed quickly
+  function recStateObj() { try { return JSON.parse(localStorage.getItem("gj_rec_fails") || "{}"); } catch (e) { return {}; } }
+  function recLocked() { var r = recStateObj(); return (r.lockUntil && r.lockUntil > Date.now()) ? Math.ceil((r.lockUntil - Date.now()) / 1000) : 0; }
+  function recFail() { var r = recStateObj(); r.n = (r.n || 0) + 1; if (r.n >= 5) { r.lockUntil = Date.now() + 15 * 60 * 1000; r.n = 0; } try { localStorage.setItem("gj_rec_fails", JSON.stringify(r)); } catch (e) {} }
+  function recClear() { try { localStorage.removeItem("gj_rec_fails"); } catch (e) {} }
+  function resetRecBtn() { var b = $("#recGo"); if (b) { b.disabled = false; b.onclick = submitRecovery; b.textContent = tr("Send reset link", "રીસેટ લિંક મોકલો"); } }
+
   function openRecovery(e) {
     if (e) e.preventDefault();
     if (!recoveryEnabled()) return;
-    var ex = $("#gjRecBack"); if (ex) { ex.style.display = "flex"; return; }
-    var inpCss = "width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #d9e0ea;border-radius:10px;font-size:14px;margin-bottom:9px";
+    var ex = $("#gjRecBack");
+    if (ex) { ex.style.display = "flex"; var c = $("#recCode"); if (c) { c.value = ""; c.focus(); } recMsg(""); resetRecBtn(); return; }
+    var inpCss = "width:100%;box-sizing:border-box;padding:12px 13px;border:1px solid #d9e0ea;border-radius:10px;font-size:15px;margin-bottom:10px";
     var wrap = document.createElement("div");
     wrap.id = "gjRecBack";
     wrap.style.cssText = "position:fixed;inset:0;background:rgba(16,28,54,.55);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px";
     wrap.innerHTML =
-      '<div style="background:#fff;border-radius:16px;max-width:400px;width:100%;padding:22px;box-shadow:0 24px 60px rgba(16,28,54,.3);font-family:inherit">' +
-        '<h3 style="margin:0 0 4px;font-size:18px;color:#16233b">' + tr("Account recovery", "ખાતું રિકવરી") + '</h3>' +
-        '<p style="margin:0 0 14px;font-size:13px;color:#64748b;line-height:1.5">' + tr("Enter the recovery code you saved, then set a new email and password for the Owner account.", "તમે સાચવેલો રિકવરી કોડ દાખલ કરો, પછી માલિક ખાતા માટે નવો ઈમેલ અને પાસવર્ડ સેટ કરો.") + '</p>' +
-        '<input id="recCode" type="text" autocomplete="off" placeholder="' + tr("Recovery code", "રિકવરી કોડ") + '" style="' + inpCss + ';letter-spacing:1px;text-transform:uppercase">' +
-        '<input id="recEmail" type="email" autocomplete="off" placeholder="' + tr("New sign-in email", "નવો સાઇન-ઇન ઈમેલ") + '" style="' + inpCss + '">' +
-        '<input id="recPass" type="password" autocomplete="new-password" placeholder="' + tr("New password (min 6)", "નવો પાસવર્ડ (ઓછામાં ઓછા 6)") + '" style="' + inpCss + '">' +
-        '<input id="recPass2" type="password" autocomplete="new-password" placeholder="' + tr("Confirm new password", "નવો પાસવર્ડ ફરી") + '" style="' + inpCss + ';margin-bottom:6px">' +
-        '<div id="recMsg" style="font-size:12.5px;min-height:18px;margin-bottom:8px"></div>' +
+      '<div style="background:#fff;border-radius:16px;max-width:410px;width:100%;padding:24px;box-shadow:0 24px 60px rgba(16,28,54,.3);font-family:inherit">' +
+        '<div style="display:flex;align-items:center;gap:11px;margin-bottom:2px">' +
+          '<span style="display:inline-grid;place-items:center;width:38px;height:38px;border-radius:10px;background:#eef3ff;color:#2b5cff;flex:0 0 auto">' +
+            '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>' +
+          '</span>' +
+          '<h3 style="margin:0;font-size:18px;color:#16233b">' + tr("Account recovery", "ખાતું રિકવરી") + '</h3>' +
+        '</div>' +
+        '<p style="margin:10px 0 16px;font-size:13.5px;color:#64748b;line-height:1.55">' + tr("Forgot your email and password? Enter the recovery code the Owner saved. We will email a password-reset link to the registered email.", "ઈમેલ અને પાસવર્ડ ભૂલી ગયા? માલિકે સાચવેલો રિકવરી કોડ દાખલ કરો. અમે રજિસ્ટર્ડ ઈમેલ પર પાસવર્ડ-રીસેટ લિંક મોકલીશું.") + '</p>' +
+        '<input id="recCode" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="' + tr("Recovery code", "રિકવરી કોડ") + '" style="' + inpCss + ';letter-spacing:2px;text-transform:uppercase;font-family:monospace;text-align:center">' +
+        '<div id="recMsg" style="font-size:12.5px;min-height:18px;margin:2px 0 12px;line-height:1.5"></div>' +
         '<div style="display:flex;gap:10px;justify-content:flex-end">' +
-          '<button id="recCancel" type="button" style="padding:10px 16px;border:1px solid #d9e0ea;background:#fff;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit">' + tr("Cancel", "રદ") + '</button>' +
-          '<button id="recGo" type="button" style="padding:10px 18px;border:none;background:#2b5cff;color:#fff;border-radius:10px;font-weight:800;cursor:pointer;font-family:inherit">' + tr("Reset account", "ખાતું રીસેટ કરો") + '</button>' +
+          '<button id="recCancel" type="button" style="padding:11px 16px;border:1px solid #d9e0ea;background:#fff;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit">' + tr("Cancel", "રદ") + '</button>' +
+          '<button id="recGo" type="button" style="padding:11px 18px;border:none;background:#2b5cff;color:#fff;border-radius:10px;font-weight:800;cursor:pointer;font-family:inherit">' + tr("Send reset link", "રીસેટ લિંક મોકલો") + '</button>' +
         '</div>' +
       '</div>';
     document.body.appendChild(wrap);
     $("#recCancel").onclick = function () { wrap.style.display = "none"; };
     wrap.addEventListener("click", function (ev) { if (ev.target === wrap) wrap.style.display = "none"; });
     $("#recGo").onclick = submitRecovery;
+    var ci = $("#recCode");
+    if (ci) { ci.addEventListener("keydown", function (ev) { if (ev.key === "Enter") submitRecovery(); }); ci.focus(); }
   }
   function submitRecovery() {
-    var code = ($("#recCode").value || "").trim();
-    var email = ($("#recEmail").value || "").trim();
-    var p1 = $("#recPass").value || "", p2 = $("#recPass2").value || "";
-    if (!code) { recMsg(tr("Enter your recovery code.", "રિકવરી કોડ દાખલ કરો.")); return; }
-    if (!validEmail(email)) { recMsg(tr("Enter a valid email.", "માન્ય ઈમેલ દાખલ કરો.")); return; }
-    if (p1.length < 6) { recMsg(tr("Password must be at least 6 characters.", "પાસવર્ડ ઓછામાં ઓછા 6 અક્ષર.")); return; }
-    if (p1 !== p2) { recMsg(tr("Passwords do not match.", "પાસવર્ડ મેળ ખાતા નથી.")); return; }
-    var btn = $("#recGo"); if (btn) { btn.disabled = true; btn.textContent = tr("Resetting…", "રીસેટ…"); }
-    recMsg(tr("Verifying…", "ચકાસી રહ્યું છે…"), true);
-    fetch(window.__RECOVERY_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: code, newEmail: email, newPassword: p1 }) })
-      .then(function (r) { return r.json().then(function (j) { return { status: r.status, j: j }; }, function () { return { status: r.status, j: null }; }); })
-      .then(function (res) {
-        if (btn) { btn.disabled = false; btn.textContent = tr("Reset account", "ખાતું રીસેટ કરો"); }
-        if (res.j && res.j.ok) {
-          recMsg(tr("Done! Sign in with your new email and password.", "થઈ ગયું! નવા ઈમેલ અને પાસવર્ડથી સાઇન ઇન કરો."), true);
-          var emEl = $("#authEmail"); if (emEl) emEl.value = email;
-          setTimeout(function () { var w = $("#gjRecBack"); if (w) w.style.display = "none"; }, 2500);
-          return;
-        }
-        recMsg(recErr(res.j && res.j.error));
-      })
-      .catch(function () { if (btn) { btn.disabled = false; btn.textContent = tr("Reset account", "ખાતું રીસેટ કરો"); } recMsg(tr("Could not reach the recovery service. Check your internet.", "રિકવરી સેવા સુધી પહોંચી શકાયું નહીં. ઇન્ટરનેટ તપાસો.")); });
+    var code = recNormCode((($("#recCode") || {}).value || ""));
+    if (code.length < 6) { recMsg(tr("Enter the recovery code you saved.", "તમે સાચવેલો રિકવરી કોડ દાખલ કરો.")); return; }
+    var lk = recLocked();
+    if (lk > 0) { var mins = Math.ceil(lk / 60); recMsg(tr("Too many attempts. Try again in " + mins + " min.", "ઘણા પ્રયાસો. " + mins + " મિનિટ પછી ફરી પ્રયાસ કરો.")); return; }
+    if (!recoveryEnabled()) { recMsg(tr("Recovery isn't available right now.", "રિકવરી અત્યારે ઉપલબ્ધ નથી.")); return; }
+    var btn = $("#recGo"); if (btn) { btn.disabled = true; btn.textContent = tr("Checking…", "ચકાસી રહ્યું છે…"); }
+    recMsg(tr("Checking your code…", "કોડ ચકાસી રહ્યું છે…"), true);
+    recHashCode(code).then(function (key) {
+      return db.collection("recovery").doc(key).get();
+    }).then(function (snap) {
+      if (!snap || !snap.exists) { recFail(); resetRecBtn(); recMsg(tr("That recovery code isn't recognised.", "આ રિકવરી કોડ માન્ય નથી.")); return; }
+      var email = (snap.data() || {}).email || "";
+      if (!email) { resetRecBtn(); recMsg(tr("No email is linked to recovery yet. Set it up from Profile while signed in.", "રિકવરી સાથે હજી ઈમેલ જોડાયેલ નથી. સાઇન-ઇન હોય ત્યારે પ્રોફાઇલમાંથી સેટ કરો.")); return; }
+      return auth.sendPasswordResetEmail(email).then(function () {
+        recClear();
+        recMsg(tr("Recovery code accepted. A password-reset link has been emailed to " + maskEmail(email) + ". Open it, set a new password, then sign in here.", "રિકવરી કોડ સ્વીકારાયો. પાસવર્ડ-રીસેટ લિંક " + maskEmail(email) + " પર મોકલી. તે ખોલી, નવો પાસવર્ડ સેટ કરી, અહીં સાઇન ઇન કરો."), true);
+        var em = $("#authEmail"); if (em) em.value = email;
+        if (btn) { btn.disabled = false; btn.textContent = tr("Done", "થઈ ગયું"); btn.onclick = function () { var w = $("#gjRecBack"); if (w) w.style.display = "none"; }; }
+      });
+    }).catch(function (err) {
+      resetRecBtn();
+      var ec = (err && (err.code || err.message)) || "";
+      if (/permission/i.test(ec)) recMsg(tr("Recovery lookup is blocked — publish the database rules.", "રિકવરી લૂકઅપ બ્લોક — ડેટાબેઝ નિયમો પબ્લિશ કરો."));
+      else if (/network/i.test(ec)) recMsg(tr("Network error. Check your internet and try again.", "નેટવર્ક ભૂલ. ઇન્ટરનેટ તપાસી ફરી પ્રયાસ કરો."));
+      else recMsg(tr("Could not complete recovery. Please try again.", "રિકવરી પૂર્ણ ન થઈ. ફરી પ્રયાસ કરો."));
+    });
   }
 
   /* ---------- secure logout ---------- */
@@ -397,14 +420,14 @@
       welcome: 'Welcome <span>Back</span>', sub: "Sign in to continue to your account",
       roleAdmin: "Admin — Full access", roleSup: "Supervisor — Gate & Packaging",
       email: "Email Address", password: "Password", remember: "Remember Me", forgot: "Forgot Password?",
-      login: "Log In", secure: "Secure Access", recover: "Locked out? Reset with recovery code", foot: 'Shri Giriraj Textile <span>·</span> Jobwork Management System'
+      login: "Log In", secure: "Secure Access", recover: "Forgot email & password? Use recovery code", foot: 'Shri Giriraj Textile <span>·</span> Jobwork Management System'
     },
     gu: {
       title: "જોબવર્ક મેનેજમેન્ટ સિસ્ટમ", tagline: 'મેનેજ <span>·</span> ટ્રેક <span>·</span> ગ્રો',
       welcome: 'ફરી <span>આવકાર</span>', sub: "તમારા ખાતામાં ચાલુ રાખવા સાઇન ઇન કરો",
       roleAdmin: "એડમિન — સંપૂર્ણ એક્સેસ", roleSup: "સુપરવાઇઝર — ગેટ અને પેકેજિંગ",
       email: "ઈમેલ સરનામું", password: "પાસવર્ડ", remember: "મને યાદ રાખો", forgot: "પાસવર્ડ ભૂલી ગયા?",
-      login: "લોગિન", secure: "સુરક્ષિત એક્સેસ", recover: "લોગિન નથી થતું? રિકવરી કોડથી રીસેટ કરો", foot: 'શ્રી ગિરિરાજ ટેક્ષટાઇલ <span>·</span> જોબવર્ક મેનેજમેન્ટ'
+      login: "લોગિન", secure: "સુરક્ષિત એક્સેસ", recover: "ઈમેલ અને પાસવર્ડ ભૂલી ગયા? રિકવરી કોડ વાપરો", foot: 'શ્રી ગિરિરાજ ટેક્ષટાઇલ <span>·</span> જોબવર્ક મેનેજમેન્ટ'
     }
   };
   function applyLoginLang(lang) {

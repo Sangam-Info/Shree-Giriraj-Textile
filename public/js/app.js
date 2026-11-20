@@ -1585,9 +1585,9 @@
         '</div>';
     if (u.role === "admin") {
       html += '<div class="card card-pad prof-det"><h3 class="prof-h">' + L("એકાઉન્ટ રિકવરી", "Account Recovery") + '</h3>' +
-        '<p class="bk-p" style="margin-top:2px">' + L("પાસવર્ડ અને ઈમેલ ભૂલાઈ જાય તો આ કોડથી લોગિન સ્ક્રીન પરથી જ ખાતું રીસેટ કરી શકાય. કોડ એક જ વાર દેખાય — સુરક્ષિત જગ્યાએ સાચવો.", "If the password and email are forgotten, this code resets the account from the login screen. The code is shown once — keep it somewhere safe.") + '</p>' +
+        '<p class="bk-p" style="margin-top:2px">' + L("પાસવર્ડ કે ઈમેલ ભૂલાઈ જાય તો, લોગિન સ્ક્રીન પર આ રિકવરી કોડ નાખતાં જ તમારા રજિસ્ટર્ડ ઈમેલ પર પાસવર્ડ-રીસેટ લિંક મોકલાશે. કોડ એક જ વાર દેખાય — સુરક્ષિત જગ્યાએ સાચવો.", "If the password or email is forgotten, typing this recovery code on the login screen emails a password-reset link to your registered email. The code is shown only once — keep it somewhere safe.") + '</p>' +
         '<button class="btn btn-primary btn-block" data-setuprecovery>' + svg("shield") + ' ' + L("રિકવરી કોડ બનાવો", "Generate recovery code") + '</button>' +
-        (recoveryEndpointReady() ? '' : '<div class="bk-note" style="margin-top:10px">' + svg("info") + ' ' + L("કોડ હમણાં સેવ થશે; લોગિન સ્ક્રીન પર રીસેટ ચાલુ કરવા રિકવરી ફંક્શન ડિપ્લોય કરવું જરૂરી (સૂચના સાથે આપેલ).", "The code saves now; the login-screen reset works once the recovery function is deployed (steps included).") + '</div>') +
+        '<div class="bk-note" style="margin-top:10px">' + svg("info") + ' ' + L("રિકવરી માટે તમારા ઈમેલનું ઇનબોક્સ ખોલી શકાય તે જરૂરી છે. ઈમેલ બદલો ત્યારે નવો કોડ બનાવો.", "Recovery needs you to be able to open your email inbox. Generate a new code whenever you change your email.") + '</div>' +
         '</div>';
     }
     html += '<div class="card card-pad prof-out">' +
@@ -1700,24 +1700,42 @@
   }
 
   /* ---------- Account Recovery setup (admin): generate a recovery code ----------
-     Stores only a salted SHA-256 hash of the code (plus this admin's uid) in
-     meta/recovery. The plain code is shown once for the owner to save; the
-     deployed Cloud Function later verifies it to reset the account. */
-  function recoveryEndpointReady() { return !!(window.__RECOVERY_URL && /^https:\/\//.test(window.__RECOVERY_URL)); }
+     The plain code never leaves the owner. We store only a LOOKUP document whose
+     id is sha256("GJREC1:" + code) in the `recovery` collection; that document
+     holds just the registered email. Because the id is the hash of the secret
+     code, the record cannot be located or listed without the exact code — yet
+     the LOGIN screen (not signed in) can still find it by hashing the typed
+     code and then email a reset link to that address. A pointer in staff-only
+     meta/recovery lets us revoke the previous code when a new one is generated.
+     No password is ever stored, hashed or shown. */
   function gjRandHex(n) { var a = new Uint8Array(n); crypto.getRandomValues(a); return [].map.call(a, function (b) { return ("0" + b.toString(16)).slice(-2); }).join(""); }
   function gjSha256Hex(str) { return crypto.subtle.digest("SHA-256", new TextEncoder().encode(str)).then(function (buf) { return [].map.call(new Uint8Array(buf), function (b) { return ("0" + b.toString(16)).slice(-2); }).join(""); }); }
+  function gjRecNorm(code) { return String(code == null ? "" : code).toUpperCase().replace(/[^A-Z0-9]/g, ""); }
+  function gjRecKey(code) { return gjSha256Hex("GJREC1:" + gjRecNorm(code)); }   // -> recovery/<key> document id
   function gjGenRecoveryCode() { var A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", a = new Uint8Array(16), s = ""; crypto.getRandomValues(a); for (var i = 0; i < 16; i++) { s += A[a[i] % A.length]; if (i % 4 === 3 && i < 15) s += "-"; } return s; }
   function gjSetupRecovery() {
     var u = (window.GJAuth && window.GJAuth.user) || {};
     if (u.role !== "admin") return;
     var db = window.GJAuth && window.GJAuth.db;
     if (!db || !u.uid) { toast(L("ડેટાબેઝ ઉપલબ્ધ નથી.", "Database not available."), "info"); return; }
+    if (!u.email) { toast(L("પહેલા પ્રોફાઇલમાં તમારો ઈમેલ સેટ કરો.", "Set your account email in Profile first."), "info"); return; }
     infoModalConfirm(L("રિકવરી કોડ બનાવીએ?", "Generate a recovery code?"),
       L("નવો રિકવરી કોડ બનશે અને જૂનો (હોય તો) રદ થશે. કોડ એક જ વાર દેખાશે — સુરક્ષિત જગ્યાએ સાચવો.", "A new recovery code is generated (any old one stops working). It is shown only once — save it somewhere safe."),
       function () {
-        var code = gjGenRecoveryCode(), salt = gjRandHex(16);
-        gjSha256Hex(salt + ":" + code.replace(/[^A-Z0-9]/g, "")).then(function (hash) {
-          return db.collection("meta").doc("recovery").set({ uid: u.uid, salt: salt, hash: hash, attempts: 0, lockUntil: 0, setAt: Date.now(), setBy: u.email || "" }, { merge: true });
+        var code = gjGenRecoveryCode(), newKey = "";
+        gjRecKey(code).then(function (k) {
+          newKey = k;
+          return db.collection("meta").doc("recovery").get();
+        }).then(function (snap) {
+          var old = snap && snap.exists ? snap.data() : null;
+          var oldKey = old && old.lookupId;
+          var batch = db.batch();
+          // the lookup doc the login screen reads (located only by the code's hash)
+          batch.set(db.collection("recovery").doc(newKey), { email: u.email, uid: u.uid, setAt: Date.now() });
+          // staff-only pointer so we can revoke the old code and show status
+          batch.set(db.collection("meta").doc("recovery"), { uid: u.uid, lookupId: newKey, setAt: Date.now(), setBy: u.email }, { merge: true });
+          if (oldKey && oldKey !== newKey) batch.delete(db.collection("recovery").doc(oldKey));   // old code stops working
+          return batch.commit();
         }).then(function () {
           gjShowRecoveryCode(code);
         }).catch(function (e) {
@@ -3480,6 +3498,9 @@
   window.GJ.render = render;
   window.GJ.releaseLock = releaseEditorLock;   // free my sheet lock on logout
   window.GJ.logout = function () { try { location.reload(); } catch (e) {} };
+  // login screen reuses the exact same hashing to look up the recovery code
+  window.GJ.recHash = gjRecKey;
+  window.GJ.recNorm = gjRecNorm;
 
   if (typeof window !== "undefined" && window.__TEST) {
     window.__TEST_API = { STATE: STATE, render: render, go: go, openSheet: openSheet, newSheet: newSheet, setLang: setLang, setRole: setRole, saveLoan: saveLoan,
