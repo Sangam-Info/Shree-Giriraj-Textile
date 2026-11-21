@@ -646,7 +646,7 @@
     html += '<div class="jws-head"><div class="jws-hfields">' +
       '<label class="jws-hf"><span>' + L("જોબ વર્કર (નામ)", "Job Worker (Name)") + '</span><select data-sh="workerId">' + wopts + '</select></label>' +
       '<label class="jws-hf"><span>' + L("તારીખ", "Date") + '</span><input type="date" data-sh="date" value="' + esc(sh.date) + '"' + dateAttrs() + '></label>' +
-      '<label class="jws-hf"><span>' + L("ક્વોલિટી", "Quality") + '</span><input type="text" data-sh="quality" value="' + esc(sh.quality) + '"></label>' +
+      '<label class="jws-hf"><span>' + L("ક્વોલિટી", "Quality") + '</span><input type="text" data-sh="quality" value="' + esc(qLabel(sh.quality)) + '"></label>' +
       '</div></div>';
 
     /* toolbar */
@@ -1420,7 +1420,7 @@
     html += '<div class="jws-head"><div class="jws-hfields" style="grid-template-columns:repeat(3,1fr)">' +
       '<label class="jws-hf"><span>' + L("નામ", "Name") + '</span><input type="text" data-ph="name" maxlength="25" value="' + esc(p.name) + '"' + dis + '></label>' +
       '<label class="jws-hf"><span>' + L("તારીખ", "Date") + '</span><input type="date" data-ph="date" value="' + esc(p.date) + '"' + dateAttrs() + dis + '></label>' +
-      '<label class="jws-hf"><span>' + L("ક્વોલિટી", "Quality") + '</span><input type="text" data-ph="quality" maxlength="25" value="' + esc(p.quality) + '"' + dis + '></label>' +
+      '<label class="jws-hf"><span>' + L("ક્વોલિટી", "Quality") + '</span><input type="text" data-ph="quality" maxlength="25" value="' + esc(qLabel(p.quality)) + '"' + dis + '></label>' +
       '<label class="jws-hf"><span>' + L("સિટી", "City") + '</span><input type="text" data-ph="city" maxlength="25" value="' + esc(p.city) + '"' + dis + '></label>' +
       '<label class="jws-hf"><span>' + L("ટ્રાન્સપોર્ટ", "Transport") + '</span><input type="text" data-ph="transport" maxlength="25" value="' + esc(p.transport) + '"' + dis + '></label>' +
       '</div></div>';
@@ -2643,7 +2643,9 @@
   function translitToGu(s) {
     s = String(s || "").toLowerCase();
     var consKeys = ['chh', 'ksh', 'sh', 'ch', 'kh', 'gh', 'jh', 'th', 'dh', 'ph', 'bh', 'ng', 'ny', 'k', 'g', 'c', 'j', 't', 'd', 'n', 'p', 'b', 'm', 'y', 'r', 'l', 'v', 'w', 's', 'h', 'f', 'z', 'x', 'q'];
-    var cons = { 'chh': 'છ', 'ksh': 'ક્ષ', 'sh': 'શ', 'ch': 'ચ', 'kh': 'ખ', 'gh': 'ઘ', 'jh': 'ઝ', 'th': 'થ', 'dh': 'ધ', 'ph': 'ફ', 'bh': 'ભ', 'ng': 'ંગ', 'ny': 'ન્ય', 'k': 'ક', 'g': 'ગ', 'c': 'ક', 'j': 'જ', 't': 'ત', 'd': 'દ', 'n': 'ન', 'p': 'પ', 'b': 'બ', 'm': 'મ', 'y': 'ય', 'r': 'ર', 'l': 'લ', 'v': 'વ', 'w': 'વ', 's': 'સ', 'h': 'હ', 'f': 'ફ', 'z': 'ઝ', 'x': 'ક્સ', 'q': 'ક' };
+    // English loan-words (as textile qualities usually are) take retroflex ટ/ડ,
+    // so "cotton/kotan" → કોટન, "denim" → ડેનિમ — not the dental ત/દ.
+    var cons = { 'chh': 'છ', 'ksh': 'ક્ષ', 'sh': 'શ', 'ch': 'ચ', 'kh': 'ખ', 'gh': 'ઘ', 'jh': 'ઝ', 'th': 'થ', 'dh': 'ધ', 'ph': 'ફ', 'bh': 'ભ', 'ng': 'ંગ', 'ny': 'ન્ય', 'k': 'ક', 'g': 'ગ', 'c': 'ક', 'j': 'જ', 't': 'ટ', 'd': 'ડ', 'n': 'ન', 'p': 'પ', 'b': 'બ', 'm': 'મ', 'y': 'ય', 'r': 'ર', 'l': 'લ', 'v': 'વ', 'w': 'વ', 's': 'સ', 'h': 'હ', 'f': 'ફ', 'z': 'ઝ', 'x': 'ક્સ', 'q': 'ક' };
     var vowKeys = ['aa', 'ai', 'au', 'ee', 'oo', 'a', 'i', 'u', 'e', 'o'];
     var vindep = { 'aa': 'આ', 'ai': 'ઐ', 'au': 'ઔ', 'ee': 'ઈ', 'oo': 'ઊ', 'a': 'અ', 'i': 'ઇ', 'u': 'ઉ', 'e': 'એ', 'o': 'ઓ' };
     var vmatra = { 'aa': 'ા', 'ai': 'ૈ', 'au': 'ૌ', 'ee': 'ી', 'oo': 'ૂ', 'a': '', 'i': 'િ', 'u': 'ુ', 'e': 'ે', 'o': 'ો' };
