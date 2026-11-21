@@ -2718,17 +2718,40 @@
     }
     closeModal(); buildSwitchers(); render(); flushPersistNow(); toast(id ? L("સેવ થયું", "Saved") : L("જોબ વર્કર ઉમેરાયો", "Job worker added"), "ok");
   }
+  // list the months a set of sheets spans, in display order, as text
+  function monthsLabel(dates) {
+    var seen = {}; dates.forEach(function (d) { seen[d.slice(0, 7)] = 1; });
+    return Object.keys(seen).sort().map(function (m) { var mo = MONTHS.filter(function (x) { return x.id === m; })[0]; return mo ? L(mo.g, mo.e) : m; }).join(", ");
+  }
   function delWorker(id) {
     var w = workerById(id); if (!w) return;
-    var hasSheets = SHEETS.some(function (s) { return s.workerId === id; });
-    var hasLedger = (LOANS[id] && LOANS[id].length) || (UPAD[id] && UPAD[id].length);
-    if (hasSheets || hasLedger) { infoModal(L("કાઢી શકાય નહીં", "Can't delete"), L("આ જોબ વર્કરની શીટ કે ખાતા એન્ટ્રી છે. પહેલાં તે કાઢો.", "This worker has sheets or ledger entries. Remove those first.")); return; }
-    infoModalConfirm(L("જોબ વર્કર કાઢવો?", "Delete job worker?"), L("આ જોબ વર્કર કાઢી નાખશે.", "This removes the job worker."), function () {
+    var nm = STATE.lang === "en" ? (w.en || w.name) : (w.name || w.en);
+    var sheets = SHEETS.filter(function (s) { return s.workerId === id; });
+    var loans = (LOANS[id] || []).length, adv = (UPAD[id] || []).length;
+    function finish() {
       WORKERS = WORKERS.filter(function (x) { return x.id !== id; }); decorateWorkers();
+      SHEETS = SHEETS.filter(function (s) { return s.workerId !== id; });   // cascade: remove this worker's gate sheets
       delete BILL[id]; delete LOANS[id]; delete UPAD[id];
       if (STATE.worker === id) STATE.worker = WORKERS[0] ? WORKERS[0].id : null;
-      buildSwitchers(); render(); flushPersistNow(); toast(L("કાઢ્યું", "Deleted"), "ok");
-    });
+      buildSwitchers(); render();
+      Promise.resolve(flushPersistNow()).then(afterSaveToast("જોબ વર્કર કાઢ્યો", "Job worker deleted"));
+    }
+    if (sheets.length || loans || adv) {
+      // Explain EXACTLY what is blocking (counts + which months), because the
+      // Ledger shows only one month and can hide sheets/loans in other months.
+      var mlist = monthsLabel(sheets.map(function (s) { return s.date; }));
+      var parts = [];
+      if (sheets.length) parts.push(L(sheets.length + " ગેટ શીટ" + (mlist ? " (" + mlist + ")" : ""), sheets.length + " gate sheet" + (sheets.length > 1 ? "s" : "") + (mlist ? " (" + mlist + ")" : "")));
+      if (loans) parts.push(L(loans + " લોન એન્ટ્રી · બાકી " + moneyPw(loanBalanceP(id)), loans + " loan entr" + (loans > 1 ? "ies" : "y") + " · balance " + moneyPw(loanBalanceP(id))));
+      if (adv) parts.push(L(adv + " ઉપાડ", adv + " advance" + (adv > 1 ? "s" : "")));
+      var summary = parts.join(" · ");
+      infoModalConfirm(L(nm + " ને તમામ ડેટા સાથે કાઢવો?", "Delete " + nm + " and all their data?"),
+        L("આ વર્કર પાસે હજી છે: " + summary + ". વર્કર કાઢતાં આ બધો ડેટા કાયમ માટે કાઢી નંખાશે — પાછું લાવી શકાશે નહીં.",
+          "This worker still has: " + summary + ". Deleting the worker permanently removes all of it — this can't be undone."),
+        finish);
+      return;
+    }
+    infoModalConfirm(L("જોબ વર્કર કાઢવો?", "Delete job worker?"), L("આ જોબ વર્કર કાઢી નાખશે.", "This removes the job worker."), finish);
   }
 
   function nPartyForm(id) {
@@ -2749,15 +2772,31 @@
   }
   function delNParty(id) {
     var p = nwById(id); if (!p) return;
-    var hasSheets = NSHEETS.some(function (s) { return s.partyId === id; });
-    var hasLedger = (NUPAD[id] && NUPAD[id].length) || (NLOANS[id] && NLOANS[id].length);
-    if (hasSheets || hasLedger) { infoModal(L("કાઢી શકાય નહીં", "Can't delete"), L("આ પાર્ટીની શીટ કે ખાતા એન્ટ્રી છે. પહેલાં તે કાઢો.", "This party has sheets or ledger entries. Remove those first.")); return; }
-    infoModalConfirm(L("પાર્ટી કાઢવી?", "Delete party?"), L("આ નિવાર પાર્ટી કાઢી નાખશે.", "This removes the niwar party."), function () {
+    var nm = STATE.lang === "en" ? (p.en || p.name) : (p.name || p.en);
+    var sheets = NSHEETS.filter(function (s) { return s.partyId === id; });
+    var adv = (NUPAD[id] || []).length, loans = (NLOANS[id] || []).length;
+    function finish() {
       NWORKERS = NWORKERS.filter(function (x) { return x.id !== id; });
+      NSHEETS = NSHEETS.filter(function (s) { return s.partyId !== id; });   // cascade: remove this party's niwar sheets
       delete NUPAD[id]; delete NLOANS[id]; if (NPARAM[id]) delete NPARAM[id];
       if (STATE.niwarParty === id) STATE.niwarParty = NWORKERS[0] ? NWORKERS[0].id : null;
-      render(); flushPersistNow(); toast(L("કાઢ્યું", "Deleted"), "ok");
-    });
+      render();
+      Promise.resolve(flushPersistNow()).then(afterSaveToast("પાર્ટી કાઢી", "Party deleted"));
+    }
+    if (sheets.length || adv || loans) {
+      var mlist = monthsLabel(sheets.map(function (s) { return s.date; }));
+      var parts = [];
+      if (sheets.length) parts.push(L(sheets.length + " નિવાર શીટ" + (mlist ? " (" + mlist + ")" : ""), sheets.length + " niwar sheet" + (sheets.length > 1 ? "s" : "") + (mlist ? " (" + mlist + ")" : "")));
+      if (loans) parts.push(L(loans + " લોન એન્ટ્રી · બાકી " + moneyP(nLoanBalanceP(id)), loans + " loan entr" + (loans > 1 ? "ies" : "y") + " · balance " + moneyP(nLoanBalanceP(id))));
+      if (adv) parts.push(L(adv + " ઉપાડ", adv + " advance" + (adv > 1 ? "s" : "")));
+      var summary = parts.join(" · ");
+      infoModalConfirm(L(nm + " ને તમામ ડેટા સાથે કાઢવી?", "Delete " + nm + " and all their data?"),
+        L("આ પાર્ટી પાસે હજી છે: " + summary + ". પાર્ટી કાઢતાં આ બધો ડેટા કાયમ માટે કાઢી નંખાશે — પાછું લાવી શકાશે નહીં.",
+          "This party still has: " + summary + ". Deleting the party permanently removes all of it — this can't be undone."),
+        finish);
+      return;
+    }
+    infoModalConfirm(L("પાર્ટી કાઢવી?", "Delete party?"), L("આ નિવાર પાર્ટી કાઢી નાખશે.", "This removes the niwar party."), finish);
   }
   function toast(msg, kind) { var tw = $("#toastWrap"); var t = document.createElement("div"); t.className = "toast " + (kind || ""); t.innerHTML = svg(kind === "info" || kind === "error" ? "info" : "check") + "<span>" + msg + "</span>"; tw.appendChild(t); setTimeout(function () { t.style.opacity = "0"; t.style.transition = "opacity .3s"; setTimeout(function () { t.remove(); }, 320); }, kind === "error" ? 6000 : 3000); }
 
