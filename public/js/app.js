@@ -2222,6 +2222,17 @@
     var nw = $("#nPdfWorker"); if (nw) nw.onclick = function () { makeNiwarPDF("worker"); };
   }
 
+  /* Show an HONEST toast after a save: success only when the server (Firestore)
+     actually acknowledged the write; a clear error otherwise, so a denied write
+     (e.g. niwar rules not published) can never look like it saved. */
+  function afterSaveToast(okG, okE) {
+    return function (res) {
+      if (res && res.ok) { toast(L(okG, okE), "ok"); }
+      else if (res && res.denied) { toast(L("સેવ નથી થયું — ડેટાબેઝ નિયમો (Firestore rules) પબ્લિશ કરવા જરૂરી છે. રિફ્રેશ પછી ડેટા ખોવાશે.", "NOT saved — the database security rules must be published. Data will be lost on refresh."), "error"); }
+      else { toast(L("સર્વરમાં સેવ નથી થયું — ઇન્ટરનેટ તપાસો. આપમેળે ફરી પ્રયાસ થશે.", "Not saved to the server — check your internet. It will keep retrying."), "error"); }
+    };
+  }
+
   /* niwar upad modal (separate store, same mechanics as textile upad) */
   var nUpadEditId = null;
   function openNUpad(editId) {
@@ -2249,13 +2260,16 @@
     if (nUpadEditId) { var ex = NUPAD[p.id].filter(function (t) { return t.id === nUpadEditId; })[0]; if (ex) { ex.d = d; ex.amt = Math.round(amt); ex.note = note; } }
     else NUPAD[p.id].push({ id: rid(), d: d, amt: Math.round(amt), note: note });
     var pr = nParam(p.id, m.id); if (pr) pr.paidP = null;   /* bug 25: reopen the paid default so Net Payable recomputes */
-    nUpadEditId = null; closeModal(); render(); flushPersistNow(); toast(L("ઉપાડ સેવ થયું", "Upad saved"), "ok");
+    nUpadEditId = null; closeModal(); render();
+    // bug 25: flush to the server NOW and report the REAL outcome (no false "saved")
+    Promise.resolve(flushPersistNow()).then(afterSaveToast("ઉપાડ સેવ થયું", "Upad saved"));
   }
   function delNUpad(id) {
     var p = niwarParty();
     infoModalConfirm(L("ઉપાડ કાઢવું?", "Delete upad?"), L("આ ઉપાડ એન્ટ્રી કાઢી નાખશે; બિલ ફરી ગણાશે.", "This removes the upad entry; the bill recomputes."), function () {
       NUPAD[p.id] = (NUPAD[p.id] || []).filter(function (t) { return t.id !== id; });
-      var pr = nParam(p.id, monthObj().id); if (pr) pr.paidP = null; render(); flushPersistNow(); toast(L("કાઢ્યું", "Deleted"), "ok");   /* bug 25 */
+      var pr = nParam(p.id, monthObj().id); if (pr) pr.paidP = null; render();
+      Promise.resolve(flushPersistNow()).then(afterSaveToast("કાઢ્યું", "Deleted"));   /* bug 25 */
     });
   }
   /* niwar loan modal */
@@ -2276,7 +2290,9 @@
     var fg = document.querySelector('[data-fg="nlamt"]'); if (fg) fg.classList.toggle("err", !ok); if (!ok) return;
     var m = monthObj(), d = "2026-" + pad(m.mm) + "-" + pad(day);
     (NLOANS[p.id] = NLOANS[p.id] || []).push({ id: rid(), d: d, type: val("type"), amt: Math.round(amt), note: val("note") || (val("type") === "repay" ? L("વસૂલ", "Repayment") : L("લોન", "Loan")) });
-    closeModal(); render(); toast(L("લોન એન્ટ્રી ઉમેરાઈ", "Loan entry added"), "ok");
+    closeModal(); render();
+    // bug 25: niwar loan was never flushed to the server — persist NOW with an honest result
+    Promise.resolve(flushPersistNow()).then(afterSaveToast("લોન એન્ટ્રી ઉમેરાઈ", "Loan entry added"));
   }
 
   /* ---------------------------------------------------------------- SWITCHERS / ROLE / LANG */
