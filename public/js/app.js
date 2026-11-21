@@ -2337,7 +2337,7 @@
      BigInt-exact via the same enc/dec the live engine uses. Nothing is
      skipped; PDFs are regenerated from this data on demand and the app
      stores no other binary files. Restore validates the file, keeps a
-     safety copy of the current data (also auto-downloaded), applies it with
+     safety copy of the current data (in memory, for rollback only), applies it with
      hydrate(), then persists through the normal batched Firestore write; any
      failure rolls back to the safety copy so data is never partially lost. */
   var BK = { restore: { state: "", msg: "" } };
@@ -2398,8 +2398,10 @@
       var safety;
       try { safety = window.GJDB.enc(buildSnapshot()); }
       catch (e) { resolve({ ok: false, err: L("વર્તમાન ડેટાની સલામતી કૉપિ બની નહીં. રિસ્ટોર રદ.", "Could not snapshot current data. Restore cancelled.") }); return; }
-      statusCb && statusCb(L("વર્તમાન ડેટાની સલામતી કૉપિ બની રહી છે…", "Saving a safety copy of current data…"));
-      try { gjTriggerDownload(JSON.stringify(gjEnvelope(safety, "auto pre-restore safety backup")), "Giriraj-Pre-Restore_" + gjStamp() + ".json"); } catch (e) {}
+      // Bug 27: the pre-restore safety copy is kept IN MEMORY only (used for the
+      // rollback below). It is NOT downloaded — a .json file is written to the
+      // device only when the admin explicitly clicks "Create & Download Backup".
+      statusCb && statusCb(L("વર્તમાન ડેટાની સલામતી કૉપિ રાખી રહ્યા છે (રોલબેક માટે)…", "Keeping a safety copy of current data (for rollback)…"));
       setTimeout(function () {
         statusCb && statusCb(L("રેકોર્ડ્સ રિસ્ટોર થઈ રહ્યા છે…", "Restoring records…"));
         try { hydrate(window.GJDB.dec(obj.data)); }
@@ -2429,8 +2431,8 @@
       var c = obj.counts || gjCounts(obj.data), when = obj.createdAtLocal || obj.createdAt || "?";
       gjSetRestoreStatus("", "");
       infoModalConfirm(L("રિસ્ટોર કરીએ?", "Restore this backup?"),
-        L("આ બેકઅપ (" + when + ") માંથી કુલ " + gjTotal(c) + " રેકોર્ડ રિસ્ટોર થશે અને વર્તમાન તમામ ડેટા બદલાઈ જશે. પહેલાં વર્તમાન ડેટાની સલામતી કૉપિ ડાઉનલોડ થશે.",
-          "This replaces ALL current data with the backup from " + when + " (" + gjTotal(c) + " records). A safety copy of your current data is downloaded first."),
+        L("આ બેકઅપ (" + when + ") માંથી કુલ " + gjTotal(c) + " રેકોર્ડ રિસ્ટોર થશે અને વર્તમાન તમામ ડેટા બદલાઈ જશે. વર્તમાન ડેટાની સલામતી કૉપિ રોલબેક માટે રાખવામાં આવશે (કોઈ ફાઇલ ડાઉનલોડ નહીં થાય).",
+          "This replaces ALL current data with the backup from " + when + " (" + gjTotal(c) + " records). A safety copy of your current data is kept for rollback — nothing is downloaded."),
         function () {
           gjSetRestoreStatus("working", L("રિસ્ટોર શરૂ…", "Starting restore…"));
           gjRestoreFromObject(obj, function (m) { gjSetRestoreStatus("working", m); }).then(function (r) {
@@ -2563,17 +2565,17 @@
       bkChip(svg("save"), last ? gjFmtBytes(last.size) : "—", L("છેલ્લું બેકઅપ કદ", "last backup size")) +
       bkChip(svg("spark"), last ? esc(last.atLocal) : L("ક્યારેય નહીં", "never"), L("છેલ્લું બેકઅપ", "last backup")) + '</div>';
     html += '<div class="grid-2 mt">';
-    html += '<div class="card"><div class="card-head"><div class="ico tint-brand">' + svg("database") + '</div><div><h3>' + L("બેકઅપ બનાવો અને ડાઉનલોડ કરો", "Create & Download Backup") + '</h3><p class="mini">' + L("એક ફાઇલમાં આખી સિસ્ટમ", "The whole system in one file") + '</p></div></div><div class="card-pad">';
+    html += '<div class="card"><div class="card-head"><div class="ico tint-brand">' + svg("database") + '</div><div><h3>' + L("શ્રી ગિરિરાજ ટેક્ષટાઇલ બેકઅપ ડેટા ડાઉનલોડ", "Shree Giriraj Textile Backup Data Download") + '</h3><p class="mini">' + L("એક ફાઇલમાં આખી સિસ્ટમ", "The whole system in one file") + '</p></div></div><div class="card-pad">';
     html += '<p class="bk-p">' + L("નીચેનો બધો ડેટા એક ટાઇમસ્ટૅમ્પ ફાઇલમાં સેવ થાય છે:", "Everything below is saved into one timestamped file:") + '</p>';
     html += '<div class="bk-list">' + bkItem(L("જોબ વર્કર્સ અને નિવાર પાર્ટી", "Job workers & niwar parties"), c.workers + c.niwarParties) + bkItem(L("ગેટ જોબ વર્ક શીટ", "Gate job work sheets"), c.gateSheets) + bkItem(L("પેકિંગ લિસ્ટ", "Packing lists"), c.packingLists) + bkItem(L("નિવાર ગેટ એન્ટ્રી", "Niwar gate sheets"), c.niwarSheets) + bkItem(L("બિલિંગ · લોન · ઉપાડ · પેરામીટર", "Billing · loans · advances · parameters"), c.loans + c.advances + c.niwarAdvances + c.niwarLoans) + '</div>';
     html += '<p class="bk-note">' + L("PDF આ જ ડેટામાંથી બને છે, તેથી અલગ ફાઇલ રાખવાની જરૂર નથી. લોગિન પાસવર્ડ સુરક્ષા કારણસર બેકઅપમાં સમાવાતા નથી.", "PDFs are generated from this data, so no separate file is needed. Login passwords are not included, for security.") + '</p>';
-    html += '<button class="btn btn-primary btn-block" data-bk-create>' + svg("dl") + ' ' + L("બેકઅપ બનાવો અને ડાઉનલોડ કરો", "Create & Download Backup") + '</button>';
+    html += '<button class="btn btn-primary btn-block" data-bk-create>' + svg("dl") + ' ' + L("ડેટા ડાઉનલોડ કરો", "Download Data") + '</button>';
     if (last) html += '<div class="bk-last">' + svg("check") + '<span>' + L("છેલ્લું બેકઅપ: ", "Last backup: ") + esc(last.atLocal) + ' · ' + gjFmtBytes(last.size) + ' · ' + last.total + ' ' + L("રેકોર્ડ", "records") + '</span></div>';
     html += '</div></div>';
     html += '<div class="card"><div class="card-head"><div class="ico tint-out">' + svg("upload") + '</div><div><h3>' + L("બેકઅપ અપલોડ કરો અને રિસ્ટોર કરો", "Upload & Restore Backup") + '</h3><p class="mini">' + L("અગાઉની બેકઅપ ફાઇલમાંથી પાછું લાવો", "Bring data back from a backup file") + '</p></div></div><div class="card-pad">';
     html += '<div class="bk-drop" id="bkDrop"><div class="bk-drop-ic">' + svg("upload") + '</div><div class="bk-drop-t">' + L("બેકઅપ .json ફાઇલ અહીં મૂકો, અથવા પસંદ કરો", "Drop a backup .json file here, or choose one") + '</div><button class="btn btn-soft btn-sm" data-bk-pick>' + svg("file") + ' ' + L("ફાઇલ પસંદ કરો", "Choose backup file") + '</button><input type="file" id="bkFile" accept=".json,application/json" style="display:none"></div>';
     html += '<div id="gjRestoreStatus" class="bk-status ' + (BK.restore.state || "") + '"' + (BK.restore.msg ? '' : ' style="display:none"') + '>' + (BK.restore.msg ? ((BK.restore.state === "done" ? svg("check") : svg("info")) + '<span>' + esc(BK.restore.msg) + '</span>') : '') + '</div>';
-    html += '<div class="bk-safe">' + svg("shield") + '<div><b>' + L("સલામતી", "Safety") + '</b> — ' + L("રિસ્ટોર પહેલાં વર્તમાન ડેટાની કૉપિ આપમેળે ડાઉનલોડ થાય છે. અધૂરી કે બગડેલી ફાઇલ ક્યારેય ઓવરરાઇટ નહીં કરે; ડેટાબેઝમાં સેવ નિષ્ફળ જાય તો જૂનો ડેટા પાછો આવી જાય છે.", "Your current data is auto-downloaded before a restore. A corrupted or incomplete file can never overwrite your data, and if the database save fails your previous data is rolled back.") + '</div></div>';
+    html += '<div class="bk-safe">' + svg("shield") + '<div><b>' + L("સલામતી", "Safety") + '</b> — ' + L("રિસ્ટોર પહેલાં વર્તમાન ડેટાની સલામતી કૉપિ રોલબેક માટે રાખવામાં આવે છે (ડાઉનલોડ નહીં). અધૂરી કે બગડેલી ફાઇલ ક્યારેય ઓવરરાઇટ નહીં કરે; ડેટાબેઝમાં સેવ નિષ્ફળ જાય તો જૂનો ડેટા પાછો આવી જાય છે.", "Before a restore, a safety copy of your current data is kept for rollback (not downloaded). A corrupted or incomplete file can never overwrite your data, and if the database save fails your previous data is rolled back.") + '</div></div>';
     html += '</div></div></div>';
     html += gjFinCardHTML();
     return html;
