@@ -2589,8 +2589,33 @@
      Gujarati→English is a deterministic romanisation; English→Gujarati is a
      best-effort phonetic map (good for names, editable by typing in Gujarati). */
   function isGujarati(s) { return /[઀-૿]/.test(String(s || "")); }
-  // bug 26: show the free-text Quality in the current language (transliterate, like worker names)
-  function qLabel(q) { q = q || ""; if (!q) return q; if (STATE.lang === "en") { var r = isGujarati(q) ? titleCase(translitToEn(q)) : q; return r.replace(/[૦-૯]/g, function (d) { return "૦૧૨૩૪૫૬૭૮૯".indexOf(d); }); } return isGujarati(q) ? q : translitToGu(q); }
+  // bug 26: show the free-text Quality in the current language. Common textile
+  // terms translate to the real word (સુતરાઉ ↔ Cotton); anything else falls back
+  // to phonetic transliteration, word by word, so mixed values like "80 ખાદી"
+  // become "80 Khadi" and vice-versa.
+  var QMAP_G2E = {
+    'સુતરાઉ': 'Cotton', 'સુતર': 'Cotton', 'કૉટન': 'Cotton', 'કોટન': 'Cotton', 'ખાદી': 'Khadi',
+    'રેશમ': 'Silk', 'સિલ્ક': 'Silk', 'પોલિએસ્ટર': 'Polyester', 'પોલીએસ્ટર': 'Polyester',
+    'ઊન': 'Wool', 'વૂલ': 'Wool', 'લિનન': 'Linen', 'નાયલોન': 'Nylon', 'જ્યૂટ': 'Jute', 'શણ': 'Jute',
+    'ડેનિમ': 'Denim', 'શિફૉન': 'Chiffon', 'જ્યોર્જેટ': 'Georgette', 'સાટિન': 'Satin', 'સેટિન': 'Satin',
+    'વેલ્વેટ': 'Velvet', 'કેનવાસ': 'Canvas', 'રેયોન': 'Rayon', 'ટેરીકોટ': 'Terricot', 'કાપડ': 'Cloth',
+    'મલમલ': 'Malmal', 'પોપલિન': 'Poplin', 'કેમ્બ્રિક': 'Cambric', 'વોઇલ': 'Voile'
+  };
+  var QMAP_E2G = {}; (function () { for (var k in QMAP_G2E) { if (QMAP_G2E.hasOwnProperty(k)) { var e = QMAP_G2E[k].toLowerCase(); if (!(e in QMAP_E2G)) QMAP_E2G[e] = k; } } })();
+  function qWord(w, toEn) {
+    if (!w || /^\s+$/.test(w)) return w;
+    if (toEn) { if (QMAP_G2E[w]) return QMAP_G2E[w]; return isGujarati(w) ? titleCase(translitToEn(w)) : w; }
+    if (isGujarati(w)) return w;
+    var lw = w.toLowerCase(); if (QMAP_E2G[lw]) return QMAP_E2G[lw];
+    return translitToGu(w);
+  }
+  function qLabel(q) {
+    q = q || ""; if (!q) return q;
+    var toEn = STATE.lang === "en";
+    var r = q.split(/(\s+)/).map(function (w) { return qWord(w, toEn); }).join("");
+    if (toEn) r = r.replace(/[૦-૯]/g, function (d) { return "૦૧૨૩૪૫૬૭૮૯".indexOf(d); });   // Gujarati digits → Latin
+    return r;
+  }
   function titleCase(s) { return String(s || "").toLowerCase().replace(/(^|[\s'().-])([a-z])/g, function (m, p, c) { return p + c.toUpperCase(); }); }
   function translitToEn(s) {
     s = String(s || "");
